@@ -23,3 +23,7 @@ frontend/vercel.json
 backend/staticfiles/
 *.pem
 *.tar.gz
+
+.vercel/
+
+/goodreads_library_export*.csv

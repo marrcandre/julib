@@ -87,3 +87,9 @@ CLOUDINARY_URL fornecida pelo usuário no .env privado. Aplicação aceita URL o
 Validado com imagem PNG sintética de 64×96 (88 bytes), sem dados pessoais ou alteração de livros: upload HTTP multipart usando os parâmetros assinados pela aplicação (mesmo protocolo do frontend), verificação de propriedade/formato/tamanho por verify_upload e entrega CDN HTTP 200. Conteúdo baixado foi cifrado/decifrado pelas funções reais de backup; SHA-256 conferiu. Conteúdo recuperado foi reenviado a um novo ID exclusivo de teste no prefixo da biblioteca, verificado e entregue com igualdade de bytes. Ambos os ativos criados foram removidos com sucesso; nenhum ativo de outros projetos foi alterado.
 
 Isso valida o caminho de mídia e as primitivas de recuperação; não substitui o teste completo de backup de produção com dump, manifesto e restauração. Agenda privada continua desativada até configurar chaves, segredos e verificar cotas. Cliente OAuth confirmado com a conta de Marco; acesso de Juliana e validação nos aparelhos ainda pendentes.
+
+## Preparação da primeira publicação — 04/11/2026
+
+Conta Vercel Hobby verificada; projetos julib e julib-api criados, com destinos julib.vercel.app e julib-api.vercel.app. Runtime configurado apenas com segredos de produção; sem vínculo Git que publique antes da CI. Credenciais locais e de produção separadas.
+
+Backup real do Supabase cifrado (15.492 bytes) e restaurado em PostgreSQL local descartável. Uma biblioteca, zero livros/exemplares/pessoas/empréstimos; contagens idênticas. Ajustado dump para public, excluindo extensões/esquemas internos do provedor. Restauração exige public vazio e role julib_app existente para políticas RLS. Chave privada local fora do código em ~/.local/share/julib/recovery; usuário deve manter segunda cópia segura. Template privado usa pg_dump17 em Docker e aceita CLOUDINARY_URL.

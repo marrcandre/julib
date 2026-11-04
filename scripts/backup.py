@@ -44,7 +44,7 @@ def backup(output: Path, public_key: Path, with_media: bool) -> None:
     django.setup()
     from library.models import Book
     database=os.environ['BACKUP_DATABASE_URL']
-    dump=subprocess.run(['pg_dump',database,'--format=custom','--no-owner','--no-acl'],check=True,capture_output=True).stdout
+    dump=subprocess.run(['pg_dump',database,'--schema=public','--format=custom','--no-owner','--no-acl'],check=True,capture_output=True).stdout
     manifest={'created_at':datetime.now(timezone.utc).isoformat(),'format':1,'media':[]}
     buffer=io.BytesIO()
     with tarfile.open(fileobj=buffer,mode='w:gz') as archive:

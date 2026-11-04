@@ -66,7 +66,7 @@ uv run --project backend python scripts/backup.py keygen --private /CAMINHO_SEGU
 
 Guarde a chave privada fora do GitHub e uma segunda cópia segura. A chave pública PEM entra no secret BACKUP_PUBLIC_KEY do repositório privado. Outros secrets: BACKUP_DATABASE_URL e credenciais Cloudinary. DATABASE_URL para leitura das referências aponta para o mesmo banco. Ajuste a referência do código no workflow ao commit/branch revisado.
 
-O script gera dump PostgreSQL custom sem owner/ACL e pacote das capas gerenciadas, manifesto e arquivos, cifrado por AES-256-GCM com chave aleatória protegida pela chave pública RSA. Não copia capas externas indisponíveis; guarda suas URLs no banco. Não faz upload parcial nem envia cópia sem cifrar. O limite inicial de pacote é 50 MB; sete pacotes usam até aproximadamente 350 MB, fora outros consumos. Confirme cotas reais no GitHub/Supabase/Cloudinary; a política de inatividade não é SLA. O cliente pg_dump deve ser da mesma versão principal ou mais recente que o servidor.
+O script gera dump PostgreSQL custom somente do esquema public do Julib, sem owner/ACL (não inclui esquemas internos auth/storage/extensões do Supabase) e pacote das capas gerenciadas, manifesto e arquivos, cifrado por AES-256-GCM com chave aleatória protegida pela chave pública RSA. Não copia capas externas indisponíveis; guarda suas URLs no banco. Não faz upload parcial nem envia cópia sem cifrar. O limite inicial de pacote é 50 MB; sete pacotes usam até aproximadamente 350 MB, fora outros consumos. Confirme cotas reais no GitHub/Supabase/Cloudinary; a política de inatividade não é SLA. O cliente pg_dump deve ser da mesma versão principal ou mais recente que o servidor.
 
 Retenção de sete dias configurada no artifact privado. O job falha ao exceder o orçamento; não marque “backup completo” se falhar. Deduplicação de mídia e migração para outro destino são próximos passos caso a medição ultrapasse a cota; não estão ativadas silenciosamente. Esse impedimento precisa ser resolvido antes de usar o acervo real em volume incompatível.
 
@@ -81,7 +81,10 @@ uv run --project backend python scripts/backup.py decrypt --private /CAMINHO_SEG
 Em diretório vazio e privado, liste o tar antes de extrair: contém database.dump, manifest.json e media/. Nunca aceite tar de fonte desconhecida. Restaure em banco **novo e descartável**, nunca na produção durante um teste:
 
 ```sh
-pg_restore --no-owner --no-acl --dbname="$RESTORE_DATABASE_URL" database.dump
+# Apenas no banco novo e descartável: preparar public vazio e a role das políticas.
+# Crie julib_app NOLOGIN no cluster de restauração se a role ainda não existir.
+psql "$RESTORE_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA public'
+pg_restore --exit-on-error --no-owner --no-acl --dbname="$RESTORE_DATABASE_URL" database.dump
 ```
 
 Confira contagens de livros/exemplares/pessoas/empréstimos, relações, estados e imagens conforme manifesto. Para perda da conta Cloudinary, reenviar mídia conforme manifesto e atualizar IDs/URLs nos livros, mantendo correspondência por public_id. Essa migração requer validação manual; não confundir dump restaurado com restauração das imagens concluída. Confirme as duas contas Google e revogue links antigos se houver incidente.
