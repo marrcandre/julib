@@ -101,3 +101,11 @@ Workflow diário ativado somente em marrcandre/julib-backups, com referência de
 Primeiros deploys manuais backend/frontend executados após CI. Vercel exigiu entrypoint explícito config.wsgi:app, declarado no pyproject. Verificação pública encontrou API/estilos funcionais e 404 nas rotas com barra final; regras explícitas de accounts/admin preservam a barra. APP_ORIGIN fixa a origem pública para OAuth atrás do proxy e valida o Host recebido antes da canonicalização. Regressão OAuth falhou antes e passou após a correção; revisão independente focada sem achados importantes.
 
 CSV Goodreads local detectado (451 registros) e excluído do Git. Nenhum registro importado automaticamente: seleção de livros possuídos permanece com o usuário.
+
+## Verificações públicas e alertas de credenciais — 04/11/2026
+
+Deploys após CI: frontend/backend públicos, confirmação Google HTTP 200 e POST 302, callback exato no frontend, página Google sem redirect_uri_mismatch/invalid_client e cookie CSRF Secure. API de sessão anônima retorna 401 e OpenAPI restrito retorna 403. Prévia Goodreads #1 criada com 451 linhas e zero livros/exemplares; usuário ainda escolhe os possuídos.
+
+GitGuardian do PR #1 sinalizou três valores sintéticos: senha ci-only em workflow CI, senha julib-local-only no Compose ligado a loopback, e test:test@db.example.supabase.co no teste de preservação de TLS. Nenhuma credencial de produção corresponde aos alertas; não houve rotação de credenciais reais nem reescrita de histórico. Os avisos podem ser classificados como testes no painel GitGuardian. Deploy automático foi interrompido durante a investigação.
+
+A rota raiz /admin/ precisava de regra exata antes das regras de subcaminhos, para não gerar barra duplicada no upstream. As rotas não vazias de autenticação já estavam respondendo corretamente.
