@@ -23,7 +23,7 @@ CI remota aprovada em 04/11/2026 para o commit 0a2f8d7: execução https://githu
 
 ## Ainda depende de configuração externa
 
-- Connection strings/credenciais Supabase de runtime, migração e backup; migrações reais e proteção da Data API.
+- Supabase: conexão real validada com TLS, 36 migrações aplicadas, biblioteca inicial sem dados de teste, role runtime julib_app limitada e 28 tabelas com RLS/grants verificados. Runtime e migração em .env privado; ainda falta configurar esses secrets em GitHub/Vercel e ativar o backup.
 - Cliente OAuth Google e validação com as duas contas reais.
 - Credenciais Cloudinary e upload/recuperação reais de mídia, incluindo medição de sete cópias nas cotas gratuitas.
 - Projetos Vercel, segredos GitHub/Vercel e teste de cookies/redirects em origem única. Deploy fica desabilitado por DEPLOY_ENABLED até concluir pré-requisitos.
@@ -39,3 +39,9 @@ Snapshots de mídia completos têm limite de 50 MB por pacote. Se exceder, é ne
 - PrimeVue na linha 4 MIT; fontes Inter locais; páginas carregadas sob demanda.
 - Cadastro inicial usa uma operação transacional e chave idempotente, em vez de duas gravações independentes.
 - Não foram identificados achados menores diferidos pelo revisor. Pendências externas são descritas acima e não são tratadas como serviços ativos.
+
+## Integração Supabase — 04/11/2026
+
+O usuário forneceu DATABASE_URL pelo .env. Conexões transaction e session pooler confirmadas no projeto correto. Corrigido o merge de OPTIONS no Django para preservar sslmode da URI, com regressão RED→GREEN. Conta administrativa preservada como MIGRATION_DATABASE_URL; DATABASE_URL passou à role de execução com senha própria, sem superuser/createrole/createdb/bypassrls. Nenhuma credencial publicada.
+
+Migrações e bootstrap executados; 1 biblioteca e 0 livros. Segurança conferida por SQL e advisors: 28 tabelas com RLS, anon/authenticated sem SELECT e zero avisos.

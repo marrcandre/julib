@@ -53,7 +53,7 @@ DATABASES = {
     )
 }
 DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True
-DATABASES["default"]["OPTIONS"] = {"prepare_threshold": None}
+DATABASES["default"].setdefault("OPTIONS", {})["prepare_threshold"] = None
 AUTH_USER_MODEL = "library.User"
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",

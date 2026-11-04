@@ -7,7 +7,7 @@ db:
 	docker compose up -d db
 
 migrate:
-	uv run --project backend python backend/manage.py migrate
+	@if [ -n "$$MIGRATION_DATABASE_URL" ]; then DATABASE_URL="$$MIGRATION_DATABASE_URL" uv run --project backend python backend/manage.py migrate; else uv run --project backend python backend/manage.py migrate; fi
 
 backend:
 	uv run --project backend python backend/manage.py runserver 127.0.0.1:8000
