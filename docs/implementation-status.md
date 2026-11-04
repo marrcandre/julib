@@ -10,27 +10,26 @@
 - README, MIT, contribuição, operação, workflows CI/deploy e template privado de backup.
 - Revisão independente apontou três problemas relevantes (imutabilidade da biblioteca no Admin, repetição segura de cadastro após perda de resposta e ISBN Excel vazio); corrigidos com testes reproduzindo cada caso.
 
-Validação: 25 testes pytest no PostgreSQL, 6 Vitest e 3 jornadas Playwright contra API real; Ruff, mypy, vue-tsc/build e check/migrações Django aprovados. Backup cifrado de banco sintético restaurado e contagens conferidas. Ver o relatório final para a contagem mais recente.
+Validação atual: 35 testes backend em PostgreSQL e 6 Vitest localmente; última CI com 7 jornadas Playwright; Ruff, mypy, build/tipos e checks de migrações aprovados. Upload e recuperação reais de mídia e restauração do artifact cifrado remoto conferidos.
 
-## Infraestrutura preparada
+## Produção
 
-- Código: https://github.com/marrcandre/julib (público).
-- Operação: https://github.com/marrcandre/julib-backups (privado).
-- Supabase: projeto Julib, organização IFC, região sa-east-1, criado com cotação mensal zero e status ACTIVE_HEALTHY. Ref kzdirwuopppjjnoxyavr.
-- E-mails de login recebidos e armazenados somente em .env ignorado, sem publicar a conta da Juliana.
+- Aplicação: https://julib.vercel.app — login Google privado para as contas autorizadas.
+- Backend: https://julib-api.vercel.app — a interface encaminha API, autenticação, Admin e estilos pela mesma origem pública.
+- Código público MIT: https://github.com/marrcandre/julib; PRs #1 e #2 integrados à main.
+- Supabase Julib na organização IFC, sa-east-1, plano gratuito; runtime julib_app com permissões limitadas e RLS.
+- Cloudinary Free compartilhado com outros projetos, usando prefixo julib/; autenticação, upload, entrega e recuperação verificados.
+- Backup diário cifrado em https://github.com/marrcandre/julib-backups, privado, retenção de sete dias. Artifact real restaurado em banco descartável e contagens conferidas.
+- CI/CD: CI na main e publicação posterior condicionada a backup privado bem-sucedido. Evidência da primeira execução automática ao final deste documento.
+- Prévia Goodreads #1 com 451 registros pronta para seleção; a preparação não criou livros ou exemplares. CSV pessoal ignorado pelo Git.
+- Chave privada de recuperação guardada localmente fora do GitHub em ~/.local/share/julib/recovery/julib-private.pem; mantenha segunda cópia segura.
 
-CI remota aprovada em 04/11/2026 para o commit 0a2f8d7: execução https://github.com/marrcandre/julib/actions/runs/41890507217. PR inicial: https://github.com/marrcandre/julib/pull/1. O primeiro ajuste de CI corrigiu o quoting do healthcheck PostgreSQL no runner; o job completo, incluindo Playwright, passou depois da correção.
+## Validações e limites restantes
 
-## Ainda depende de configuração externa
-
-- Supabase: conexão real validada com TLS, 36 migrações aplicadas, biblioteca inicial sem dados de teste, role runtime julib_app limitada e 28 tabelas com RLS/grants verificados. Runtime e migração em .env privado; ainda falta configurar esses secrets em GitHub/Vercel e ativar o backup.
-- Cliente OAuth Google e validação com as duas contas reais.
-- Credenciais Cloudinary e upload/recuperação reais de mídia, incluindo medição de sete cópias nas cotas gratuitas.
-- Projetos Vercel, segredos GitHub/Vercel e teste de cookies/redirects em origem única. Deploy fica desabilitado por DEPLOY_ENABLED até concluir pré-requisitos.
-- Agenda de backup privado desabilitada até configurar banco/mídia e guardar chave privada de recuperação fora do GitHub.
-- Câmera e instalação físicas no Poco F5/Samsung A34; os testes Chromium em desktop/móvel não substituem essa validação.
-
-Snapshots de mídia completos têm limite de 50 MB por pacote. Se exceder, é necessário implementar/validar deduplicação ou outro destino privado gratuito antes da ativação; não há redução silenciosa da cobertura.
+- Confirmar uso com a conta da Juliana e câmera/instalação PWA nos aparelhos Poco F5/Samsung A34.
+- Selecionar somente os livros possuídos e conferir o resultado da importação antes de organizar localizações e exemplares duplicados.
+- Snapshots completos de mídia têm limite de 50 MB por pacote. Caso a coleção de uploads exceda esse limite, implementar/validar deduplicação ou outro destino privado gratuito antes de ampliar o volume; nunca reduzir silenciosamente a cobertura.
+- Três alertas GitGuardian históricos referem-se a valores sintéticos de CI/Docker/teste de TLS, conforme registro abaixo; nenhum corresponde a segredo real de produção.
 
 ## Decisões de implementação
 
@@ -109,3 +108,12 @@ Deploys após CI: frontend/backend públicos, confirmação Google HTTP 200 e PO
 GitGuardian do PR #1 sinalizou três valores sintéticos: senha ci-only em workflow CI, senha julib-local-only no Compose ligado a loopback, e test:test@db.example.supabase.co no teste de preservação de TLS. Nenhuma credencial de produção corresponde aos alertas; não houve rotação de credenciais reais nem reescrita de histórico. Os avisos podem ser classificados como testes no painel GitGuardian. Deploy automático foi interrompido durante a investigação.
 
 A rota raiz /admin/ precisava de regra exata antes das regras de subcaminhos, para não gerar barra duplicada no upstream. As rotas não vazias de autenticação já estavam respondendo corretamente.
+
+
+## Primeira entrega automática — 04/11/2026
+
+CI da main 41911780882 e Deploy 41913306145 concluídos com sucesso, incluindo cópia privada prévia, migrações compatíveis, backend e frontend Vercel e verificação pública. Chromium teve uma tentativa de instalação lenta no runner; o job repetido passou. Conferência Chromium móvel na produção: tema persistido entre SPA e login, cartão com CSS e nenhum erro JavaScript. Admin sem loop de redirecionamento. Uma conta Google e sua participação na biblioteca foram verificadas em produção, sem expor dados pessoais.
+
+## Busca de capas dos livros importados
+
+Comando enrich_covers busca apenas capas ausentes, por biblioteca, sem modificar source/source_id do Goodreads nem sobrescrever capas. ISBN é prioritário; sem ISBN exige título/autor correspondentes e resultado sem ambiguidade. Imagens são verificadas antes de vincular a URL da fonte; não são copiadas para Cloudinary. A atribuição considera a origem da capa mesmo quando os metadados vieram do Goodreads. Google Books retornou 429 em consultas anônimas; suporte a GOOGLE_BOOKS_API_KEY disponível apenas no servidor, com fallback Open Library. A aplicação da localização Escritório (Apto) aguarda o aviso do usuário de término da importação.

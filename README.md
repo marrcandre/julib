@@ -1,5 +1,8 @@
 # Julib
 
+Aplicação: [julib.vercel.app](https://julib.vercel.app) · acesso com Google restrito às contas autorizadas.
+
+
 **Sua biblioteca, bem organizada.**
 
 Biblioteca pessoal compartilhada, criada por Marco André Mendes em homenagem à Juliana Mendes. Cadastro por edição e exemplares, localizações até a prateleira, tags livres e controle de empréstimos com histórico. Tema claro/escuro inspirado na Siloé, menu superior e interface responsiva.
