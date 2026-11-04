@@ -52,3 +52,15 @@ def test_attach_cover_checks_ownership_size_and_format(cloud, monkeypatch):
         },
     )
     assert verify_upload(lib, f"julib/{lib.pk}/id")["cover_url"].startswith("https:")
+
+
+def test_signed_upload_accepts_cloudinary_url(monkeypatch):
+    for name in ("CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("CLOUDINARY_URL", "cloudinary://url-key:url-secret@url-cloud")
+    lib = Library.objects.create(name="Casa")
+    data = signature(lib)
+    assert data["cloud_name"] == "url-cloud"
+    assert data["api_key"] == "url-key"
+    assert "url-secret" not in str(data)
+    assert len(data["signature"]) == 40

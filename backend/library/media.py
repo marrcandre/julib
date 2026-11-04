@@ -1,4 +1,3 @@
-import os
 import time
 from typing import Any
 
@@ -10,24 +9,19 @@ from django.core.exceptions import ValidationError
 from .models import Library
 
 
-def configure() -> None:
-    if not all(
-        os.environ.get(k)
-        for k in ("CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET")
-    ):
+def configure() -> Any:
+    # Config lê CLOUDINARY_URL ou as variáveis individuais seguindo a precedência do SDK.
+    config = cloudinary.Config()
+    config.secure = True
+    if not all((config.cloud_name, config.api_key, config.api_secret)):
         raise ValidationError(
             "Upload não configurado. Defina as credenciais Cloudinary no servidor."
         )
-    cloudinary.config(
-        cloud_name=os.environ["CLOUDINARY_CLOUD_NAME"],
-        api_key=os.environ["CLOUDINARY_API_KEY"],
-        api_secret=os.environ["CLOUDINARY_API_SECRET"],
-        secure=True,
-    )
+    return cloudinary.config(**config.__dict__)
 
 
 def signature(library: Library) -> dict[str, Any]:
-    configure()
+    config = configure()
     params = {
         "timestamp": int(time.time()),
         "folder": f"julib/{library.pk}",
@@ -37,9 +31,9 @@ def signature(library: Library) -> dict[str, Any]:
     }
     return {
         **params,
-        "signature": cloudinary.utils.api_sign_request(params, os.environ["CLOUDINARY_API_SECRET"]),
-        "api_key": os.environ["CLOUDINARY_API_KEY"],
-        "cloud_name": os.environ["CLOUDINARY_CLOUD_NAME"],
+        "signature": cloudinary.utils.api_sign_request(params, config.api_secret),
+        "api_key": config.api_key,
+        "cloud_name": config.cloud_name,
     }
 
 

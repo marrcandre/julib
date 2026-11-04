@@ -77,3 +77,7 @@ Layouts allauth receberam cabeçalho, cartão central responsivo, fonte Inter lo
 ## Foto Google na barra — 04/11/2026
 
 Sessão inclui avatar_url obtida da conta Google autenticada, sem expor demais dados do provedor. Barra mostra foto circular e mantém iniciais se não houver foto ou o carregamento falhar. OpenAPI/tipos atualizados. Conta real local possui foto no perfil; teste de API cobre ausência/presença e teste Chromium cobre imagem válida/falha. Validação geral: 30 backend, 6 frontend, build/checks/tipos aprovados; teste de navegador da foto aprovado. CI remota anterior aprovada no commit 49043f1. Próxima integração: Cloudinary, aguardando configuração privada.
+
+## Configuração Cloudinary por URL — 04/11/2026
+
+CLOUDINARY_URL fornecida pelo usuário no .env privado. Aplicação aceita URL ou variáveis individuais usando a precedência nativa do SDK; assinatura utiliza configuração resolvida, sem devolver o segredo. Backup de mídia utiliza o mesmo configure. Teste de regressão cobre configuração apenas por URL e segredo ausente da resposta. Ping autenticado real do Cloudinary aprovado; nenhum ativo dos outros projetos foi modificado. Upload e recuperação reais de mídia continuam pendentes de validação.
