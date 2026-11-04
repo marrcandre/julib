@@ -4,10 +4,10 @@ export default defineConfig({
   plugins: [vue()],
   server: {
     proxy: {
-      "/api": "http://127.0.0.1:8000",
-      "/accounts": "http://127.0.0.1:8000",
-      "/admin": "http://127.0.0.1:8000",
-      "/static": "http://127.0.0.1:8000",
+      "/api": { target: "http://127.0.0.1:8000", changeOrigin: false },
+      "/accounts": { target: "http://127.0.0.1:8000", changeOrigin: false },
+      "/admin": { target: "http://127.0.0.1:8000", changeOrigin: false },
+      "/static": { target: "http://127.0.0.1:8000", changeOrigin: false },
     },
   },
   test: { environment: "jsdom", include: ["tests/**/*.test.ts"] },
