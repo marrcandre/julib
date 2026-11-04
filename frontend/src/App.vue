@@ -2,7 +2,6 @@
 import { ref, onMounted, onUnmounted, provide, watch } from "vue";
 import { useRoute } from "vue-router";
 import Button from "primevue/button";
-import Select from "primevue/select";
 import { api, post, setCsrf, type Session } from "./api";
 import { applyTheme, initialTheme, type ThemePreference } from "./theme";
 const session = ref<Session | null>(null),
@@ -13,9 +12,6 @@ const theme = ref<ThemePreference>(initialTheme()),
   route = useRoute();
 provide("session", session);
 watch(theme, applyTheme, { immediate: true });
-const query = window.matchMedia?.("(prefers-color-scheme: dark)");
-const syncTheme = () => applyTheme(theme.value);
-query?.addEventListener("change", syncTheme);
 const syncOnline = () => (online.value = navigator.onLine);
 async function signOut() {
   try {
@@ -41,7 +37,6 @@ onMounted(async () => {
   }
 });
 onUnmounted(() => {
-  query?.removeEventListener("change", syncTheme);
   window.removeEventListener("online", syncOnline);
   window.removeEventListener("offline", syncOnline);
 });
@@ -59,17 +54,13 @@ onUnmounted(() => {
         ><RouterLink to="/locais">Locais</RouterLink>
       </nav>
       <div class="header-actions">
-        <Select
-          v-model="theme"
-          :options="[
-            { label: 'Sistema', value: 'system' },
-            { label: 'Claro', value: 'light' },
-            { label: 'Escuro', value: 'dark' },
-          ]"
-          option-label="label"
-          option-value="value"
-          aria-label="Tema"
-        />
+        <button
+          class="theme-toggle"
+          type="button"
+          :aria-label="theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'"
+          :title="theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'"
+          @click="theme = theme === 'dark' ? 'light' : 'dark'"
+        ><i :class="theme === 'dark' ? 'pi pi-sun' : 'pi pi-moon'" aria-hidden="true" /></button>
         <details v-if="session" class="account">
           <summary :aria-label="'Conta de ' + session.name">
             <span class="avatar">{{

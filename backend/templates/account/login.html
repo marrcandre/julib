@@ -1,0 +1,7 @@
+{% extends "allauth/layouts/base.html" %}
+{% load socialaccount %}
+{% block content %}
+<h1>Bem-vindo ao Julib</h1>
+<p>Seus livros, seus lugares e suas histórias. Entre com sua conta Google para acessar a biblioteca.</p>
+<a class="primary" href="{% provider_login_url 'google' %}">Entrar com Google</a>
+{% endblock %}

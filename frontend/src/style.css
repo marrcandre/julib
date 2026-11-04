@@ -127,16 +127,18 @@ nav a.router-link-exact-active {
   gap: 18px;
   align-items: center;
 }
-.header-actions .p-select {
-  font-size: 12px;
-  background: #ffffff10;
-  border-color: #ffffff30;
-  color: #fffaf4;
+.theme-toggle {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid #ffffff40;
+  background: transparent;
+  color: #ffbd59;
+  display: grid;
+  place-items: center;
 }
-.header-actions .p-select-label,
-.header-actions .p-select-dropdown {
-  color: #fffaf4;
-}
+.theme-toggle:hover { background: #ffffff15; }
+.theme-toggle i { font-size: 20px; }
 .account {
   position: relative;
 }

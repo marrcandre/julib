@@ -24,5 +24,7 @@ export function applyTheme(preference: ThemePreference): void {
 }
 export function initialTheme(): ThemePreference {
   const stored = localStorage.getItem("julib-theme");
-  return stored === "light" || stored === "dark" ? stored : "system";
+  if (stored === "light" || stored === "dark") return stored;
+  return typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }

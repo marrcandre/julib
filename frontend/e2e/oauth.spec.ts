@@ -27,3 +27,18 @@ test("browser submits the Google confirmation with a trusted origin", async ({ p
   expect(request.headers()["origin"]).toBe("http://127.0.0.1:5173");
   await expect(page).toHaveURL(/^https:\/\/accounts\.google\.com\//);
 });
+
+test("theme toggle persists across the app and styled Google login", async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 852 });
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ativar tema escuro" }).click();
+  await page.goto("/accounts/google/login/");
+  await expect(page.locator("html")).toHaveClass(/dark/);
+  await expect(page.locator(".auth-card")).toBeVisible();
+  expect(await page.locator(".auth-card").evaluate(el => getComputedStyle(el).borderRadius)).toBe("20px");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole("button", { name: "Ativar tema claro" }).click();
+  await page.goto("/");
+  await expect(page.locator("html")).not.toHaveClass(/dark/);
+});
