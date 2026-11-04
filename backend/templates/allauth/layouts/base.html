@@ -1,0 +1,25 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block head_title %}Entrar{% endblock %} — Julib</title>
+  <script src="{% static 'library/auth-theme.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'library/auth.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <header><a class="brand" href="/">▤ Julib</a><button class="theme-toggle" type="button" aria-label="Alternar tema"></button></header>
+  <main>
+    <section class="auth-card">
+      <div class="eyebrow">SUA BIBLIOTECA, BEM ORGANIZADA</div>
+      {% if messages %}<ul class="messages">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+      {% block body %}{% block content %}{% endblock %}{% endblock %}
+      <a class="back" href="/">← Voltar ao Julib</a>
+    </section>
+  </main>
+  <footer><a href="/sobre#homenagem">Julib</a> — Sua biblioteca, bem organizada</footer>
+  {% block extra_body %}{% endblock %}
+</body>
+</html>

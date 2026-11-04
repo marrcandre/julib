@@ -9,6 +9,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+!.env.local.example
 node_modules/
 dist/
 coverage/
@@ -18,3 +19,11 @@ test-results/
 *.dump
 *.age
 *.sqlite3
+frontend/vercel.json
+backend/staticfiles/
+*.pem
+*.tar.gz
+
+.vercel/
+
+/goodreads_library_export*.csv

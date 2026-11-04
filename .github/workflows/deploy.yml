@@ -1,0 +1,60 @@
+name: Deploy
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && vars.DEPLOY_ENABLED == 'true'
+    environment: production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: uv sync --project backend --frozen
+      - name: Require a fresh private backup
+        env:
+          GH_TOKEN: ${{ secrets.BACKUP_DISPATCH_TOKEN }}
+          BACKUP_REPOSITORY: ${{ vars.BACKUP_REPOSITORY }}
+        run: python scripts/request_backup.py
+      - name: Apply compatible reviewed migrations
+        env:
+          DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+          SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+        run: |
+          uv run --project backend python backend/manage.py secure_database --role julib_app
+          uv run --project backend python backend/manage.py migrate --noinput
+          uv run --project backend python backend/manage.py secure_database --role julib_app
+      - name: Deploy backend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+        run: npx --yes vercel@65.11.0 --cwd backend --prod --yes --token="$VERCEL_TOKEN"
+      - name: Prepare frontend routing
+        env:
+          BACKEND_ORIGIN: ${{ vars.BACKEND_ORIGIN }}
+        run: python scripts/configure_frontend.py
+      - name: Deploy frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
+        run: npx --yes vercel@65.11.0 --cwd frontend --prod --yes --token="$VERCEL_TOKEN"
+      - name: Verify public routing
+        env:
+          APP_ORIGIN: ${{ vars.APP_ORIGIN }}
+        run: curl --fail --retry 3 "$APP_ORIGIN/api/v1/health"

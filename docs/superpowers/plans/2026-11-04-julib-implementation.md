@@ -32,59 +32,59 @@ backend/config: settings, URLs, WSGI. backend/library: modelos, schemas, service
 
 **Files:** backend/pyproject.toml, config/{settings,urls}.py, library/{models,auth,api}.py, tests/test_access.py; .gitignore, compose.yaml.
 **Interfaces:** produz User, Library, Membership; GET /api/v1/session, /health; sessão Django; require_library(request) -> Library.
-- [ ] Escrever testes: health público; sessão anônima 401; usuário fora da allowlist 403; membro autorizado 200; documentação/admin recusam membro comum.
-- [ ] Rodar pytest e observar falha; configurar dependências e implementar mínima fundação, Google allauth e CSRF.
-- [ ] Rodar pytest tests/test_access.py, check e migrações; esperado verde. Commit.
+- [x] Escrever testes: health público; sessão anônima 401; usuário fora da allowlist 403; membro autorizado 200; documentação/admin recusam membro comum.
+- [x] Rodar pytest e observar falha; configurar dependências e implementar mínima fundação, Google allauth e CSRF.
+- [x] Rodar pytest tests/test_access.py, check e migrações; esperado verde. Commit.
 
 ### Task 2: Acervo e locais
 
 **Files:** library/{models,services,schemas,catalog_api,admin}.py, tests/test_catalog.py.
 **Interfaces:** create_book(library, data), add_copy(library, book_id,...), move_location(library,...); rotas /books, /copies, /locations, /tags e /dashboard.
-- [ ] Testes: ISBN equivalente, confirmação de duplicata, aquisição padrão, número único, ciclo/local estrangeiro recusado, filtro de tag/local, lote atômico, disponibilidade.
-- [ ] Observar vermelho, implementar modelos/migrações/services, serializers explícitos e paginação; Admin acessível desde os modelos novos.
-- [ ] Rodar pytest tests/test_catalog.py e suite; esperado verde. Commit.
+- [x] Testes: ISBN equivalente, confirmação de duplicata, aquisição padrão, número único, ciclo/local estrangeiro recusado, filtro de tag/local, lote atômico, disponibilidade.
+- [x] Observar vermelho, implementar modelos/migrações/services, serializers explícitos e paginação; Admin acessível desde os modelos novos.
+- [x] Rodar pytest tests/test_catalog.py e suite; esperado verde. Commit.
 
 ### Task 3: Circulação
 
 **Files:** library/{circulation,schemas,api,admin}.py; tests/test_loans.py.
 **Interfaces:** lend(library, copy_id, person_id, start, due), return_loan(...), retire_copy(...); /people, /loans, /copies/{id}/retire.
-- [ ] Testes: nome/telefone obrigatórios, mês calendário, uma operação aberta por exemplar, relações estrangeiras, perda sem devolução, baixa bloqueada, histórico.
-- [ ] Observar vermelho; implementar constraints, lock e services; Admin usa as operações e campos protegidos.
-- [ ] Rodar pytest tests/test_loans.py e suite; esperado verde. Commit.
+- [x] Testes: nome/telefone obrigatórios, mês calendário, uma operação aberta por exemplar, relações estrangeiras, perda sem devolução, baixa bloqueada, histórico.
+- [x] Observar vermelho; implementar constraints, lock e services; Admin usa as operações e campos protegidos.
+- [x] Rodar pytest tests/test_loans.py e suite; esperado verde. Commit.
 
 ### Task 4: Provedores e mídia
 
 **Files:** library/{providers,media}.py, tests/test_providers.py.
 **Interfaces:** search_books(query) -> list[BookCandidate]; assinatura e confirmação autenticadas de upload.
-- [ ] Testes com HTTP simulado: timeout/quota/fallback, ISBN inválido, upload só em pasta autorizada/formato/tamanho aceitos.
-- [ ] Observar vermelho; implementar Google Books/Open Library, metadados de origem e upload assinado Cloudinary, sem segredo no cliente.
-- [ ] Rodar testes focados e suite; esperado verde. Commit.
+- [x] Testes com HTTP simulado: timeout/quota/fallback, ISBN inválido, upload só em pasta autorizada/formato/tamanho aceitos.
+- [x] Observar vermelho; implementar Google Books/Open Library, metadados de origem e upload assinado Cloudinary, sem segredo no cliente.
+- [x] Rodar testes focados e suite; esperado verde. Commit.
 
 ### Task 5: Importação e compartilhamento
 
 **Files:** library/{imports,sharing}.py, tests/{test_imports,test_sharing}.py.
 **Interfaces:** prévia CSV, seleção/ação por linha, lotes de 25 idempotentes; /share/manage e /public/{token}/books.
-- [ ] Testes: BOM/ISBN formatado pelo Excel, limite 3 MB/5.000 linhas, lote repetido, já cadastrado ignorado, cópia explícita, token revogado, ausência de campos privados.
-- [ ] Observar vermelho; implementar parsing, persistência, transações e schemas públicos; limpeza após sete dias por comando.
-- [ ] Rodar testes e suite; esperado verde. Commit.
+- [x] Testes: BOM/ISBN formatado pelo Excel, limite 3 MB/5.000 linhas, lote repetido, já cadastrado ignorado, cópia explícita, token revogado, ausência de campos privados.
+- [x] Observar vermelho; implementar parsing, persistência, transações e schemas públicos; limpeza após sete dias por comando.
+- [x] Rodar testes e suite; esperado verde. Commit.
 
 ### Task 6: Interface responsiva online
 
 **Files:** frontend/package.json, vite.config.ts, src/{App.vue,main.ts,theme.ts,api.ts}, src/pages/*.vue, tests/*.test.ts, public/manifest.webmanifest.
 **Interfaces:** cliente para contratos das tarefas 1–5; proxies locais e views /, /livros, /emprestimos, /locais, /importar, /sobre, /colecao/:token.
-- [ ] Testes primeiro: tema Sistema/Claro/Escuro, erros HTTP, sessão e consulta pública; observar vermelho.
-- [ ] Implementar header/footer aprovados, dashboard real, CRUD, seleção de locais em lote, empréstimos, revisão de CSV, compartilhamento, câmera contínua com confirmação e fallback manual, upload e Sobre/PIX.
-- [ ] PWA online com manifesto/ícones sem cache privado; testar build, componentes e jornada ponta a ponta em viewport móvel/desktop.
-- [ ] Rodar npm test e npm run build, esperado verde. Commit.
+- [x] Testes primeiro: tema Sistema/Claro/Escuro, erros HTTP, sessão e consulta pública; observar vermelho.
+- [x] Implementar header/footer aprovados, dashboard real, CRUD, seleção de locais em lote, empréstimos, revisão de CSV, compartilhamento, câmera contínua com confirmação e fallback manual, upload e Sobre/PIX.
+- [x] PWA online com manifesto/ícones sem cache privado; testar build, componentes e jornada ponta a ponta em viewport móvel/desktop.
+- [x] Rodar npm test e npm run build, esperado verde. Commit.
 
 ### Task 7: Operação e entrega
 
 **Files:** README.md, LICENSE, CONTRIBUTING.md, .env.example, Makefile, scripts/*, .github/workflows/{ci,deploy}.yml, docs/operations.md, ops/backup-workflow.yml.example.
 **Interfaces:** make check, compose PostgreSQL local; deploy workflow após CI; backup template para repo privado.
 - [ ] Testar export/import de backup com PostgreSQL temporário e dados sintéticos; tamanho/cotas medidos só com credenciais reais.
-- [ ] Implementar documentação de Google/Supabase/Cloudinary/Vercel, workflow CI PostgreSQL e frontend; deploy desabilitado até configurar vars/secrets.
+- [x] Implementar documentação de Google/Supabase/Cloudinary/Vercel, workflow CI PostgreSQL e frontend; deploy desabilitado até configurar vars/secrets.
 - [ ] Preparar backup diário cifrado e sete dias somente no repositório privado; documentar chave e restauração, mídia e limitações de ativação.
-- [ ] Rodar checks, migrações sem alterações e smoke real. Revisão independente do conjunto; corrigir problemas relevantes com teste RED→GREEN.
+- [x] Rodar checks, migrações sem alterações e smoke real. Revisão independente do conjunto; corrigir problemas relevantes com teste RED→GREEN. CI remota também aprovada.
 
 ## Registro de execução
 

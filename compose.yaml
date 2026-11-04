@@ -1,0 +1,17 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: julib
+      POSTGRES_USER: julib
+      POSTGRES_PASSWORD: julib-local-only
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - julib-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U julib"]
+      interval: 5s
+      retries: 10
+volumes:
+  julib-postgres:
