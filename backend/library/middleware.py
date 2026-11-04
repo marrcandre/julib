@@ -20,5 +20,5 @@ class PrivacyMiddleware:
         if request.path.startswith(("/api/", "/accounts/", "/admin/", "/colecao/")):
             response["Cache-Control"] = "no-store, private"
             response["X-Robots-Tag"] = "noindex, nofollow"
-            response["Referrer-Policy"] = "no-referrer"
+            response["Referrer-Policy"] = "same-origin"
         return response

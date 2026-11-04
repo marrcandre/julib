@@ -17,3 +17,13 @@ test("OAuth callback keeps the public frontend origin through the development pr
   expect(target.searchParams.get("redirect_uri")).toBe(base + "/accounts/google/login/callback/");
   expect(Boolean(target.searchParams.get("state"))).toBe(true);
 });
+
+test("browser submits the Google confirmation with a trusted origin", async ({ page }) => {
+  await page.route("https://accounts.google.com/**", route => route.fulfill({ body: "Google authorization reached" }));
+  await page.goto("/accounts/google/login/");
+  const submission = page.waitForRequest(request => request.method() === "POST" && new URL(request.url()).pathname === "/accounts/google/login/");
+  await page.locator('form[method="post"] button[type="submit"]').click();
+  const request = await submission;
+  expect(request.headers()["origin"]).toBe("http://127.0.0.1:5173");
+  await expect(page).toHaveURL(/^https:\/\/accounts\.google\.com\//);
+});
