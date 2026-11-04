@@ -10,7 +10,7 @@
 - README, MIT, contribuição, operação, workflows CI/deploy e template privado de backup.
 - Revisão independente apontou três problemas relevantes (imutabilidade da biblioteca no Admin, repetição segura de cadastro após perda de resposta e ISBN Excel vazio); corrigidos com testes reproduzindo cada caso.
 
-Validação: pytest no PostgreSQL, Vitest, Playwright contra API real, Ruff, mypy, vue-tsc/build, check/migrações Django. Backup cifrado de banco sintético restaurado e contagens conferidas. Ver o relatório final para a contagem mais recente.
+Validação: 25 testes pytest no PostgreSQL, 6 Vitest e 3 jornadas Playwright contra API real; Ruff, mypy, vue-tsc/build e check/migrações Django aprovados. Backup cifrado de banco sintético restaurado e contagens conferidas. Ver o relatório final para a contagem mais recente.
 
 ## Infraestrutura preparada
 
@@ -18,6 +18,8 @@ Validação: pytest no PostgreSQL, Vitest, Playwright contra API real, Ruff, myp
 - Operação: https://github.com/marrcandre/julib-backups (privado).
 - Supabase: projeto Julib, organização IFC, região sa-east-1, criado com cotação mensal zero e status ACTIVE_HEALTHY. Ref kzdirwuopppjjnoxyavr.
 - E-mails de login recebidos e armazenados somente em .env ignorado, sem publicar a conta da Juliana.
+
+CI remota aprovada em 04/11/2026 para o commit 0a2f8d7: execução https://github.com/marrcandre/julib/actions/runs/41890507217. PR inicial: https://github.com/marrcandre/julib/pull/1. O primeiro ajuste de CI corrigiu o quoting do healthcheck PostgreSQL no runner; o job completo, incluindo Playwright, passou depois da correção.
 
 ## Ainda depende de configuração externa
 
