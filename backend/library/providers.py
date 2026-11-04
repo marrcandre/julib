@@ -1,3 +1,4 @@
+import os
 from typing import Any
 
 import httpx
@@ -12,7 +13,15 @@ def search_books(query: str) -> list[dict[str, Any]]:
     try:
         response = httpx.get(
             "https://www.googleapis.com/books/v1/volumes",
-            params={"q": query, "maxResults": 12},
+            params={
+                "q": query,
+                "maxResults": 12,
+                **(
+                    {"key": os.environ["GOOGLE_BOOKS_API_KEY"]}
+                    if os.environ.get("GOOGLE_BOOKS_API_KEY")
+                    else {}
+                ),
+            },
             timeout=8,
         )
         response.raise_for_status()

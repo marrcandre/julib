@@ -32,7 +32,7 @@ Após carregar .env, `make migrate` seleciona MIGRATION_DATABASE_URL quando pres
 
 Crie um cliente OAuth Web no projeto Google. Configure a tela de consentimento e os usuários permitidos/testadores quando o app estiver em modo de testes. Credenciais ficam somente no Django, em GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET. Escopos: identidade básica/e-mail.
 
-URI de retorno local usando o proxy: `http://127.0.0.1:5173/accounts/google/login/callback/`. Produção: `https://SEU_FRONTEND/accounts/google/login/callback/`. A origem pública deve estar nos hosts/CSRF Django. Não coloque o domínio do backend como callback se a sessão for utilizada pela origem frontend.
+URI de retorno local usando o proxy: `http://127.0.0.1:5173/accounts/google/login/callback/`. Produção: `https://SEU_FRONTEND/accounts/google/login/callback/`. A origem pública deve estar nos hosts/CSRF Django. Defina APP_ORIGIN=https://julib.vercel.app no runtime de produção para o callback usar a interface atrás do proxy; mantenha vazio no desenvolvimento local. Não coloque o domínio do backend como callback se a sessão for utilizada pela origem frontend.
 
 O link de entrada abre a confirmação OAuth do allauth. Somente e-mail verificado em allowlist é aceito; as contas são ligadas à biblioteca inicial. Valide com os dois usuários reais e uma conta recusada antes de usar o sistema.
 
@@ -43,6 +43,8 @@ Configure CLOUDINARY_URL ou CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET apenas no b
 Capas das APIs externas permanecem como URLs da fonte. Respeite os termos de Google Books/Open Library e atribua a fonte quando necessário. Nada de scraping de Goodreads.
 
 ## Vercel e CI/CD
+
+Produção atual: https://julib.vercel.app (frontend) e https://julib-api.vercel.app (backend), em plano Hobby. O banco é o Supabase Julib e as capas enviadas ficam no Cloudinary Free.
 
 Dois projetos a partir do mesmo repositório: root directory backend e frontend. Não ativar auto deploy por push nem previews com acesso à produção. O workflow Deploy depende de CI bem-sucedida no mesmo commit da branch main e de DEPLOY_ENABLED=true.
 
@@ -98,3 +100,8 @@ Registre tamanho, hora da última cópia e resultado do teste. Ative notificaç�
 - Executar `cleanup_imports` diariamente (pode ser adicionado ao workflow operacional com conexão privada), removendo sessões após sete dias sem apagar livros.
 - Não registrar contatos, tokens compartilhados ou conteúdo CSV em logs.
 - Validar câmera e instalação do PWA nos Chrome do Poco F5 e Samsung A34. Automação em Chromium não substitui teste da câmera física.
+
+
+## Completar capas de uma importação
+
+Configure GOOGLE_BOOKS_API_KEY apenas no backend, com chave restrita à Books API (sem habilitar faturamento). Execute `uv run --project backend python backend/manage.py enrich_covers --library ID`, com ambiente do banco correto. O comando é retomável: só processa capas ausentes, verifica imagem e limita frequência. Não muda a identidade Goodreads nem outras bibliotecas. Sem correspondência segura, o livro continua sem capa para revisão. URLs externas permanecem nas fontes, com atribuição na interface.
