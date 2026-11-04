@@ -93,3 +93,11 @@ Isso valida o caminho de mídia e as primitivas de recuperação; não substitui
 Conta Vercel Hobby verificada; projetos julib e julib-api criados, com destinos julib.vercel.app e julib-api.vercel.app. Runtime configurado apenas com segredos de produção; sem vínculo Git que publique antes da CI. Credenciais locais e de produção separadas.
 
 Backup real do Supabase cifrado (15.492 bytes) e restaurado em PostgreSQL local descartável. Uma biblioteca, zero livros/exemplares/pessoas/empréstimos; contagens idênticas. Ajustado dump para public, excluindo extensões/esquemas internos do provedor. Restauração exige public vazio e role julib_app existente para políticas RLS. Chave privada local fora do código em ~/.local/share/julib/recovery; usuário deve manter segunda cópia segura. Template privado usa pg_dump17 em Docker e aceita CLOUDINARY_URL.
+
+## Backup privado ativo e ajustes do proxy de produção — 04/11/2026
+
+Workflow diário ativado somente em marrcandre/julib-backups, com referência de código fixa 3161b64 e retenção de sete dias. Execução 41909069606 aprovada; artifact cifrado remoto (15.490 bytes) baixado e restaurado no banco descartável, com contagens idênticas. Token restrito fornecido pelo usuário conseguiu solicitar e acompanhar outra cópia (41909740489). Secrets de deploy e environment production preparados. Cloudinary Free: 0,15 de 25 créditos usados na conta compartilhada no momento da conferência.
+
+Primeiros deploys manuais backend/frontend executados após CI. Vercel exigiu entrypoint explícito config.wsgi:app, declarado no pyproject. Verificação pública encontrou API/estilos funcionais e 404 nas rotas com barra final; regras explícitas de accounts/admin preservam a barra. APP_ORIGIN fixa a origem pública para OAuth atrás do proxy e valida o Host recebido antes da canonicalização. Regressão OAuth falhou antes e passou após a correção; revisão independente focada sem achados importantes.
+
+CSV Goodreads local detectado (451 registros) e excluído do Git. Nenhum registro importado automaticamente: seleção de livros possuídos permanece com o usuário.

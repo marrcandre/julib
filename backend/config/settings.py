@@ -20,7 +20,9 @@ INSTALLED_APPS = [
     "allauth.socialaccount.providers.google",
     "library",
 ]
+APP_ORIGIN = os.environ.get("APP_ORIGIN", "")
 MIDDLEWARE = [
+    "library.middleware.PublicOriginMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
