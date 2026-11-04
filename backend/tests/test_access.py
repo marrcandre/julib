@@ -35,3 +35,17 @@ def test_session_mutations_require_csrf(users):
     client = Client(enforce_csrf_checks=True)
     client.force_login(users[1])
     assert client.post("/api/v1/logout").status_code == 403
+
+
+def test_login_exposes_only_google_and_disables_local_email_flows(mailoutbox):
+    client = Client()
+    response = client.get("/accounts/login/")
+    assert response.status_code == 200
+    html = response.content.decode()
+    assert "/accounts/google/login/" in html
+    assert 'name="login"' not in html
+    assert 'name="password"' not in html
+    assert client.post("/accounts/login/", {"login": "marco@example.com"}).status_code == 403
+    assert client.get("/accounts/signup/").status_code == 404
+    assert client.get("/accounts/password/reset/").status_code == 404
+    assert len(mailoutbox) == 0

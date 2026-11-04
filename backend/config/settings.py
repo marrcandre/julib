@@ -61,6 +61,9 @@ AUTHENTICATION_BACKENDS = [
 ]
 ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*"]
+# GoogleAdapter exige e-mail verificado pelo Google; não enviamos confirmação por SMTP.
+ACCOUNT_EMAIL_VERIFICATION = "none"
+SOCIALACCOUNT_ONLY = True
 SOCIALACCOUNT_ADAPTER = "library.auth.GoogleAdapter"
 ACCOUNT_ADAPTER = "library.auth.AccountAdapter"
 SOCIALACCOUNT_PROVIDERS = {
