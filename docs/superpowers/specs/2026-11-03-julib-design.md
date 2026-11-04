@@ -31,9 +31,9 @@ Falhas a evitar: confundir livros lidos com possuídos, duplicar exemplares sile
 
 Catálogo por edição e exemplares; busca por título/autor/ISBN e filtros por tags livres; câmera em cadastro contínuo; cadastro manual sem ISBN; tags livres; hierarquia de locais; pessoas; empréstimos e histórico; importação Goodreads com revisão; painel inicial; link de consulta; capas por API e upload; temas claro/escuro; Sobre com PIX e links para Dons e Cinco Ministérios; Admin e Swagger; monorepositório público MIT; TDD e CI/CD; backup diário do banco por sete dias.
 
-### Proposta incluída para aprovação
+### Inclusões consolidadas na autorização de implementação
 
-PWA instalável que depende de internet, sem sincronização offline. O usuário manifestou interesse; esta inclusão consolida a proposta. Cópia diária das capas gerenciadas, junto à estratégia de backup, também depende de aprovação do desenho abaixo.
+PWA instalável que depende de internet, sem sincronização offline. Incluído na autorização de implementação do desenho. Cópia diária das capas gerenciadas integra a estratégia de backup, sujeita à configuração e medição das cotas.
 
 ### Fora da primeira versão
 

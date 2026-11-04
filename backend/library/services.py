@@ -1,23 +1,31 @@
 from datetime import date
 from typing import Any
+
 from django.core.exceptions import ValidationError
 from django.db import transaction
+
 from .models import Book, Copy, Library, Location, Tag
 
 
 def normalize_isbn(value: str) -> str:
-    value = value.replace('-', '').replace(' ', '').strip().upper()
+    value = value.replace("-", "").replace(" ", "").strip().upper()
     if not value:
-        return ''
-    if len(value) == 10 and value[:9].isdigit() and (value[-1].isdigit() or value[-1] == 'X'):
-        digits = [int(c) if c != 'X' else 10 for c in value]
-        if sum((10-i)*d for i,d in enumerate(digits)) % 11 == 0:
-            value = '978' + value[:9]
-            value += str((-sum(int(c)*(1 if i%2 == 0 else 3) for i,c in enumerate(value)))%10)
+        return ""
+    if len(value) == 10 and value[:9].isdigit() and (value[-1].isdigit() or value[-1] == "X"):
+        digits = [int(c) if c != "X" else 10 for c in value]
+        if sum((10 - i) * d for i, d in enumerate(digits)) % 11 == 0:
+            value = "978" + value[:9]
+            value += str(
+                (-sum(int(c) * (1 if i % 2 == 0 else 3) for i, c in enumerate(value))) % 10
+            )
             return value
-    if len(value) == 13 and value.isdigit() and sum(int(c)*(1 if i%2 == 0 else 3) for i,c in enumerate(value))%10 == 0:
+    if (
+        len(value) == 13
+        and value.isdigit()
+        and sum(int(c) * (1 if i % 2 == 0 else 3) for i, c in enumerate(value)) % 10 == 0
+    ):
         return value
-    raise ValidationError('ISBN inválido. Confira o código ou deixe em branco.')
+    raise ValidationError("ISBN inválido. Confira o código ou deixe em branco.")
 
 
 def owned(model: Any, library: Library, pk: int, *, lock: bool = False) -> Any:
@@ -27,37 +35,56 @@ def owned(model: Any, library: Library, pk: int, *, lock: bool = False) -> Any:
     try:
         return qs.get(pk=pk)
     except model.DoesNotExist:
-        raise ValidationError('Registro não encontrado nesta biblioteca.') from None
+        raise ValidationError("Registro não encontrado nesta biblioteca.") from None
 
 
 @transaction.atomic
 def create_book(library: Library, data: dict[str, Any], book_id: int | None = None) -> Book:
     data = data.copy()
-    tags = data.pop('tag_ids', None)
-    if not data.get('title', '').strip() or not data.get('authors') or not all(str(a).strip() for a in data['authors']):
-        raise ValidationError('Informe título e autor.')
-    data['isbn'] = normalize_isbn(data.get('isbn',''))
-    if Book.objects.filter(library=library, isbn=data['isbn']).exclude(pk=book_id).exists() and data['isbn']:
-        raise ValidationError('Este ISBN já está cadastrado. Adicione um exemplar ao livro existente.')
-    if data.get('cover_url') and not data['cover_url'].startswith('https://'):
-        raise ValidationError('A capa deve usar HTTPS.')
+    tags = data.pop("tag_ids", None)
+    if (
+        not data.get("title", "").strip()
+        or not data.get("authors")
+        or not all(str(a).strip() for a in data["authors"])
+    ):
+        raise ValidationError("Informe título e autor.")
+    data["isbn"] = normalize_isbn(data.get("isbn", ""))
+    if (
+        Book.objects.filter(library=library, isbn=data["isbn"]).exclude(pk=book_id or 0).exists()
+        and data["isbn"]
+    ):
+        raise ValidationError(
+            "Este ISBN já está cadastrado. Adicione um exemplar ao livro existente."
+        )
+    if data.get("cover_url") and not data["cover_url"].startswith("https://"):
+        raise ValidationError("A capa deve usar HTTPS.")
     book = owned(Book, library, book_id, lock=True) if book_id else Book(library=library)
     for key, value in data.items():
         setattr(book, key, value)
     tag_objs = [owned(Tag, library, pk) for pk in tags] if tags is not None else None
-    book.full_clean(); book.save()
+    book.full_clean()
+    book.save()
     if tag_objs is not None:
         book.tags.set(tag_objs)
     return book
 
 
 @transaction.atomic
-def add_copy(library: Library, book_id: int, location_id: int | None = None, acquired_on: date | None = None) -> Copy:
+def add_copy(
+    library: Library, book_id: int, location_id: int | None = None, acquired_on: date | None = None
+) -> Copy:
     library = Library.objects.select_for_update().get(pk=library.pk)
     book = owned(Book, library, book_id)
     location = owned(Location, library, location_id) if location_id else None
-    copy = Copy.objects.create(library=library, book=book, number=library.next_number, location=location, **({'acquired_on': acquired_on} if acquired_on else {}))
-    library.next_number += 1; library.save(update_fields=['next_number'])
+    copy = Copy.objects.create(
+        library=library,
+        book=book,
+        number=library.next_number,
+        location=location,
+        **({"acquired_on": acquired_on} if acquired_on else {}),
+    )
+    library.next_number += 1
+    library.save(update_fields=["next_number"])
     return copy
 
 
@@ -65,14 +92,16 @@ def add_copy(library: Library, book_id: int, location_id: int | None = None, acq
 def save_location(library: Library, data: dict[str, Any], pk: int | None = None) -> Location:
     Library.objects.select_for_update().get(pk=library.pk)
     location = owned(Location, library, pk) if pk else Location(library=library)
-    parent = owned(Location, library, data['parent_id']) if data.get('parent_id') else None
+    parent = owned(Location, library, data["parent_id"]) if data.get("parent_id") else None
     ancestor = parent
     while ancestor:
         if ancestor.pk == location.pk:
-            raise ValidationError('Um local não pode conter a si mesmo.')
+            raise ValidationError("Um local não pode conter a si mesmo.")
         ancestor = ancestor.parent
-    location.name = data['name'].strip(); location.parent = parent
-    location.full_clean(); location.save()
+    location.name = data["name"].strip()
+    location.parent = parent
+    location.full_clean()
+    location.save()
     return location
 
 
@@ -81,5 +110,39 @@ def locate_copies(library: Library, copy_ids: list[int], location_id: int | None
     location = owned(Location, library, location_id) if location_id else None
     copies = [owned(Copy, library, pk, lock=True) for pk in sorted(set(copy_ids))]
     for copy in copies:
-        copy.location = location; copy.save(update_fields=['location'])
+        copy.location = location
+        copy.save(update_fields=["location"])
     return len(copies)
+
+
+@transaction.atomic
+def register_copy(library: Library, data: dict[str, Any]) -> dict[str, int]:
+    """One confirmed intent creates at most one edition/copy, even after a lost response."""
+    import hashlib
+    import json
+
+    from .models import Registration
+
+    Library.objects.select_for_update().get(pk=library.pk)
+    fingerprint = hashlib.sha256(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
+    receipt = Registration.objects.filter(library=library, key=data["key"]).first()
+    if receipt:
+        if receipt.fingerprint != fingerprint:
+            raise ValidationError(
+                "Esta operação já foi concluída com outros dados. Abra um novo cadastro."
+            )
+        return {
+            "book_id": receipt.book_id,
+            "copy_id": receipt.copy_id,
+            "number": receipt.copy.number,
+        }
+    book = (
+        owned(Book, library, data["existing_book_id"])
+        if data.get("existing_book_id")
+        else create_book(library, data["book"])
+    )
+    copy = add_copy(library, book.pk, data.get("location_id"), data.get("acquired_on"))
+    Registration.objects.create(
+        library=library, key=data["key"], fingerprint=fingerprint, book=book, copy=copy
+    )
+    return {"book_id": book.pk, "copy_id": copy.pk, "number": copy.number}

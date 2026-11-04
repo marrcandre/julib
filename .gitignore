@@ -18,3 +18,7 @@ test-results/
 *.dump
 *.age
 *.sqlite3
+frontend/vercel.json
+backend/staticfiles/
+*.pem
+*.tar.gz

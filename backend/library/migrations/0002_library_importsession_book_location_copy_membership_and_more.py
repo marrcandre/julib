@@ -8,195 +8,411 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('library', '0001_initial'),
+        ("library", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Library',
+            name="Library",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=150)),
-                ('next_number', models.PositiveIntegerField(default=1)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("name", models.CharField(max_length=150)),
+                ("next_number", models.PositiveIntegerField(default=1)),
             ],
         ),
         migrations.CreateModel(
-            name='ImportSession',
+            name="ImportSession",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('library', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='library.library')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "library",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, to="library.library"
+                    ),
+                ),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
         ),
         migrations.CreateModel(
-            name='Book',
+            name="Book",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('title', models.CharField(max_length=300)),
-                ('authors', models.JSONField(default=list)),
-                ('isbn', models.CharField(blank=True, default='', max_length=13)),
-                ('publisher', models.CharField(blank=True, max_length=200)),
-                ('edition', models.CharField(blank=True, max_length=100)),
-                ('year', models.CharField(blank=True, max_length=20)),
-                ('language', models.CharField(blank=True, max_length=50)),
-                ('cover_url', models.URLField(blank=True, max_length=1000)),
-                ('cover_id', models.CharField(blank=True, max_length=255)),
-                ('source', models.CharField(blank=True, max_length=40)),
-                ('source_id', models.CharField(blank=True, max_length=150)),
-                ('library', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='library.library')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("title", models.CharField(max_length=300)),
+                ("authors", models.JSONField(default=list)),
+                ("isbn", models.CharField(blank=True, default="", max_length=13)),
+                ("publisher", models.CharField(blank=True, max_length=200)),
+                ("edition", models.CharField(blank=True, max_length=100)),
+                ("year", models.CharField(blank=True, max_length=20)),
+                ("language", models.CharField(blank=True, max_length=50)),
+                ("cover_url", models.URLField(blank=True, max_length=1000)),
+                ("cover_id", models.CharField(blank=True, max_length=255)),
+                ("source", models.CharField(blank=True, max_length=40)),
+                ("source_id", models.CharField(blank=True, max_length=150)),
+                (
+                    "library",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, to="library.library"
+                    ),
+                ),
             ],
             options={
-                'ordering': ['title', 'pk'],
+                "ordering": ["title", "pk"],
             },
         ),
         migrations.CreateModel(
-            name='Location',
+            name="Location",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('name', models.CharField(max_length=150)),
-                ('library', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='library.library')),
-                ('parent', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to='library.location')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("name", models.CharField(max_length=150)),
+                (
+                    "library",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, to="library.library"
+                    ),
+                ),
+                (
+                    "parent",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        to="library.location",
+                    ),
+                ),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
         ),
         migrations.CreateModel(
-            name='Copy',
+            name="Copy",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('number', models.PositiveIntegerField()),
-                ('acquired_on', models.DateField(default=django.utils.timezone.localdate)),
-                ('state', models.CharField(choices=[('active', 'No acervo'), ('sold', 'Vendido'), ('donated', 'Doado'), ('lost', 'Perdido')], default='active', max_length=12)),
-                ('retired_on', models.DateField(blank=True, null=True)),
-                ('book', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='copies', to='library.book')),
-                ('library', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='library.library')),
-                ('location', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to='library.location')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("number", models.PositiveIntegerField()),
+                ("acquired_on", models.DateField(default=django.utils.timezone.localdate)),
+                (
+                    "state",
+                    models.CharField(
+                        choices=[
+                            ("active", "No acervo"),
+                            ("sold", "Vendido"),
+                            ("donated", "Doado"),
+                            ("lost", "Perdido"),
+                        ],
+                        default="active",
+                        max_length=12,
+                    ),
+                ),
+                ("retired_on", models.DateField(blank=True, null=True)),
+                (
+                    "book",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="copies",
+                        to="library.book",
+                    ),
+                ),
+                (
+                    "library",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, to="library.library"
+                    ),
+                ),
+                (
+                    "location",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        to="library.location",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['number'],
+                "ordering": ["number"],
             },
         ),
         migrations.CreateModel(
-            name='Membership',
+            name="Membership",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('library', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='library.library')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                (
+                    "library",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, to="library.library"
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Person',
+            name="Person",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('name', models.CharField(max_length=150, validators=[django.core.validators.MinLengthValidator(1)])),
-                ('phone', models.CharField(max_length=40, validators=[django.core.validators.MinLengthValidator(1)])),
-                ('email', models.EmailField(blank=True, max_length=254)),
-                ('archived', models.BooleanField(default=False)),
-                ('library', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='library.library')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "name",
+                    models.CharField(
+                        max_length=150, validators=[django.core.validators.MinLengthValidator(1)]
+                    ),
+                ),
+                (
+                    "phone",
+                    models.CharField(
+                        max_length=40, validators=[django.core.validators.MinLengthValidator(1)]
+                    ),
+                ),
+                ("email", models.EmailField(blank=True, max_length=254)),
+                ("archived", models.BooleanField(default=False)),
+                (
+                    "library",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, to="library.library"
+                    ),
+                ),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
         ),
         migrations.CreateModel(
-            name='Loan',
+            name="Loan",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('started_on', models.DateField()),
-                ('due_on', models.DateField()),
-                ('returned_on', models.DateField(blank=True, null=True)),
-                ('state', models.CharField(choices=[('open', 'Aberto'), ('returned', 'Devolvido'), ('lost', 'Encerrado por perda')], default='open', max_length=12)),
-                ('copy', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='loans', to='library.copy')),
-                ('library', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='library.library')),
-                ('person', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='loans', to='library.person')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("started_on", models.DateField()),
+                ("due_on", models.DateField()),
+                ("returned_on", models.DateField(blank=True, null=True)),
+                (
+                    "state",
+                    models.CharField(
+                        choices=[
+                            ("open", "Aberto"),
+                            ("returned", "Devolvido"),
+                            ("lost", "Encerrado por perda"),
+                        ],
+                        default="open",
+                        max_length=12,
+                    ),
+                ),
+                (
+                    "copy",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="loans",
+                        to="library.copy",
+                    ),
+                ),
+                (
+                    "library",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, to="library.library"
+                    ),
+                ),
+                (
+                    "person",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="loans",
+                        to="library.person",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-started_on', '-pk'],
+                "ordering": ["-started_on", "-pk"],
             },
         ),
         migrations.CreateModel(
-            name='ShareLink',
+            name="ShareLink",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('digest', models.CharField(max_length=64, unique=True)),
-                ('active', models.BooleanField(default=True)),
-                ('library', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='library.library')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("digest", models.CharField(max_length=64, unique=True)),
+                ("active", models.BooleanField(default=True)),
+                (
+                    "library",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, to="library.library"
+                    ),
+                ),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
         ),
         migrations.CreateModel(
-            name='Tag',
+            name="Tag",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('name', models.CharField(max_length=60)),
-                ('library', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='library.library')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("name", models.CharField(max_length=60)),
+                (
+                    "library",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, to="library.library"
+                    ),
+                ),
             ],
         ),
         migrations.AddField(
-            model_name='book',
-            name='tags',
-            field=models.ManyToManyField(blank=True, to='library.tag'),
+            model_name="book",
+            name="tags",
+            field=models.ManyToManyField(blank=True, to="library.tag"),
         ),
         migrations.CreateModel(
-            name='ImportRow',
+            name="ImportRow",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('position', models.PositiveIntegerField()),
-                ('data', models.JSONField()),
-                ('result', models.CharField(blank=True, max_length=20)),
-                ('copy', models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='library.copy')),
-                ('session', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='rows', to='library.importsession')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("position", models.PositiveIntegerField()),
+                ("data", models.JSONField()),
+                ("result", models.CharField(blank=True, max_length=20)),
+                (
+                    "copy",
+                    models.ForeignKey(
+                        null=True, on_delete=django.db.models.deletion.PROTECT, to="library.copy"
+                    ),
+                ),
+                (
+                    "session",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="rows",
+                        to="library.importsession",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['position'],
-                'constraints': [models.UniqueConstraint(fields=('session', 'position'), name='unique_import_row')],
+                "ordering": ["position"],
+                "constraints": [
+                    models.UniqueConstraint(
+                        fields=("session", "position"), name="unique_import_row"
+                    )
+                ],
             },
         ),
         migrations.AddConstraint(
-            model_name='copy',
-            constraint=models.UniqueConstraint(fields=('library', 'number'), name='unique_copy_number'),
+            model_name="copy",
+            constraint=models.UniqueConstraint(
+                fields=("library", "number"), name="unique_copy_number"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='membership',
-            constraint=models.UniqueConstraint(fields=('user', 'library'), name='unique_member'),
+            model_name="membership",
+            constraint=models.UniqueConstraint(fields=("user", "library"), name="unique_member"),
         ),
         migrations.AddConstraint(
-            model_name='loan',
-            constraint=models.UniqueConstraint(condition=models.Q(('state', 'open')), fields=('copy',), name='one_open_loan'),
+            model_name="loan",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("state", "open")), fields=("copy",), name="one_open_loan"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='loan',
-            constraint=models.CheckConstraint(condition=models.Q(('due_on__gte', models.F('started_on'))), name='valid_due_date'),
+            model_name="loan",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("due_on__gte", models.F("started_on"))), name="valid_due_date"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='loan',
-            constraint=models.CheckConstraint(condition=models.Q(('returned_on__isnull', True), ('returned_on__gte', models.F('started_on')), _connector='OR'), name='valid_return_date'),
+            model_name="loan",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    ("returned_on__isnull", True),
+                    ("returned_on__gte", models.F("started_on")),
+                    _connector="OR",
+                ),
+                name="valid_return_date",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='loan',
-            constraint=models.CheckConstraint(condition=models.Q(models.Q(('returned_on__isnull', False), ('state', 'returned')), models.Q(('returned_on__isnull', True), ('state__in', ['open', 'lost'])), _connector='OR'), name='valid_loan_state'),
+            model_name="loan",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    models.Q(("returned_on__isnull", False), ("state", "returned")),
+                    models.Q(("returned_on__isnull", True), ("state__in", ["open", "lost"])),
+                    _connector="OR",
+                ),
+                name="valid_loan_state",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='tag',
-            constraint=models.UniqueConstraint(fields=('library', 'name'), name='unique_library_tag'),
+            model_name="tag",
+            constraint=models.UniqueConstraint(
+                fields=("library", "name"), name="unique_library_tag"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='book',
-            constraint=models.UniqueConstraint(condition=models.Q(('isbn', ''), _negated=True), fields=('library', 'isbn'), name='unique_library_isbn'),
+            model_name="book",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("isbn", ""), _negated=True),
+                fields=("library", "isbn"),
+                name="unique_library_isbn",
+            ),
         ),
     ]

@@ -610,3 +610,11 @@ Arquivos de referência:
 - Seguir o tema do sistema quando possível; usar escuro quando não houver preferência detectável.
 - Manter alternância manual; proposta de seletor Claro/Escuro/Sistema persistido no dispositivo.
 - Documento consolidado atualizado com os valores claros e escuros aprovados.
+
+### Implementação iniciada e revisão — 04/11/2026
+
+- Alterações locais do usuário consolidadas no desenho; autorizada a implementação.
+- Código, testes e documentação produzidos conforme plano; registro de estado em docs/implementation-status.md.
+- Repositórios Julib público e Julib-backups privado criados.
+- Projeto Supabase Julib criado na organização IFC após aceite explícito, com cotação mensal zero.
+- Contas autorizadas recebidas e configuradas somente no arquivo privado, sem publicá-las no levantamento.

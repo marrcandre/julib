@@ -1,10 +1,13 @@
 import hashlib
 import secrets
 from typing import Any
+
 from django.core.exceptions import ValidationError
 from django.db import transaction
+
 from .models import Book, Library, ShareLink
 from .presentation import book_data
+
 
 @transaction.atomic
 def renew_link(library: Library) -> str:
@@ -15,12 +18,26 @@ def renew_link(library: Library) -> str:
     return token
 
 
-def public_books(token: str, q: str = '', page: int = 1, tag_id: int | None = None) -> dict[str, Any]:
-    link = ShareLink.objects.filter(digest=hashlib.sha256(token.encode()).hexdigest(), active=True).first()
+def public_books(
+    token: str, q: str = "", page: int = 1, tag_id: int | None = None
+) -> dict[str, Any]:
+    link = ShareLink.objects.filter(
+        digest=hashlib.sha256(token.encode()).hexdigest(), active=True
+    ).first()
     if not link:
-        raise ValidationError('Link inválido ou desativado.')
-    qs = Book.objects.filter(library=link.library, copies__state='active').prefetch_related('tags','copies__loans').distinct()
-    if q: qs = qs.filter(title__icontains=q)
-    if tag_id: qs = qs.filter(tags__id=tag_id)
+        raise ValidationError("Link inválido ou desativado.")
+    qs = (
+        Book.objects.filter(library=link.library, copies__state="active")
+        .prefetch_related("tags", "copies__loans")
+        .distinct()
+    )
+    if q:
+        qs = qs.filter(title__icontains=q)
+    if tag_id:
+        qs = qs.filter(tags__id=tag_id)
     page = max(1, page)
-    return {'name': link.library.name, 'items': [book_data(b, public=True) for b in qs[(page-1)*24:page*24]], 'total': qs.count()}
+    return {
+        "name": link.library.name,
+        "items": [book_data(b, public=True) for b in qs[(page - 1) * 24 : page * 24]],
+        "total": qs.count(),
+    }

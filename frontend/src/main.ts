@@ -1,0 +1,53 @@
+import { createApp } from "vue";
+import { createRouter, createWebHistory } from "vue-router";
+import PrimeVue from "primevue/config";
+import Aura from "@primeuix/themes/aura";
+import { definePreset } from "@primeuix/themes";
+import App from "./App.vue";
+const Dashboard = () => import("./pages/Dashboard.vue");
+const Books = () => import("./pages/Books.vue");
+const Loans = () => import("./pages/Loans.vue");
+const Locations = () => import("./pages/Locations.vue");
+const ImportBooks = () => import("./pages/ImportBooks.vue");
+const About = () => import("./pages/About.vue");
+const PublicCatalog = () => import("./pages/PublicCatalog.vue");
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/500.css";
+import "@fontsource/inter/600.css";
+import "@fontsource/inter/700.css";
+import "@fontsource/inter/800.css";
+import "./style.css";
+import "primeicons/primeicons.css";
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    { path: "/", component: Dashboard },
+    { path: "/livros", component: Books },
+    { path: "/emprestimos", component: Loans },
+    { path: "/locais", component: Locations },
+    { path: "/importar", component: ImportBooks },
+    { path: "/sobre", component: About },
+    { path: "/colecao/:token", component: PublicCatalog },
+  ],
+});
+const preset = definePreset(Aura, {
+  semantic: {
+    primary: {
+      50: "#eef8f1",
+      100: "#d0ebda",
+      200: "#a0d5b7",
+      300: "#83c6a7",
+      400: "#45997a",
+      500: "#226f54",
+      600: "#14543e",
+      700: "#074e3d",
+      800: "#053227",
+      900: "#09291f",
+      950: "#071e17",
+    },
+  },
+});
+createApp(App)
+  .use(router)
+  .use(PrimeVue, { theme: { preset, options: { darkModeSelector: ".dark" } } })
+  .mount("#app");
