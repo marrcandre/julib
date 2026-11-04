@@ -119,3 +119,11 @@ CI da main 41911780882 e Deploy 41913306145 concluídos com sucesso, incluindo c
 Comando enrich_covers busca apenas capas ausentes, por biblioteca, sem modificar source/source_id do Goodreads nem sobrescrever capas. ISBN é prioritário; sem ISBN exige título/autor correspondentes e resultado sem ambiguidade. Imagens são verificadas antes de vincular a URL da fonte; não são copiadas para Cloudinary. A atribuição considera a origem da capa mesmo quando os metadados vieram do Goodreads. Google Books retornou 429 em consultas anônimas; suporte a GOOGLE_BOOKS_API_KEY disponível apenas no servidor, com fallback Open Library. A aplicação da localização Escritório (Apto) aguarda o aviso do usuário de término da importação.
 
 Revisão das capas identificou redirecionamento de imagem sem validação do destino. Teste reproduziu acesso a host não confiável; verificação de imagem passou a recusar redirecionamentos, com regressão aprovada.
+
+## Capas vinculadas e localização preparada — 04/11/2026
+
+GOOGLE_BOOKS_API_KEY fornecida pelo usuário, restrita à Books API, validada com HTTP 200 e configurada como segredo do runtime Vercel. PR #3 integrado; CI 41918569643 e Deploy 41918809559 concluídos com sucesso. Validação atual: 36 backend, 6 Vitest e 7 jornadas Playwright.
+
+Rodada de busca concluída sobre os 312 livros importados nesse momento: 67 capas externas verificadas e vinculadas, 245 sem correspondência segura. Atualização condicional preservou ISBN/título/autores e identidade Goodreads, sem substituir capas existentes. Atribuição das fontes conferida em registros reais. URLs externas não foram copiadas para o Cloudinary.
+
+Localização Escritório (Apto) criada. Nenhum exemplar foi movido ainda: o usuário informou que avisará ao finalizar a importação. Aplicar a localização a todos os exemplares após esse aviso e buscar capas apenas de eventuais livros novos que ficaram fora desta rodada.
