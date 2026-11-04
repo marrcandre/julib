@@ -130,6 +130,7 @@ class PublicCatalogOut(Schema):
 
 
 class SessionOut(Schema):
+    avatar_url: str
     name: str
     email: str
     technical: bool

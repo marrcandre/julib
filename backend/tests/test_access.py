@@ -49,3 +49,21 @@ def test_login_exposes_only_google_and_disables_local_email_flows(mailoutbox):
     assert client.get("/accounts/signup/").status_code == 404
     assert client.get("/accounts/password/reset/").status_code == 404
     assert len(mailoutbox) == 0
+
+
+def test_session_includes_google_avatar_with_empty_fallback(users):
+    from allauth.socialaccount.models import SocialAccount
+
+    client = Client()
+    client.force_login(users[0])
+    with override_settings(ALLOWED_EMAILS=["marco@example.com"]):
+        assert client.get("/api/v1/session").json()["avatar_url"] == ""
+        SocialAccount.objects.create(
+            user=users[0],
+            provider="google",
+            uid="test-google-user",
+            extra_data={"picture": "https://lh3.googleusercontent.com/test-avatar"},
+        )
+        assert client.get("/api/v1/session").json()["avatar_url"] == (
+            "https://lh3.googleusercontent.com/test-avatar"
+        )

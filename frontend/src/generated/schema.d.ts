@@ -462,6 +462,8 @@ export interface components {
     schemas: {
         /** SessionOut */
         SessionOut: {
+            /** Avatar Url */
+            avatar_url: string;
             /** Name */
             name: string;
             /** Email */

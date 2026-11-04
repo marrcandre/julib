@@ -1,6 +1,7 @@
 from datetime import timedelta
 from typing import Any, cast
 
+from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth import logout
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
@@ -56,9 +57,11 @@ def health(request: HttpRequest) -> dict[str, str]:
 def session(request: HttpRequest) -> dict[str, Any]:
     user = cast(User, request.user)
     membership = user.membership_set.select_related("library").first()
+    google_account = SocialAccount.objects.filter(user=user, provider="google").first()
     return {
         "name": user.get_full_name() or user.username,
         "email": user.email,
+        "avatar_url": (google_account.get_avatar_url() or "") if google_account else "",
         "technical": technical(request.user),
         "library": membership.library.name if membership else None,
         "csrf": get_token(request),

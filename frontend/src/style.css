@@ -623,3 +623,5 @@ video {
     transition: none !important;
   }
 }
+
+.avatar-photo { object-fit: cover; }

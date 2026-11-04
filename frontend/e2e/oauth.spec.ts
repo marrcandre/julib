@@ -42,3 +42,19 @@ test("theme toggle persists across the app and styled Google login", async ({ pa
   await page.goto("/");
   await expect(page.locator("html")).not.toHaveClass(/dark/);
 });
+
+test("header shows the Google photo and falls back to initials on image failure", async ({ page }) => {
+  await page.route("**/api/v1/session", route => route.fulfill({ json: {
+    name: "Pessoa Teste", email: "test@example.com", technical: false,
+    library: "Teste", csrf: "test", avatar_url: "https://lh3.googleusercontent.com/avatar-test",
+  } }));
+  await page.route("https://lh3.googleusercontent.com/avatar-test", route => route.fulfill({
+    contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36"><circle cx="18" cy="18" r="18" fill="green"/></svg>',
+  }));
+  await page.goto("/sobre");
+  await expect(page.locator(".avatar-photo")).toBeVisible();
+  expect(await page.locator(".avatar-photo").evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
+  await page.route("https://lh3.googleusercontent.com/avatar-test", route => route.abort());
+  await page.reload();
+  await expect(page.locator(".avatar")).toHaveText("PE");
+});
