@@ -49,7 +49,7 @@ TEMPLATES = [
 ]
 DATABASES = {
     "default": dj_database_url.config(
-        default="postgresql://marco@127.0.0.1:55432/julib", conn_max_age=0
+        default="postgresql://julib:julib-local-only@127.0.0.1:5432/julib", conn_max_age=0
     )
 }
 DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True

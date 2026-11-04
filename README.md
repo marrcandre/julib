@@ -24,30 +24,29 @@ Python 3.13, Django 5.2 LTS, Django Ninja, uv, PostgreSQL; Vue 3, TypeScript, Pr
 Requisitos: uv, Node 22, Docker Compose (ou PostgreSQL local). Nunca use banco de produção nos testes.
 
 ```sh
-cp .env.example .env
-# Edite .env; depois carregue as variáveis:
-set -a
-. ./.env
-set +a
+test -f .env || cp .env.example .env
+test -f .env.local || cp .env.local.example .env.local
+# Edite as credenciais privadas de Google/Cloudinary em .env.
 make setup
 make db
-make migrate
-uv run --project backend python backend/manage.py bootstrap_library
-make backend
-# Em outro terminal com o mesmo .env:
+make migrate-local
+make bootstrap-local
+make backend-local
+# Em outro terminal:
 make frontend
 ```
 
-Abra http://127.0.0.1:5173. Configure Google OAuth conforme [operação](docs/operations.md) para entrar. O banco é obrigatório; não há fallback SQLite. O frontend encaminha API, OAuth e Admin para o Django local.
+Abra http://127.0.0.1:5173. Configure Google OAuth conforme [operação](docs/operations.md) para entrar. Os comandos `*-local` carregam `.env` e depois `.env.local`, usando o PostgreSQL Docker mesmo se houver uma URL do Supabase exportada no shell. O banco é obrigatório; não há fallback SQLite. O frontend encaminha API, OAuth e Admin para o Django local.
 
 Admin: `/admin/`. Swagger: `/api/v1/docs`. Ambos exigem a conta administrativa autorizada. Provisione a biblioteca antes do primeiro login; as contas permitidas são associadas ao entrar. Nenhum cadastro aberto ou login alternativo de produção.
 
 ## Verificar
 
 ```sh
-make check
-# Banco descartável local/CI, migrações aplicadas:
-DATABASE_URL=postgresql://julib:julib-local-only@127.0.0.1:5432/julib_e2e make e2e
+make check-local
+# Crie uma vez o banco descartável de E2E:
+docker compose exec db createdb -U julib julib_e2e
+make e2e-local
 ```
 
 `make check` executa lint, formatação e tipos Python, checks Django/migrações, pytest no PostgreSQL, Vitest, TypeScript e build. O E2E cria apenas uma sessão de teste no banco configurado, sem rota de login alternativa. Instale Chromium antes: `npx --prefix frontend playwright install chromium`. Pare servidores nas portas 8000/5173 antes de rodar `make e2e`.

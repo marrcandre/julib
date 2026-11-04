@@ -10,7 +10,11 @@ Use SECRET_KEY aleatória longa, DEBUG=false em produção, ALLOWED_HOSTS explí
 
 ## PostgreSQL / Supabase
 
-Local: `docker compose up -d db`, com porta 5432 vinculada somente a 127.0.0.1. Crie banco distinto para E2E. O ambiente de desenvolvimento desta entrega também pode usar PostgreSQL temporário em porta 55432, armazenado em .superpowers (não faz parte da instalação padrão).
+Local: `make db`, com PostgreSQL 17 na porta 5432 vinculada somente a 127.0.0.1 e volume persistente do Compose. `.env.local` contém apenas DSNs locais e DEBUG; `.env` preserva a conexão Supabase e as credenciais compartilhadas. Os alvos migrate-local, bootstrap-local, backend-local e check-local removem DSNs exportadas no shell antes de carregar os dois arquivos. O backend sem DATABASE_URL também usa a conexão local do Compose.
+
+Bancos separados: julib para desenvolvimento, test_julib criado pelo pytest e julib_e2e para jornadas com dados fictícios. Use `make e2e-local` com servidores 8000/5173 parados. `docker compose stop db` para o serviço sem apagar o volume; `down -v` remove dados e não faz parte da rotina normal.
+
+O PostgreSQL temporário antigo na porta 55432 foi usado na preparação inicial; o ambiente padrão passou ao Docker em 04/11/2026.
 
 Produção: copie a connection string do painel Supabase; não derive o hostname. DATABASE_URL do runtime usa pooler transaction, prepared statements desabilitados e sem cursores persistentes de servidor. Migração e dump usam conexão direta ou session pooler compatível com a rede. Configure TLS conforme painel; não misture credenciais reais em CI de PRs.
 
