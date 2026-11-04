@@ -127,3 +127,7 @@ GOOGLE_BOOKS_API_KEY fornecida pelo usuário, restrita à Books API, validada co
 Rodada de busca concluída sobre os 312 livros importados nesse momento: 67 capas externas verificadas e vinculadas, 245 sem correspondência segura. Atualização condicional preservou ISBN/título/autores e identidade Goodreads, sem substituir capas existentes. Atribuição das fontes conferida em registros reais. URLs externas não foram copiadas para o Cloudinary.
 
 Localização Escritório (Apto) criada. Nenhum exemplar foi movido ainda: o usuário informou que avisará ao finalizar a importação. Aplicar a localização a todos os exemplares após esse aviso e buscar capas apenas de eventuais livros novos que ficaram fora desta rodada.
+
+## Importação concluída e localização inicial — 04/11/2026
+
+Usuário confirmou o término com 312 livros. Contagens reais conferidas antes da alteração: 312 livros e 312 exemplares. Atualização transacional aplicou Escritório (Apto) aos 312 exemplares; conferência posterior confirmou todos nessa localização. As 67 capas existentes foram preservadas. Nenhum livro adicional ficou fora da rodada de capas. Backup privado pós-importação solicitado para registrar esse estado.
