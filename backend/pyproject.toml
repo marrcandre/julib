@@ -19,3 +19,6 @@ ignore_missing_imports = true
 check_untyped_defs = true
 [tool.django-stubs]
 django_settings_module = "config.settings"
+
+[tool.vercel]
+entrypoint = "config.wsgi:app"
