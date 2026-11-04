@@ -10,7 +10,7 @@ from django.http import HttpRequest, HttpResponseForbidden
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from ninja import File, NinjaAPI
+from ninja import File, NinjaAPI, Status
 from ninja.files import UploadedFile
 
 from . import circulation, imports, media, providers, services, sharing
@@ -18,6 +18,7 @@ from . import schemas as s
 from .auth import AllowedSession, require_library, technical
 from .models import Book, Copy, ImportSession, Loan, Location, Person, ShareLink, Tag, User
 from .presentation import book_data, loan_data
+from .readiness import database_ready
 
 api = NinjaAPI(
     title="Julib API",
@@ -51,6 +52,24 @@ def conflict(request: HttpRequest, exc: IntegrityError) -> Any:
 @api.get("/health", auth=None)
 def health(request: HttpRequest) -> dict[str, str]:
     return {"status": "ok"}
+
+
+@api.get("/health/ready", auth=None, response={200: dict[str, str], 503: dict[str, str]})
+def ready(request: HttpRequest) -> Status[dict[str, str]]:
+    if database_ready():
+        return Status(200, {"status": "ok"})
+    return Status(503, {"status": "unavailable"})
+
+
+@api.api_operation(
+    ["HEAD"],
+    "/health/ready",
+    auth=None,
+    response={200: dict[str, str], 503: dict[str, str]},
+    include_in_schema=False,
+)
+def ready_head(request: HttpRequest) -> Status[dict[str, str]]:
+    return ready(request)
 
 
 @api.get("/session", response=s.SessionOut)

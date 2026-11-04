@@ -131,3 +131,7 @@ Localização Escritório (Apto) criada. Nenhum exemplar foi movido ainda: o usu
 ## Importação concluída e localização inicial — 04/11/2026
 
 Usuário confirmou o término com 312 livros. Contagens reais conferidas antes da alteração: 312 livros e 312 exemplares. Atualização transacional aplicou Escritório (Apto) aos 312 exemplares; conferência posterior confirmou todos nessa localização. As 67 capas existentes foram preservadas. Nenhum livro adicional ficou fora da rodada de capas. Backup privado pós-importação solicitado para registrar esse estado.
+
+## Prontidão para UptimeRobot — 04/11/2026
+
+Implementada rota pública GET/HEAD /api/v1/health/ready com consulta de leitura a library_library, retorno 200/503 genérico e sem cache. /api/v1/health continua sem acesso ao banco. Conexão isolada limita conexão a 3s, consulta a 2s e espera por lock a 1s, usando SET LOCAL e rollback/fechamento. Testes reproduziram rota ausente e HEAD não suportado antes da implementação; cobrem banco saudável, falha sem vazamento de detalhes, lock real/recuperação e HEAD com o mesmo status. Supabase real respondeu à sondagem em 0,193s. Revisão focada sem bloqueios. Validação local: 40 backend, 6 frontend, Ruff/mypy, build/tipos e checks de migrações aprovados. Monitor externo deve apontar à nova rota, com intervalo de cinco minutos.
