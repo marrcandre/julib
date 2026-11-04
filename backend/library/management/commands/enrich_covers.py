@@ -30,7 +30,13 @@ class Command(BaseCommand):
                 url = lookup_cover(client, book.isbn, book.title, book.authors)
                 if url:
                     updated += Book.objects.filter(
-                        pk=book.pk, library=library, cover_url="", cover_id=""
+                        pk=book.pk,
+                        library=library,
+                        cover_url="",
+                        cover_id="",
+                        isbn=book.isbn,
+                        title=book.title,
+                        authors=book.authors,
                     ).update(cover_url=url)
                 else:
                     missing += 1

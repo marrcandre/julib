@@ -93,3 +93,19 @@ def test_command_preserves_import_identity_existing_covers_and_library_scope(mon
     data = book_data(book)
     assert data["attribution_name"] == "Google Books"
     assert data["attribution_url"] == "https://books.google.com/books?id=match"
+
+
+def test_cover_redirect_cannot_fetch_an_untrusted_destination():
+    from library.cover_lookup import usable
+
+    hosts = []
+
+    def handler(request):
+        hosts.append(request.url.host)
+        if request.url.host == "books.google.com":
+            return httpx.Response(302, headers={"location": "http://127.0.0.1/private"})
+        return httpx.Response(200, content=b"private", headers={"content-type": "image/jpeg"})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        assert usable(client, GOOGLE_COVER) == ""
+    assert hosts == ["books.google.com"]

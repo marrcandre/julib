@@ -40,7 +40,7 @@ def usable(client: httpx.Client, url: str) -> str:
     }:
         return ""
     try:
-        response = client.get(url, timeout=8, follow_redirects=True)
+        response = client.get(url, timeout=8, follow_redirects=False)
         if (
             response.status_code == 200
             and response.headers.get("content-type", "").startswith("image/")

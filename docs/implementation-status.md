@@ -10,7 +10,7 @@
 - README, MIT, contribuição, operação, workflows CI/deploy e template privado de backup.
 - Revisão independente apontou três problemas relevantes (imutabilidade da biblioteca no Admin, repetição segura de cadastro após perda de resposta e ISBN Excel vazio); corrigidos com testes reproduzindo cada caso.
 
-Validação atual: 35 testes backend em PostgreSQL e 6 Vitest localmente; última CI com 7 jornadas Playwright; Ruff, mypy, build/tipos e checks de migrações aprovados. Upload e recuperação reais de mídia e restauração do artifact cifrado remoto conferidos.
+Validação atual: 36 testes backend em PostgreSQL e 6 Vitest localmente; última CI com 7 jornadas Playwright; Ruff, mypy, build/tipos e checks de migrações aprovados. Upload e recuperação reais de mídia e restauração do artifact cifrado remoto conferidos.
 
 ## Produção
 
@@ -117,3 +117,5 @@ CI da main 41911780882 e Deploy 41913306145 concluídos com sucesso, incluindo c
 ## Busca de capas dos livros importados
 
 Comando enrich_covers busca apenas capas ausentes, por biblioteca, sem modificar source/source_id do Goodreads nem sobrescrever capas. ISBN é prioritário; sem ISBN exige título/autor correspondentes e resultado sem ambiguidade. Imagens são verificadas antes de vincular a URL da fonte; não são copiadas para Cloudinary. A atribuição considera a origem da capa mesmo quando os metadados vieram do Goodreads. Google Books retornou 429 em consultas anônimas; suporte a GOOGLE_BOOKS_API_KEY disponível apenas no servidor, com fallback Open Library. A aplicação da localização Escritório (Apto) aguarda o aviso do usuário de término da importação.
+
+Revisão das capas identificou redirecionamento de imagem sem validação do destino. Teste reproduziu acesso a host não confiável; verificação de imagem passou a recusar redirecionamentos, com regressão aprovada.
