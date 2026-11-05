@@ -55,6 +55,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/preferences/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Catalog Preferences */
+        put: operations["library_api_catalog_preferences"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logout": {
         parameters: {
             query?: never;
@@ -479,6 +496,17 @@ export interface components {
     schemas: {
         /** SessionOut */
         SessionOut: {
+            /**
+             * Catalog View
+             * @default covers
+             * @enum {string}
+             */
+            catalog_view: "covers" | "cards" | "list";
+            /**
+             * Cover Columns
+             * @default 7
+             */
+            cover_columns: number;
             /** Avatar Url */
             avatar_url: string;
             /** Name */
@@ -491,6 +519,16 @@ export interface components {
             library: string | null;
             /** Csrf */
             csrf: string;
+        };
+        /** CatalogPreferencesIn */
+        CatalogPreferencesIn: {
+            /**
+             * Catalog View
+             * @enum {string}
+             */
+            catalog_view: "covers" | "cards" | "list";
+            /** Cover Columns */
+            cover_columns: number;
         };
         /** BookOut */
         BookOut: {
@@ -898,6 +936,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionOut"];
+                };
+            };
+        };
+    };
+    library_api_catalog_preferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogPreferencesIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogPreferencesIn"];
                 };
             };
         };

@@ -21,7 +21,9 @@ test("catalog, location and loan roundtrip on real API", async ({
   await page.getByLabel("Autores *").fill("Autora de teste");
   await page.getByRole("button", { name: "Salvar", exact: true }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
-  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Abrir " + title, exact: true }),
+  ).toBeVisible();
   await page.getByRole("link", { name: "Empréstimos", exact: true }).click();
   await page
     .getByRole("button", { name: "Cadastrar pessoa", exact: true })

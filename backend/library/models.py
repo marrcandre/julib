@@ -1,14 +1,22 @@
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
-from django.core.validators import MinLengthValidator
+from django.core.validators import MaxValueValidator, MinLengthValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
 
 class User(AbstractUser):
-    pass
+    catalog_view = models.CharField(
+        max_length=10,
+        default="covers",
+        db_default="covers",
+        choices=[(v, v) for v in ("covers", "cards", "list")],
+    )
+    cover_columns = models.PositiveSmallIntegerField(
+        default=7, db_default=7, validators=[MinValueValidator(5), MaxValueValidator(10)]
+    )
 
 
 class Library(models.Model):

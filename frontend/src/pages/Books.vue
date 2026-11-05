@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import SourceAttribution from "../components/SourceAttribution.vue";
-import { ref, onMounted, onUnmounted, nextTick, watch } from "vue";
+import {
+  ref,
+  onMounted,
+  onUnmounted,
+  nextTick,
+  watch,
+  inject,
+  type Ref,
+} from "vue";
 import { canonicalIsbn } from "../isbn";
 import { useRoute } from "vue-router";
 import Button from "primevue/button";
@@ -19,19 +27,40 @@ import {
   type Location,
   type Tag,
   type Loan,
+  type Session,
 } from "../api";
 import {
   BrowserMultiFormatReader,
   type IScannerControls,
 } from "@zxing/browser";
 type CatalogView = "cards" | "covers" | "list";
-const storedView = localStorage.getItem("julib-catalog-view");
-const catalogView = ref<CatalogView>(
-  storedView === "covers" || storedView === "list" ? storedView : "cards",
-);
-watch(catalogView, (value) =>
-  localStorage.setItem("julib-catalog-view", value),
-);
+const session = inject<Ref<Session | null>>("session");
+const catalogView = ref<CatalogView>(session?.value?.catalog_view || "covers");
+const coverColumns = ref(session?.value?.cover_columns || 7);
+let preferenceSave = Promise.resolve();
+let preferenceVersion = 0;
+watch([catalogView, coverColumns], ([view, columns]) => {
+  const version = ++preferenceVersion;
+  preferenceSave = preferenceSave
+    .then(async () => {
+      const saved = await api<{
+        catalog_view: CatalogView;
+        cover_columns: number;
+      }>("/preferences/catalog", {
+        method: "PUT",
+        body: JSON.stringify({ catalog_view: view, cover_columns: columns }),
+      });
+      if (session?.value && version === preferenceVersion)
+        Object.assign(session.value, saved);
+    })
+    .catch(() => {
+      error.value =
+        "Não foi possível salvar sua preferência de visualização. Tente novamente.";
+    });
+});
+const searchContainer = ref<HTMLDivElement | null>(null);
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+let loadVersion = 0;
 const pendingRegistration = ref<Record<string, unknown> | null>(null);
 const operationKey = ref(crypto.randomUUID());
 const duplicateKey = ref(crypto.randomUUID());
@@ -120,17 +149,28 @@ async function run(fn: () => Promise<void>) {
   }
 }
 async function load() {
+  const version = ++loadVersion;
+  const searchValue = q.value;
   const params = new URLSearchParams({ q: q.value, page: String(page.value) });
   if (missingLocation.value) params.set("missing_location", "true");
   if (tag.value) params.set("tag_id", String(tag.value));
   if (loc.value) params.set("location_id", String(loc.value));
   if (available.value !== null)
     params.set("available", String(available.value));
-  const data = await api<{ items: Book[]; total: number }>("/books?" + params);
-  books.value = data.items;
-  total.value = data.total;
+  try {
+    const data = await api<{ items: Book[]; total: number }>(
+      "/books?" + params,
+    );
+    if (version !== loadVersion || searchValue !== q.value) return;
+    books.value = data.items;
+    total.value = data.total;
+  } catch (cause) {
+    if (version !== loadVersion || searchValue !== q.value) return;
+    throw cause;
+  }
 }
 async function refresh() {
+  clearTimeout(searchTimer);
   await run(load);
 }
 function newBook() {
@@ -393,6 +433,23 @@ async function upload(event: Event) {
     await load();
   });
 }
+function searchNow() {
+  clearTimeout(searchTimer);
+  page.value = 1;
+  void refresh();
+}
+function clearQuery() {
+  q.value = "";
+  void nextTick(() =>
+    searchContainer.value?.querySelector<HTMLInputElement>("input")?.focus(),
+  );
+}
+watch(q, (value) => {
+  clearTimeout(searchTimer);
+  ++loadVersion;
+  if (!value) searchNow();
+  else searchTimer = setTimeout(searchNow, 400);
+});
 onMounted(() =>
   run(async () => {
     [locations.value, tags.value] = await Promise.all([
@@ -405,7 +462,11 @@ onMounted(() =>
       detail.value = await api<Book>("/books/" + route.query.livro);
   }),
 );
-onUnmounted(stopCamera);
+onUnmounted(() => {
+  clearTimeout(searchTimer);
+  ++loadVersion;
+  stopCamera();
+});
 </script>
 <template>
   <div class="page-heading">
@@ -456,18 +517,24 @@ onUnmounted(stopCamera);
   </div>
   <p v-if="error" class="error" role="alert">{{ error }}</p>
   <p v-if="message" class="notice" role="status">{{ message }}</p>
-  <form
-    class="toolbar"
-    @submit.prevent="
-      page = 1;
-      refresh();
-    "
-  >
-    <InputText
-      v-model="q"
-      placeholder="Título, autor ou ISBN"
-      aria-label="Buscar no acervo"
-    /><Select
+  <form class="toolbar" @submit.prevent="searchNow">
+    <div ref="searchContainer" class="catalog-search">
+      <InputText
+        v-model="q"
+        placeholder="Título, autor ou ISBN"
+        aria-label="Buscar no acervo"
+      /><button
+        v-if="q"
+        type="button"
+        class="search-clear"
+        aria-label="Limpar busca"
+        title="Limpar busca"
+        @click="clearQuery"
+      >
+        <i class="pi pi-times" aria-hidden="true" />
+      </button>
+    </div>
+    <Select
       v-model="tag"
       :options="tags"
       option-label="name"
@@ -510,13 +577,6 @@ onUnmounted(stopCamera);
     aria-label="Visualização dos livros"
   >
     <Button
-      label="Cartões"
-      icon="pi pi-th-large"
-      :aria-pressed="catalogView === 'cards'"
-      :outlined="catalogView !== 'cards'"
-      @click="catalogView = 'cards'"
-    />
-    <Button
       label="Somente capas"
       icon="pi pi-book"
       :aria-pressed="catalogView === 'covers'"
@@ -524,18 +584,38 @@ onUnmounted(stopCamera);
       @click="catalogView = 'covers'"
     />
     <Button
+      label="Cartões"
+      icon="pi pi-th-large"
+      :aria-pressed="catalogView === 'cards'"
+      :outlined="catalogView !== 'cards'"
+      @click="catalogView = 'cards'"
+    />
+    <Button
       label="Lista"
       icon="pi pi-list"
       :aria-pressed="catalogView === 'list'"
       :outlined="catalogView !== 'list'"
       @click="catalogView = 'list'"
-    />
+    /><label v-if="catalogView === 'covers'" class="density-control"
+      >Por linha (desktop)<Select
+        v-model="coverColumns"
+        :options="[5, 6, 7, 8, 9, 10]"
+        aria-label="Capas por linha no desktop"
+    /></label>
   </div>
   <div v-if="!books.length" class="empty">
     <i class="pi pi-book" />Nenhum livro encontrado. Cadastre um livro ou altere
     os filtros.
   </div>
-  <div v-else :class="catalogView === 'list' ? 'catalog-list' : 'book-grid'">
+  <div
+    v-else
+    :class="
+      catalogView === 'list'
+        ? 'catalog-list'
+        : ['book-grid', { 'catalog-covers': catalogView === 'covers' }]
+    "
+    :style="{ '--cover-columns': coverColumns }"
+  >
     <div v-for="book in books" :key="book.id" class="catalog-item">
       <button
         :aria-label="'Abrir ' + book.title"
@@ -797,15 +877,23 @@ onUnmounted(stopCamera);
           t.name
         }}</span>
       </div>
-      <div class="actions">
-        <Button label="Editar dados" text @click="edit(detail)" /><label
-          class="tag-pill"
-          >Enviar capa<input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            @change="upload"
-            style="max-width: 200px"
-        /></label>
+      <div class="detail-cover-actions">
+        <div class="actions">
+          <Button label="Editar dados" text @click="edit(detail)" /><label
+            class="tag-pill cover-upload"
+            >Enviar capa<input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              @change="upload"
+          /></label>
+        </div>
+        <img
+          v-if="detail.cover_url"
+          class="detail-cover"
+          :src="detail.cover_url"
+          alt="Capa do livro"
+          referrerpolicy="no-referrer"
+        />
       </div>
       <SourceAttribution
         :name="detail.attribution_name"

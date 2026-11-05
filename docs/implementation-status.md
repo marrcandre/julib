@@ -148,3 +148,9 @@ Fontes verificadas: https://developers.google.com/terms#e-prohibitions-on-conten
 
 
 Publicação do catálogo concluída: CI 42019530236 e Deploy 42019721802 aprovados. Teste Chromium sobre a interface publicada, com dados fictícios restritos ao teste, confirmou colunas 5/3, três modos, persistência e capa no editor, sem escrever na coleção. GET/HEAD da rota de prontidão continuam respondendo 200 com no-store, private. Nenhuma capa foi copiada automaticamente para Cloudinary.
+
+## Preferências do catálogo e busca — 05/11/2026
+
+Somente capas passa a ser a primeira opção e o padrão, seguida por Cartões e Lista. No desktop, capas usam sete colunas por padrão, ajustáveis entre cinco e dez; no celular permanecem três. Modo e densidade são salvos por usuário na API autenticada, com proteção CSRF. Migração aditiva mantém defaults no banco para compatibilidade durante a publicação.
+
+Busca automática após 400 ms de pausa, botão acessível para limpar e proteção contra respostas antigas substituírem resultados recentes. Detalhes exibem a capa atual à direita do envio de imagem, incluindo disposição móvel sem sobreposição. Testes cobrem persistência, isolamento entre usuários, validação, CSRF, inserções compatíveis com a versão anterior e comportamento visual/busca.
