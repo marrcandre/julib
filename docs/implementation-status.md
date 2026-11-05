@@ -192,3 +192,9 @@ Validação física confirmada pelo usuário em 05/11/2026 no Poco F5: câmera e
 ## Auditoria de requisitos — 05/11/2026
 
 Confrontados desenho aprovado, decisões posteriores, código e workflows. Relatório em docs/reviews/2026-11-05-requisitos-e-proximas-entregas.md. Sondagens locais com dados sintéticos e rollback confirmaram ausência de aviso de duplicata sem ISBN, gestão parcial de tags/exclusões e lacunas de erro por linha/consulta de importação expirada. Backup e cleanup diários conferidos no workflow privado; marcações antigas de operação no plano foram consolidadas como concluídas. Nenhuma funcionalidade nem dado de produção foi alterado nesta auditoria.
+
+## Login de Juliana validado — 05/11/2026
+
+Após relato de tentativa sem sucesso, inspeção somente leitura confirmou conta ativa, identidade Google verificada e participação na biblioteca inicial. Havia login concluído em 04/11 às 20h09 (America/Sao_Paulo). Verificação pública atual confirmou prontidão/entrada Google HTTP 200, POST com CSRF redirecionando ao Google (302), callback correto e state presente. Registros recentes disponíveis não apresentaram erros/avisos correspondentes; o período antigo não estava retido. Não foi identificada nem corrigida uma causa para a falha anterior.
+
+Usuário confirmou em 05/11/2026 novo login bem-sucedido com a conta da Juliana no celular dela. Pendência de login real encerrada; nenhuma alteração de código, autorização ou participação foi necessária. Convites continuam adiados por escolha explícita do usuário. O resultado não confirma ainda câmera ou instalação do PWA nesse aparelho.
