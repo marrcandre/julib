@@ -10,7 +10,7 @@
 - README, MIT, contribuição, operação, workflows CI/deploy e template privado de backup.
 - Revisão independente apontou três problemas relevantes (imutabilidade da biblioteca no Admin, repetição segura de cadastro após perda de resposta e ISBN Excel vazio); corrigidos com testes reproduzindo cada caso.
 
-Validação atual: 36 testes backend em PostgreSQL e 6 Vitest localmente; última CI com 7 jornadas Playwright; Ruff, mypy, build/tipos e checks de migrações aprovados. Upload e recuperação reais de mídia e restauração do artifact cifrado remoto conferidos.
+Validação atual: 40 testes backend em PostgreSQL, 6 Vitest e 8 jornadas Playwright na CI; Ruff, mypy, build/tipos e checks de migrações aprovados. Upload e recuperação reais de mídia e restauração do artifact cifrado remoto conferidos.
 
 ## Produção
 
@@ -145,3 +145,6 @@ Catálogo passa a oferecer Cartões, Somente capas e Lista, com escolha salva no
 As 67 capas continuam como referências externas. Usuário solicitou preparar cópia gerenciada, condicionada à verificação das fontes. Não foi identificada autorização geral para criar cópias permanentes dessas imagens: Google APIs Terms §5(e) condiciona cópias permanentes à autorização do titular ou lei aplicável; Open Library orienta servir imagens pela Covers API e não transfere os direitos individuais das capas. Nenhuma cópia automática para Cloudinary foi executada. Uploads fornecidos pelo usuário com direito de uso continuam gerenciados no Cloudinary e incluídos no backup. Atribuição pode decorrer dos metadados Google/Open Library mesmo quando a capa é substituída por upload próprio; Goodreads só ganha essa indicação quando a capa externa reconhecida determina a fonte.
 
 Fontes verificadas: https://developers.google.com/terms#e-prohibitions-on-content ; https://developers.google.com/books/branding ; https://openlibrary.org/dev/docs/api/covers ; https://openlibrary.org/developers/licensing .
+
+
+Publicação do catálogo concluída: CI 42019530236 e Deploy 42019721802 aprovados. Teste Chromium sobre a interface publicada, com dados fictícios restritos ao teste, confirmou colunas 5/3, três modos, persistência e capa no editor, sem escrever na coleção. GET/HEAD da rota de prontidão continuam respondendo 200 com no-store, private. Nenhuma capa foi copiada automaticamente para Cloudinary.
