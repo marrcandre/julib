@@ -46,7 +46,7 @@ const statusIcon = computed(() =>
         >
       </div>
       <i
-        v-if="variant === 'covers'"
+        v-if="variant === 'covers' && !book.available"
         class="pi availability cover-status"
         :class="statusIcon"
         role="img"
@@ -58,6 +58,7 @@ const statusIcon = computed(() =>
       <h3 class="book-title">
         <span>{{ book.title }}</span
         ><i
+          v-if="!book.available"
           class="pi availability"
           :class="statusIcon"
           role="img"
@@ -68,6 +69,9 @@ const statusIcon = computed(() =>
       <p class="muted book-authors">{{ book.authors.join(", ") }}</p>
       <p v-if="variant === 'list'" class="muted book-meta">
         {{ [book.publisher, book.year, book.isbn].filter(Boolean).join(" · ") }}
+      </p>
+      <p v-if="variant === 'list' && book.page_count" class="muted book-meta">
+        {{ book.page_count }} páginas
       </p>
       <div v-if="book.tags.length" class="tag-list">
         <span v-for="tag in book.tags" :key="tag.id" class="tag-pill">{{

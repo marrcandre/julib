@@ -8,7 +8,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import Book, ImportRow, ImportSession, Library
-from .services import add_copy, create_book, normalize_isbn, owned
+from .services import add_copy, create_book, normalize_isbn, optional_page_count, owned
 
 
 @transaction.atomic
@@ -39,6 +39,7 @@ def preview_csv(library: Library, content: bytes) -> ImportSession:
                 "isbn": isbn,
                 "publisher": (row.get("Publisher") or "")[:200],
                 "year": (row.get("Year Published") or "")[:20],
+                "page_count": optional_page_count(row.get("Number of Pages")),
                 "source": "goodreads",
                 "source_id": (row.get("Book Id") or "")[:150],
             }
@@ -97,3 +98,29 @@ def process_rows(
             row.save(update_fields=["copy", "result"])
             results.append({"id": row.pk, "result": row.result})
     return results
+
+
+@transaction.atomic
+def fill_goodreads_pages(library: Library, content: bytes, *, apply: bool = False) -> int:
+    """Fill missing counts by exact Goodreads ID; never create books or copies."""
+    if len(content) > 3 * 1024 * 1024:
+        raise ValidationError("O CSV deve ter até 3 MB.")
+    reader = csv.DictReader(io.StringIO(content.decode("utf-8-sig")))
+    if not {"Book Id", "Number of Pages"}.issubset(reader.fieldnames or []):
+        raise ValidationError("CSV sem Book Id ou Number of Pages.")
+    counts: dict[str, int] = {}
+    for row in reader:
+        source_id = (row.get("Book Id") or "").strip()
+        count = optional_page_count(row.get("Number of Pages"))
+        if not source_id or count is None:
+            continue
+        if source_id in counts and counts[source_id] != count:
+            raise ValidationError("CSV com números de páginas conflitantes para o mesmo livro.")
+        counts[source_id] = count
+    affected = 0
+    for source_id, count in counts.items():
+        books = Book.objects.filter(
+            library=library, source="goodreads", source_id=source_id, page_count__isnull=True
+        )
+        affected += books.update(page_count=count) if apply else books.count()
+    return affected

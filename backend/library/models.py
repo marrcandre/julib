@@ -93,6 +93,9 @@ class Book(Owned):
     publisher = models.CharField(max_length=200, blank=True)
     edition = models.CharField(max_length=100, blank=True)
     year = models.CharField(max_length=20, blank=True)
+    page_count = models.PositiveIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1)]
+    )
     language = models.CharField(max_length=50, blank=True)
     cover_url = models.URLField(max_length=1000, blank=True)
     cover_id = models.CharField(max_length=255, blank=True)

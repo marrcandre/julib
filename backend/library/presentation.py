@@ -19,6 +19,7 @@ def book_data(book: Book, public: bool = False) -> dict[str, Any]:
             "edition",
             "year",
             "language",
+            "page_count",
             "cover_url",
         ]
     }

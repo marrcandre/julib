@@ -102,10 +102,10 @@ onMounted(async () => {
       >
       ou <RouterLink to="/livros?novo=1">cadastrar um livro</RouterLink>.
     </div>
-    <div v-else class="book-grid">
+    <div v-else class="book-grid recent-covers">
       <div v-for="item in data.recent" :key="item.number">
         <RouterLink :to="'/livros?livro=' + item.book.id"
-          ><BookCard :book="item.book" /></RouterLink
+          ><BookCard :book="item.book" variant="covers" /></RouterLink
         ><SourceAttribution
           :name="item.book.attribution_name"
           :url="item.book.attribution_url"
@@ -113,3 +113,9 @@ onMounted(async () => {
       </div></div
   ></template>
 </template>
+
+<style scoped>
+.recent-covers {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+</style>

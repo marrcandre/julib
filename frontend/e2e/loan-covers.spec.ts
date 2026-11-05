@@ -64,7 +64,25 @@ test("loan covers appear in dashboard and loans with safe missing-image fallback
             copies: 3,
             loans: 3,
             overdue: 0,
-            recent: [],
+            recent: Array.from({ length: 5 }, (_, i) => ({
+              number: i + 1,
+              acquired_on: "2026-11-01",
+              book: {
+                id: i + 1,
+                title: `Aquisição ${i + 1}`,
+                authors: ["Autor"],
+                isbn: "",
+                publisher: "",
+                edition: "",
+                year: "",
+                language: "",
+                cover_url: "/loan-cover.svg",
+                tags: [],
+                available: true,
+                attribution_name: "",
+                attribution_url: "",
+              },
+            })),
             attention: loans,
           }
         : path.endsWith("/loans")
@@ -76,6 +94,22 @@ test("loan covers appear in dashboard and loans with safe missing-image fallback
     await page.setViewportSize({ width, height: 900 });
     for (const path of ["/", "/emprestimos"]) {
       await page.goto(path);
+      if (path === "/") {
+        await expect(
+          page.locator(".recent-covers .book-card--covers"),
+        ).toHaveCount(5);
+        await expect(page.locator(".recent-covers .cover-status")).toHaveCount(
+          0,
+        );
+        expect(
+          await page
+            .locator(".recent-covers")
+            .evaluate(
+              (el) =>
+                getComputedStyle(el).gridTemplateColumns.split(" ").length,
+            ),
+        ).toBe(5);
+      }
       await expect(
         page.getByRole("img", { name: "Capa de Livro com capa", exact: true }),
       ).toBeVisible();
