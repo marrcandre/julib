@@ -9,6 +9,7 @@ test("Brazilian ISBN results show provenance and preserve edition data", async (
     let json: unknown = [];
     if (url.pathname.endsWith("/session"))
       json = {
+        user_id: 1,
         name: "Teste",
         email: "test@example.com",
         technical: false,
@@ -39,6 +40,7 @@ test("Brazilian ISBN results show provenance and preserve edition data", async (
     await page
       .getByRole("button", { name: "Adicionar livro", exact: true })
       .click();
+    await page.getByRole("menuitem", { name: "Buscar livro" }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("textbox", { name: "Buscar em APIs" }).fill(isbn);
     await dialog

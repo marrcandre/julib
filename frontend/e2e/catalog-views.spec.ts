@@ -1,4 +1,30 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+
+async function setMode(page: Page, name: string) {
+  await page
+    .getByRole("button", { name: "Visualização dos livros", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Visualização",
+    exact: true,
+  });
+  await dialog.getByRole("button", { name, exact: true }).click();
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+}
+async function setColumns(page: Page, count: number) {
+  await page
+    .getByRole("button", { name: "Visualização dos livros", exact: true })
+    .click();
+  const slider = page.getByRole("slider", { name: "Livros por linha" });
+  await slider.focus();
+  await slider.press(count === 3 ? "Home" : "End");
+  if (count === 9) await slider.press("ArrowLeft");
+  await expect(slider).toHaveValue(String(count));
+  await page
+    .getByRole("dialog", { name: "Visualização", exact: true })
+    .getByRole("button", { name: "Close", exact: true })
+    .click();
+}
 
 test("catalog supports responsive cards, covers, list and current edit cover", async ({
   page,
@@ -45,6 +71,7 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
     let json: unknown = [];
     if (path.endsWith("/session"))
       json = {
+        user_id: 1,
         name: "Teste",
         email: "test@example.com",
         technical: false,
@@ -77,9 +104,7 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
     "aria-label",
     "Emprestado",
   );
-  await expect(
-    page.getByRole("button", { name: "Somente capas", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".book-card--covers")).toHaveCount(6);
   expect(
     await page
       .locator(".book-grid")
@@ -92,9 +117,8 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
     fullPage: true,
     animations: "disabled",
   });
-  await page.getByRole("combobox", { name: "Capas por linha" }).click();
-  await page.getByRole("option", { name: "9", exact: true }).click();
-  await expect.poll(() => preferences.cover_columns).toBe(9);
+  await setColumns(page, 9);
+  expect(preferences.cover_columns).toBe(7);
   await page.reload();
   expect(
     await page
@@ -105,7 +129,7 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
   ).toBe(9);
   await expect(
     page.getByRole("button", { name: "Somente capas", exact: true }),
-  ).toHaveText("");
+  ).not.toBeVisible();
   const search = page.getByRole("textbox", { name: "Buscar no acervo" });
   await page.clock.install();
   await page.clock.pauseAt(new Date());
@@ -144,7 +168,7 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
     "Emprestado",
   );
 
-  await page.getByRole("button", { name: "Cartões", exact: true }).click();
+  await setMode(page, "Cartões");
 
   expect(
     await page
@@ -179,16 +203,11 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
     fullPage: true,
     animations: "disabled",
   });
-  await page
-    .getByRole("button", { name: "Somente capas", exact: true })
-    .click();
+  await setMode(page, "Somente capas");
   await expect(page.locator(".book-info").first()).not.toBeVisible();
   for (const columns of [3, 10]) {
-    await page.getByRole("combobox", { name: "Capas por linha" }).click();
-    await page
-      .getByRole("option", { name: String(columns), exact: true })
-      .click();
-    await expect.poll(() => preferences.cover_columns).toBe(columns);
+    await setColumns(page, columns);
+    expect(preferences.cover_columns).toBe(7);
     expect(
       await page
         .locator(".book-grid")
@@ -208,7 +227,8 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
     fullPage: true,
     animations: "disabled",
   });
-  await page.getByRole("button", { name: "Lista", exact: true }).click();
+  await setMode(page, "Lista");
+  await expect.poll(() => preferences.catalog_view).toBe("list");
   await expect(page.locator(".book-card--list")).toHaveCount(6);
   await page.screenshot({
     path: "../.superpowers/catalog-mobile-list.png",
@@ -216,9 +236,7 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
     animations: "disabled",
   });
   await page.reload();
-  await expect(
-    page.getByRole("button", { name: "Lista", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".book-card--list")).toHaveCount(6);
   await page
     .getByRole("button", { name: "Abrir Livro de teste 1", exact: true })
     .click();
