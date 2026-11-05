@@ -172,3 +172,7 @@ Livros disponíveis deixam de exibir ícone de status; empréstimo/indisponibili
 Número de páginas passa a ser opcional e positivo no modelo/API/admin, cadastro, edição, detalhes, catálogo público e lista. Google Books e importação Goodreads preenchem valores válidos; desconhecidos permanecem nulos. Migração aditiva e compatível com o backend anterior. Comando fill_goodreads_pages permite prévia e aplicação apenas em campos vazios, por biblioteca e ID Goodreads exato, sem criar registros nem sobrescrever dados conhecidos.
 
 Validação local: 48 testes backend, 6 Vitest, verificações estáticas e tipos/build aprovados; jornadas focadas conferem cinco capas no painel, ausência de ícone disponível, indicação de empréstimo e páginas no editor/detalhes, em desktop/celular.
+
+PR #8 publicado: CI da revisão 42030119139 e CI integrado 42030788306 aprovados. Execução duplicada do push 42030090017 cancelada enquanto instalava Chromium, após a revisão validar o mesmo commit. Deploy 42030979032 concluído com backup anterior à migração. Ambas as jornadas focadas passaram na interface pública com dados fictícios interceptados, sem alterar a coleção; GET/HEAD de prontidão retornaram 200.
+
+Recuperação do CSV original em produção: prévia identificou 284 campos vazios com ID Goodreads exato e páginas válidas. Aplicação transacional preencheu os 284, preservando os 312 livros e 312 exemplares. Outros 28 permaneceram sem número de páginas conhecido; nenhum valor foi estimado.
