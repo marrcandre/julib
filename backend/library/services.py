@@ -7,6 +7,16 @@ from django.db import transaction
 from .models import Book, Copy, Library, Location, Tag
 
 
+def optional_page_count(value: Any) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        return None
+    try:
+        count = int(value)
+    except (ValueError, TypeError):
+        return None
+    return count if 1 <= count <= 2147483647 else None
+
+
 def normalize_isbn(value: str) -> str:
     value = value.replace("-", "").replace(" ", "").strip().upper()
     if not value:

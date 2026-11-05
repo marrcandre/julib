@@ -27,8 +27,6 @@ it("shows public tags and availability without copy details", () => {
     },
   });
   expect(wrapper.text()).toContain("História");
-  expect(wrapper.find('[aria-label="Disponível"]').attributes("role")).toBe(
-    "img",
-  );
+  expect(wrapper.find('[aria-label="Disponível"]').exists()).toBe(false);
   expect(wrapper.find(".status").exists()).toBe(false);
 });

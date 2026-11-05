@@ -14,6 +14,7 @@ import { useRoute } from "vue-router";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
 import InputText from "primevue/inputtext";
+import InputNumber from "primevue/inputnumber";
 import Select from "primevue/select";
 import MultiSelect from "primevue/multiselect";
 import BookCard from "../components/BookCard.vue";
@@ -127,6 +128,7 @@ const blank = () => ({
   publisher: "",
   edition: "",
   year: "",
+  page_count: null as number | null,
   language: "",
   cover_url: "",
   source: "",
@@ -806,6 +808,15 @@ onUnmounted(() => {
       <div class="row">
         <label>Edição<InputText v-model="form.edition" /></label
         ><label>Ano<InputText v-model="form.year" /></label>
+        <label
+          >Número de páginas<InputNumber
+            v-model="form.page_count"
+            :min="1"
+            :max="2147483647"
+            :use-grouping="false"
+            input-id="page-count"
+            :max-fraction-digits="0"
+        /></label>
       </div>
       <div class="row">
         <label>Idioma<InputText v-model="form.language" /></label
@@ -880,6 +891,9 @@ onUnmounted(() => {
           t.name
         }}</span>
       </div>
+      <p v-if="detail.page_count" class="muted">
+        {{ detail.page_count }} páginas
+      </p>
       <div class="detail-cover-actions">
         <div class="actions">
           <Button label="Editar dados" text @click="edit(detail)" /><label

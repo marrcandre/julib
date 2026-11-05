@@ -164,3 +164,11 @@ Controles de visualização exibem apenas ícones, preservando nomes acessíveis
 Verificação local: 44 testes backend, 6 Vitest, Ruff/mypy, schema/tipos/build aprovados. Duas jornadas focadas conferem controles, persistência, densidade móvel, busca concorrente e miniaturas/fallback em desktop e celular.
 
 PR #7 integrado e publicado: CI 42027697100 e Deploy 42027933166 aprovados, com backup anterior à migração. Ambas as jornadas focadas passaram também na interface pública, com dados fictícios interceptados pelo teste e sem escrever na coleção. GET/HEAD de prontidão responderam 200 com no-store, private.
+
+## Páginas e últimas aquisições — 05/11/2026
+
+Livros disponíveis deixam de exibir ícone de status; empréstimo/indisponibilidade continuam sinalizados. Últimas aquisições usa cinco capas clicáveis e consulta os cinco livros distintos mais recentemente adquiridos, considerando a aquisição mais recente quando há cópias repetidas. Mantém cinco colunas também no celular e a atribuição das fontes.
+
+Número de páginas passa a ser opcional e positivo no modelo/API/admin, cadastro, edição, detalhes, catálogo público e lista. Google Books e importação Goodreads preenchem valores válidos; desconhecidos permanecem nulos. Migração aditiva e compatível com o backend anterior. Comando fill_goodreads_pages permite prévia e aplicação apenas em campos vazios, por biblioteca e ID Goodreads exato, sem criar registros nem sobrescrever dados conhecidos.
+
+Validação local: 48 testes backend, 6 Vitest, verificações estáticas e tipos/build aprovados; jornadas focadas conferem cinco capas no painel, ausência de ícone disponível, indicação de empréstimo e páginas no editor/detalhes, em desktop/celular.

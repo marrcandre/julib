@@ -13,6 +13,7 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
     publisher: "Editora",
     edition: "",
     year: "2025",
+    page_count: 320,
     language: "pt",
     cover_url: i === 5 ? "" : "/test-cover.svg",
     source: "",
@@ -71,6 +72,11 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/livros");
   await expect(page.locator(".book-card")).toHaveCount(6);
+  await expect(page.locator(".cover-status")).toHaveCount(1);
+  await expect(page.locator(".cover-status")).toHaveAttribute(
+    "aria-label",
+    "Emprestado",
+  );
   await expect(
     page.getByRole("button", { name: "Somente capas", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
@@ -132,6 +138,11 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
   ).toBeVisible();
   await page.getByRole("button", { name: "Limpar busca" }).click();
   await expect(page.locator(".book-card")).toHaveCount(6);
+  await expect(page.locator(".cover-status")).toHaveCount(1);
+  await expect(page.locator(".cover-status")).toHaveAttribute(
+    "aria-label",
+    "Emprestado",
+  );
 
   await page.getByRole("button", { name: "Cartões", exact: true }).click();
 
@@ -214,6 +225,9 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
   await expect(
     page.getByRole("dialog").getByRole("img", { name: "Capa do livro" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("dialog").getByText("320 páginas", { exact: true }),
+  ).toBeVisible();
   const uploadBox = await page.locator(".cover-upload").boundingBox();
   const coverBox = await page
     .getByRole("dialog")
@@ -231,6 +245,9 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
     exact: true,
   });
   await expect(editor.getByRole("img", { name: "Capa atual" })).toBeVisible();
+  await expect(
+    editor.getByRole("spinbutton", { name: "Número de páginas" }),
+  ).toHaveValue("320");
   await page.screenshot({
     path: "../.superpowers/catalog-editor.png",
     fullPage: false,

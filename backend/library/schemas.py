@@ -7,6 +7,7 @@ from pydantic import Field
 
 
 class BookIn(Schema):
+    page_count: int | None = Field(default=None, ge=1, le=2147483647)
     title: str = Field(min_length=1, max_length=300)
     authors: list[str] = Field(min_length=1)
     isbn: str = ""
@@ -96,6 +97,7 @@ class CopyOut(Schema):
 
 
 class PublicBookOut(Schema):
+    page_count: int | None = None
     attribution_name: str = ""
     attribution_url: str = ""
     id: int

@@ -4,6 +4,8 @@ from typing import Any
 import httpx
 from django.core.exceptions import ValidationError
 
+from .services import optional_page_count
+
 
 def search_books(query: str) -> list[dict[str, Any]]:
     query = query.strip()[:200]
@@ -38,6 +40,7 @@ def search_books(query: str) -> list[dict[str, Any]]:
                     "publisher": info.get("publisher", ""),
                     "year": info.get("publishedDate", "")[:4],
                     "language": info.get("language", ""),
+                    "page_count": optional_page_count(info.get("pageCount")),
                     "cover_url": info.get("imageLinks", {})
                     .get("thumbnail", "")
                     .replace("http:", "https:"),

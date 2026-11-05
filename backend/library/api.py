@@ -5,7 +5,7 @@ from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth import logout
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.db.models import Q
+from django.db.models import Q, Subquery
 from django.http import HttpRequest, HttpResponseForbidden
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
@@ -326,7 +326,15 @@ def dashboard(request: HttpRequest) -> dict[str, Any]:
                 "acquired_on": c.acquired_on.isoformat(),
                 "book": book_data(c.book),
             }
-            for c in active.select_related("book").order_by("-acquired_on", "-pk")[:6]
+            for c in active.filter(
+                pk__in=Subquery(
+                    active.order_by("book_id", "-acquired_on", "-pk")
+                    .distinct("book_id")
+                    .values("pk")
+                )
+            )
+            .select_related("book")
+            .order_by("-acquired_on", "-pk")[:5]
         ],
         "attention": [loan_data(loan) for loan in open_loans.order_by("due_on")[:5]],
     }

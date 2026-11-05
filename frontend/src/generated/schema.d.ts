@@ -532,6 +532,8 @@ export interface components {
         };
         /** BookOut */
         BookOut: {
+            /** Page Count */
+            page_count?: number | null;
             /**
              * Attribution Name
              * @default
@@ -608,6 +610,8 @@ export interface components {
         };
         /** BookIn */
         BookIn: {
+            /** Page Count */
+            page_count?: number | null;
             /** Title */
             title: string;
             /** Authors */
@@ -808,6 +812,8 @@ export interface components {
         };
         /** PublicBookOut */
         PublicBookOut: {
+            /** Page Count */
+            page_count?: number | null;
             /**
              * Attribution Name
              * @default
