@@ -137,8 +137,12 @@ nav a.router-link-exact-active {
   display: grid;
   place-items: center;
 }
-.theme-toggle:hover { background: #ffffff15; }
-.theme-toggle i { font-size: 20px; }
+.theme-toggle:hover {
+  background: #ffffff15;
+}
+.theme-toggle i {
+  font-size: 20px;
+}
 .account {
   position: relative;
 }
@@ -264,7 +268,7 @@ h1 {
 }
 .book-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 18px;
 }
 .book-card {
@@ -280,7 +284,9 @@ h1 {
   font-size: 12px;
 }
 .cover {
-  height: 190px;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  max-height: 260px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -575,14 +581,14 @@ video {
     font-size: 30px;
   }
   .book-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
   }
   .book-card {
-    padding: 12px;
+    padding: 8px;
   }
   .cover {
-    height: 160px;
+    height: auto;
   }
   .page-heading {
     align-items: flex-start;
@@ -624,4 +630,74 @@ video {
   }
 }
 
-.avatar-photo { object-fit: cover; }
+.avatar-photo {
+  object-fit: cover;
+}
+
+.catalog-view-switch {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+.catalog-list {
+  display: grid;
+  gap: 12px;
+}
+.catalog-list .catalog-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+.catalog-item {
+  min-width: 0;
+}
+.book-open {
+  cursor: pointer;
+  border-radius: 14px;
+}
+.book-open:focus-visible {
+  outline: 3px solid #daaa60;
+  outline-offset: 3px;
+}
+.edit-cover {
+  margin: 0 0 12px;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+.edit-cover img {
+  max-width: 150px;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.edit-cover figcaption {
+  font-size: 12px;
+}
+@media (max-width: 800px) {
+  .catalog-view-switch .p-button {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+  .catalog-list .catalog-item {
+    gap: 8px;
+  }
+  .catalog-item .source-attribution {
+    font-size: 10px;
+  }
+  .catalog-list .source-attribution {
+    max-width: 80px;
+  }
+}
+
+.catalog-view-switch .p-button[aria-pressed="true"] {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #053227;
+}
+.toolbar input[type="checkbox"] {
+  flex: none;
+  min-width: 0;
+}

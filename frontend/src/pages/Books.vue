@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import SourceAttribution from "../components/SourceAttribution.vue";
-import { ref, onMounted, onUnmounted, nextTick } from "vue";
+import { ref, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { canonicalIsbn } from "../isbn";
 import { useRoute } from "vue-router";
 import Button from "primevue/button";
@@ -24,6 +24,14 @@ import {
   BrowserMultiFormatReader,
   type IScannerControls,
 } from "@zxing/browser";
+type CatalogView = "cards" | "covers" | "list";
+const storedView = localStorage.getItem("julib-catalog-view");
+const catalogView = ref<CatalogView>(
+  storedView === "covers" || storedView === "list" ? storedView : "cards",
+);
+watch(catalogView, (value) =>
+  localStorage.setItem("julib-catalog-view", value),
+);
 const pendingRegistration = ref<Record<string, unknown> | null>(null);
 const operationKey = ref(crypto.randomUUID());
 const duplicateKey = ref(crypto.randomUUID());
@@ -96,6 +104,7 @@ const blank = () => ({
   source_id: "",
   tag_ids: [] as number[],
 });
+const formAttribution = ref({ name: "", url: "" });
 const form = ref(blank()),
   newTag = ref(""),
   shareUrl = ref("");
@@ -129,10 +138,15 @@ function newBook() {
   operationKey.value = crypto.randomUUID();
   editing.value = null;
   form.value = blank();
+  formAttribution.value = { name: "", url: "" };
   candidates.value = [];
   formOpen.value = true;
 }
 function edit(book: Book) {
+  formAttribution.value = {
+    name: book.attribution_name || "",
+    url: book.attribution_url || "",
+  };
   editing.value = book.id;
   form.value = {
     ...blank(),
@@ -168,6 +182,20 @@ async function find() {
   }
 }
 function useCandidate(candidate: Partial<Book>) {
+  formAttribution.value =
+    candidate.source === "google"
+      ? {
+          name: "Google Books",
+          url:
+            "https://books.google.com/books?id=" +
+            encodeURIComponent(candidate.source_id || ""),
+        }
+      : candidate.source === "openlibrary"
+        ? {
+            name: "Open Library",
+            url: "https://openlibrary.org" + candidate.source_id,
+          }
+        : { name: "", url: "" };
   form.value = {
     ...blank(),
     ...candidate,
@@ -476,13 +504,43 @@ onUnmounted(stopCamera);
       ><input type="checkbox" v-model="missingLocation" />Sem localização</label
     ><Button type="submit" label="Buscar" :loading="busy" />
   </form>
+  <div
+    class="catalog-view-switch"
+    role="group"
+    aria-label="Visualização dos livros"
+  >
+    <Button
+      label="Cartões"
+      icon="pi pi-th-large"
+      :aria-pressed="catalogView === 'cards'"
+      :outlined="catalogView !== 'cards'"
+      @click="catalogView = 'cards'"
+    />
+    <Button
+      label="Somente capas"
+      icon="pi pi-book"
+      :aria-pressed="catalogView === 'covers'"
+      :outlined="catalogView !== 'covers'"
+      @click="catalogView = 'covers'"
+    />
+    <Button
+      label="Lista"
+      icon="pi pi-list"
+      :aria-pressed="catalogView === 'list'"
+      :outlined="catalogView !== 'list'"
+      @click="catalogView = 'list'"
+    />
+  </div>
   <div v-if="!books.length" class="empty">
     <i class="pi pi-book" />Nenhum livro encontrado. Cadastre um livro ou altere
     os filtros.
   </div>
-  <div v-else class="book-grid">
-    <div v-for="book in books" :key="book.id">
+  <div v-else :class="catalogView === 'list' ? 'catalog-list' : 'book-grid'">
+    <div v-for="book in books" :key="book.id" class="catalog-item">
       <button
+        :aria-label="'Abrir ' + book.title"
+        :title="book.title"
+        class="book-open"
         style="
           width: 100%;
           text-align: left;
@@ -493,7 +551,7 @@ onUnmounted(stopCamera);
         "
         @click="open(book)"
       >
-        <BookCard :book="book" /></button
+        <BookCard :book="book" :variant="catalogView" /></button
       ><SourceAttribution
         :name="book.attribution_name"
         :url="book.attribution_url"
@@ -640,6 +698,18 @@ onUnmounted(stopCamera);
       operação com segurança.
     </p>
     <form class="fields" @submit.prevent="save">
+      <figure v-if="form.cover_url" class="edit-cover">
+        <img
+          :src="form.cover_url"
+          alt="Capa atual"
+          referrerpolicy="no-referrer"
+        />
+        <figcaption class="muted">Capa atual</figcaption>
+        <SourceAttribution
+          :name="formAttribution.name"
+          :url="formAttribution.url"
+        />
+      </figure>
       <label>Título *<InputText v-model="form.title" required /></label
       ><label
         >Autores * (separe por ponto e vírgula)<InputText
