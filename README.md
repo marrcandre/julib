@@ -20,7 +20,7 @@ Biblioteca pessoal compartilhada, criada por Marco André Mendes em homenagem à
 
 ## Stack
 
-Python 3.13, Django 5.2 LTS, Django Ninja, uv, PostgreSQL; Vue 3, TypeScript, PrimeVue 4, Vite e npm. Código em um monorepositório MIT. Destinos planejados: Vercel, Supabase e Cloudinary nos planos gratuitos.
+Python 3.13, Django 5.2 LTS, Django Ninja, uv, PostgreSQL; Vue 3, TypeScript, PrimeVue 4, Vite e npm. Código em um monorepositório MIT. Hospedagem configurada na Vercel, Supabase e Cloudinary, nos planos gratuitos.
 
 ## Executar localmente
 
@@ -58,6 +58,7 @@ make e2e-local
 
 - [Requisitos e arquitetura aprovados](docs/superpowers/specs/2026-11-03-julib-design.md)
 - [Plano de implementação](docs/superpowers/plans/2026-11-04-julib-implementation.md)
+- [Verificação de requisitos e próximas entregas](docs/reviews/2026-11-05-requisitos-e-proximas-entregas.md)
 - [Levantamento e decisões](docs/discovery/2026-11-03-biblioteca-pessoal.md)
 - [Configuração, deploy, backup e recuperação](docs/operations.md)
 

@@ -1,6 +1,6 @@
 # Operação do Julib
 
-Estado inicial: aplicação local e workflows em implementação; serviços externos e cópias reais ainda não ativados. Use os testes e o registro de entrega para conhecer a validação atual.
+Operação ativa: aplicação publicada, integrações configuradas e backup privado diário com recuperação já validada. Consulte o histórico de implementação para as evidências e a [auditoria de requisitos](reviews/2026-11-05-requisitos-e-proximas-entregas.md) para pendências atuais.
 
 ## Configuração privada
 
@@ -97,7 +97,7 @@ Registre tamanho, hora da última cópia e resultado do teste. Ative notificaç�
 
 - Conferir consumo e suspensão/inatividade dos planos gratuitos.
 - Conferir backup diário e executar teste de recuperação após alterações do mecanismo.
-- Executar `cleanup_imports` diariamente (pode ser adicionado ao workflow operacional com conexão privada), removendo sessões após sete dias sem apagar livros.
+- Conferir `cleanup_imports`, já executado diariamente pelo workflow privado antes do backup, removendo sessões após sete dias sem apagar livros.
 - Não registrar contatos, tokens compartilhados ou conteúdo CSV em logs.
 - Validar câmera e instalação do PWA nos Chrome do Poco F5 e Samsung A34. Automação em Chromium não substitui teste da câmera física.
 

@@ -81,11 +81,15 @@ backend/config: settings, URLs, WSGI. backend/library: modelos, schemas, service
 
 **Files:** README.md, LICENSE, CONTRIBUTING.md, .env.example, Makefile, scripts/*, .github/workflows/{ci,deploy}.yml, docs/operations.md, ops/backup-workflow.yml.example.
 **Interfaces:** make check, compose PostgreSQL local; deploy workflow após CI; backup template para repo privado.
-- [ ] Testar export/import de backup com PostgreSQL temporário e dados sintéticos; tamanho/cotas medidos só com credenciais reais.
+- [x] Testar export/import de backup com PostgreSQL temporário e dados sintéticos; tamanho/cotas medidos só com credenciais reais.
 - [x] Implementar documentação de Google/Supabase/Cloudinary/Vercel, workflow CI PostgreSQL e frontend; deploy desabilitado até configurar vars/secrets.
-- [ ] Preparar backup diário cifrado e sete dias somente no repositório privado; documentar chave e restauração, mídia e limitações de ativação.
+- [x] Preparar backup diário cifrado e sete dias somente no repositório privado; documentar chave e restauração, mídia e limitações de ativação.
 - [x] Rodar checks, migrações sem alterações e smoke real. Revisão independente do conjunto; corrigir problemas relevantes com teste RED→GREEN. CI remota também aprovada.
 
 ## Registro de execução
 
 Credenciais OAuth, Cloudinary, Supabase e projetos Vercel serão configuradas na etapa externa. A falta delas não impede implementar/testar localmente; produção e backup real não serão declarados ativos sem verificação.
+
+## Consolidação em 05/11/2026
+
+As duas marcações de operação acima foram atualizadas após conferência dos registros de restauração e do workflow privado ativo. O plano registra as entregas iniciais e não comprova ausência de lacunas: requisitos residuais e validações pendentes estão na [auditoria de 05/11](../../reviews/2026-11-05-requisitos-e-proximas-entregas.md). O tema foi posteriormente simplificado para dois modos, conforme decisão do usuário.

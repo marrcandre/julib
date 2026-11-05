@@ -1,5 +1,7 @@
 # Entrega inicial — 04/11/2026
 
+Este arquivo é um histórico cronológico: números e pendências das primeiras seções refletem o momento de cada registro. Para a situação consolidada e as lacunas ainda abertas, consulte a [verificação de requisitos de 05/11/2026](reviews/2026-11-05-requisitos-e-proximas-entregas.md).
+
 ## Implementado e verificado localmente
 
 - Backend Django/Ninja, PostgreSQL e Admin/Swagger com controle de acesso.
@@ -186,3 +188,7 @@ Três testes com decoder real e câmera simulada cobrem leitura automática, aus
 PR #9 publicado: CI de revisão 42033635270, CI integrado 42035538576 e Deploy 42035855441 aprovados. Três jornadas da câmera passaram também na interface pública com vídeo sintético e API interceptada, sem escrever na coleção. Consulta externa real por isbn:9780261102217 retornou uma correspondência exata no Google Books. GET/HEAD de prontidão continuam 200 com no-store, private. A verificação física nos aparelhos permanece pendente.
 
 Validação física confirmada pelo usuário em 05/11/2026 no Poco F5: câmera e buscas por nome, ISBN e título do livro funcionaram. Esta confirmação encerra a pendência da câmera nesse aparelho; a verificação no Samsung A34 permanece sem confirmação.
+
+## Auditoria de requisitos — 05/11/2026
+
+Confrontados desenho aprovado, decisões posteriores, código e workflows. Relatório em docs/reviews/2026-11-05-requisitos-e-proximas-entregas.md. Sondagens locais com dados sintéticos e rollback confirmaram ausência de aviso de duplicata sem ISBN, gestão parcial de tags/exclusões e lacunas de erro por linha/consulta de importação expirada. Backup e cleanup diários conferidos no workflow privado; marcações antigas de operação no plano foram consolidadas como concluídas. Nenhuma funcionalidade nem dado de produção foi alterado nesta auditoria.
