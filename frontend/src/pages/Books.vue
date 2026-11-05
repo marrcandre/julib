@@ -238,7 +238,15 @@ function useCandidate(candidate: Partial<Book>) {
             name: "Open Library",
             url: "https://openlibrary.org" + candidate.source_id,
           }
-        : { name: "", url: "" };
+        : candidate.source === "brasilapi"
+          ? {
+              name: "BrasilAPI (CBL)",
+              url:
+                "https://brasilapi.com.br/api/isbn/v1/" +
+                encodeURIComponent(candidate.source_id || "") +
+                "?providers=cbl",
+            }
+          : { name: "", url: "" };
   form.value = {
     ...blank(),
     ...candidate,
@@ -796,6 +804,14 @@ onUnmounted(() => {
           v-else-if="candidate.source === 'openlibrary'"
           name="Open Library"
           :url="'https://openlibrary.org' + candidate.source_id"
+        /><SourceAttribution
+          v-else-if="candidate.source === 'brasilapi'"
+          name="BrasilAPI (CBL)"
+          :url="
+            'https://brasilapi.com.br/api/isbn/v1/' +
+            encodeURIComponent(candidate.source_id || '') +
+            '?providers=cbl'
+          "
         />
       </div>
     </div>
@@ -811,11 +827,11 @@ onUnmounted(() => {
           referrerpolicy="no-referrer"
         />
         <figcaption class="muted">Capa atual</figcaption>
-        <SourceAttribution
-          :name="formAttribution.name"
-          :url="formAttribution.url"
-        />
       </figure>
+      <SourceAttribution
+        :name="formAttribution.name"
+        :url="formAttribution.url"
+      />
       <label>Título *<InputText v-model="form.title" required /></label
       ><label
         >Autores * (separe por ponto e vírgula)<InputText
