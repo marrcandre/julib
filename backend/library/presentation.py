@@ -46,6 +46,13 @@ def cover_attribution(book: Book) -> dict[str, str]:
     elif book.source == "openlibrary" and book.source_id:
         result["attribution_name"] = "Open Library"
         result["attribution_url"] = "https://openlibrary.org" + "/" + book.source_id.lstrip("/")
+    elif book.source == "brasilapi" and book.source_id:
+        result["attribution_name"] = "BrasilAPI (CBL)"
+        result["attribution_url"] = (
+            "https://brasilapi.com.br/api/isbn/v1/"
+            + quote(book.source_id, safe="")
+            + "?providers=cbl"
+        )
     # Cover provenance can differ from Goodreads metadata provenance.
     cover = urlsplit(book.cover_url)
     if book.source not in {"google", "openlibrary"}:

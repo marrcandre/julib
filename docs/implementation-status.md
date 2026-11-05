@@ -200,3 +200,11 @@ Após relato de tentativa sem sucesso, inspeção somente leitura confirmou cont
 Usuário confirmou em 05/11/2026 novo login bem-sucedido com a conta da Juliana no celular dela. Pendência de login real encerrada; nenhuma alteração de código, autorização ou participação foi necessária. Convites continuam adiados por escolha explícita do usuário. O resultado não confirma ainda câmera ou instalação do PWA nesse aparelho.
 
 Validação adicional confirmada pelo usuário em 05/11/2026: o celular da Juliana é um Samsung A34 e a câmera também funcionou. Login e câmera física estão validados nesse aparelho. Instalação/abertura como PWA ainda não foi confirmada.
+
+## Busca de ISBN brasileiro — 05/11/2026
+
+Reproduzida ausência dos ISBNs 9788570550156 e 9786583581112 no Google Books/Open Library, tanto digitados quanto com prefixo isbn: da câmera. Ambos válidos; leitura não era a causa. Consulta real BrasilAPI/CBL encontrou A Mensagem de 2 Timóteo e Solo, respectivamente. Primeiro retorna ISBN-10 equivalente; segundo informa 656 páginas. Nenhuma resposta trouxe capa.
+
+Busca agora normaliza ISBN digitado/prefixado/com hífens, exige correspondência do identificador retornado e consulta BrasilAPI com providers=cbl como alternativa somente para ISBN. Sem copiar capas nem depender de nova credencial/plano pago. Origem BrasilAPI/CBL preservada no cadastro e exibida nos resultados/editor mesmo sem capa. Busca textual mantém o fluxo anterior. 54 testes backend, 7 Vitest, tipos/build e duas jornadas focadas aprovados; consultas reais dos dois exemplos encontraram os títulos pelo código novo.
+
+Referências técnicas: https://developers.google.com/books/docs/v1/using ; https://github.com/BrasilAPI/BrasilAPI/blob/main/pages/api/isbn/v1/%5Bisbn%5D.js .
