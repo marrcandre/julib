@@ -30,3 +30,16 @@ it("shows public tags and availability without copy details", () => {
   expect(wrapper.find('[aria-label="Disponível"]').exists()).toBe(false);
   expect(wrapper.find(".status").exists()).toBe(false);
 });
+
+it("accepts only valid book ISBN barcodes", async () => {
+  const { isbnFromBarcode } = await import("../src/isbn");
+  expect(isbnFromBarcode("9780261102217")).toBe("9780261102217");
+  expect(isbnFromBarcode("0-261-10221-4")).toBe("9780261102217");
+  for (const code of [
+    "9780261102218",
+    "7891234567895",
+    "https://example.com",
+    "1234",
+  ])
+    expect(isbnFromBarcode(code)).toBeNull();
+});

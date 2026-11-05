@@ -176,3 +176,9 @@ Validação local: 48 testes backend, 6 Vitest, verificações estáticas e tipo
 PR #8 publicado: CI da revisão 42030119139 e CI integrado 42030788306 aprovados. Execução duplicada do push 42030090017 cancelada enquanto instalava Chromium, após a revisão validar o mesmo commit. Deploy 42030979032 concluído com backup anterior à migração. Ambas as jornadas focadas passaram na interface pública com dados fictícios interceptados, sem alterar a coleção; GET/HEAD de prontidão retornaram 200.
 
 Recuperação do CSV original em produção: prévia identificou 284 campos vazios com ID Goodreads exato e páginas válidas. Aplicação transacional preencheu os 284, preservando os 312 livros e 312 exemplares. Outros 28 permaneceram sem número de páginas conhecido; nenhum valor foi estimado.
+
+## Verificação do cadastro por câmera — 05/11/2026
+
+Teste com Chromium e vídeo sintético EAN-13 reproduziu consulta automática duplicada após selecionar um resultado: useCandidate liberava o scanner antes de salvar. Bloqueio agora persiste durante a revisão; Ler outro código permite nova tentativa explícita, e Salvar e continuar libera a próxima leitura. Validação de ISBN/prefixo/dígito verificador ignora códigos não correspondentes a livros. Controle da sessão encerra captura iniciada após o fechamento da janela.
+
+Três testes com decoder real e câmera simulada cobrem leitura automática, ausência de cadastro antes de salvar, dados estáveis, nova tentativa, salvamento explícito, permissão negada com cadastro manual disponível e fechamento durante permissão pendente. Gerador Y4M padrão incluído no harness de CI, sem arquivos de vídeo no Git. Validação local: 48 backend, 7 Vitest, build/tipos e três jornadas de câmera aprovados. Ainda falta testar a câmera física no Poco F5/Samsung A34; simulação não verifica foco, luz ou permissão específica dos aparelhos.

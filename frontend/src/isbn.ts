@@ -20,3 +20,13 @@ export function canonicalIsbn(raw: string): string {
   }
   return value;
 }
+
+export function isbnFromBarcode(raw: string): string | null {
+  const isbn = canonicalIsbn(raw);
+  if (!/^97[89]\d{10}$/.test(isbn)) return null;
+  const sum = [...isbn].reduce(
+    (total, digit, i) => total + Number(digit) * (i % 2 ? 3 : 1),
+    0,
+  );
+  return sum % 10 === 0 ? isbn : null;
+}

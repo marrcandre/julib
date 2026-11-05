@@ -70,3 +70,9 @@ Marco André Mendes · [GitHub](https://github.com/marrcandre) · [LinkedIn](htt
 Conheça [Dons Espirituais](https://dons-espirituais.vercel.app) e [Cinco Ministérios](https://cinco-ministerios.vercel.app).
 
 MIT. Apoio voluntário via PIX está disponível na página Sobre.
+
+## Cadastro pela câmera
+
+Em Livros → Câmera, permita o acesso e aponte para o código de barras ISBN (normalmente EAN-13, começando por 978 ou 979). O navegador prefere a câmera traseira e consulta os dados automaticamente ao reconhecer um ISBN válido. Escolha o resultado, confira os campos e pressione Salvar e continuar; reconhecer o código não cadastra o livro sozinho. Ler outro código libera uma nova tentativa. Se não houver resultado, use a busca manual ou preencha os campos. Fechar a janela desliga a câmera.
+
+A imagem é processada no navegador; a busca envia o ISBN, sem enviar vídeo ou fotos. A câmera exige permissão do navegador e acesso por HTTPS (ou localhost em desenvolvimento). Leitura de texto/fotografia da capa não faz parte desse recurso.
