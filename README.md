@@ -9,7 +9,7 @@ Biblioteca pessoal compartilhada, criada por Marco André Mendes em homenagem à
 
 ## Funcionalidades
 
-- Cadastro manual, busca Google Books/Open Library e leitura de ISBN pela câmera.
+- Cadastro manual, busca Google Books/Open Library, alternativa BrasilAPI/CBL para ISBN e leitura pela câmera.
 - Importação CSV do Goodreads com seleção, reimportação segura e progresso por lote.
 - Cópias idênticas com número interno, aquisição e localização próprios.
 - Localizações hierárquicas e mudanças em lote; tags e filtros.
