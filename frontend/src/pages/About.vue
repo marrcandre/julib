@@ -2,6 +2,8 @@
 import { ref, onMounted } from "vue";
 import QRCode from "qrcode";
 import Button from "primevue/button";
+import { useToast } from "primevue/usetoast";
+const toast = useToast();
 const copied = ref(""),
   qr = ref(""),
   pix = "marcoandre@gmail.com";
@@ -29,7 +31,13 @@ function pixPayload() {
 async function copy() {
   try {
     await navigator.clipboard.writeText(pix);
-    copied.value = "Chave PIX copiada.";
+    copied.value = "";
+    toast.removeAllGroups();
+    toast.add({
+      severity: "success",
+      summary: "Chave PIX copiada.",
+      life: 3500,
+    });
   } catch {
     copied.value = "Não foi possível copiar. Selecione a chave acima.";
   }
@@ -161,7 +169,7 @@ onMounted(async () => {
         class="primary"
         @click="copy"
       />
-      <p role="status">{{ copied }}</p>
+      <p v-if="copied" class="error" role="alert">{{ copied }}</p>
     </section>
   </article>
 </template>

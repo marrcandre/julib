@@ -324,10 +324,35 @@ main.container.catalog-main {
 .share-link-field input {
   width: 100%;
 }
-.p-toast.p-toast-bottom-center {
-  width: min(400px, calc(100vw - 32px));
-  bottom: max(16px, env(safe-area-inset-bottom));
+.p-toast.app-feedback-toast {
+  width: min(360px, calc(100vw - 32px));
+  right: 16px !important;
+  bottom: max(16px, env(safe-area-inset-bottom)) !important;
 }
+.p-toast.app-feedback-toast .p-toast-message {
+  margin-bottom: 0;
+}
+.p-toast.app-feedback-toast .p-toast-message-content {
+  align-items: center;
+  padding: 12px 14px;
+  gap: 10px;
+}
+.p-toast.app-feedback-toast .p-toast-summary {
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 500;
+}
+.p-toast.app-feedback-toast .p-toast-message-icon {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+}
+.p-toast.app-feedback-toast .p-toast-close-button {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
 .catalog-main .catalog-item .source-attribution {
   font-size: 10px;
   line-height: 1.4;

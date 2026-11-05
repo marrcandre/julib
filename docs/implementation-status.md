@@ -220,3 +220,9 @@ Densidade agora local por user_id e navegador/dispositivo, com padrão inicial q
 Verificação: 55 backend, 9 Vitest, Ruff/mypy/tipos/build, 14 jornadas E2E e inspeção visual móvel/desktop. Câmera e cadastro contínuo preservados; teste cobre controles, slider pelo teclado, preferências isoladas entre contas/contextos, filtros só ao aplicar e compartilhamento sem mutação ao abrir. Primeira capa em 187 CSS px na conferência móvel; sem overflow/erros JS. Revisão independente focada sem achados importantes.
 
 PR #11 publicado: CI 42077866683, CI integrado 42078368422 e Deploy 42078669659 aprovados, com backup anterior. Seis jornadas sobre a interface publicada conferiram catálogo compacto, preferências por conta/contexto, compartilhamento por ações explícitas, câmera e busca ISBN, usando respostas de API interceptadas sem gravar na coleção. QA visual publicada: primeira capa móvel em 187 CSS px, sem overflow ou erros JS; GET/HEAD de prontidão 200 com no-store, private.
+
+## Confirmações temporárias discretas — 05/11/2026
+
+Confirmações de livros já usavam Toast com vida de 3,5 segundos, mas apareciam centralizadas horizontalmente e com apresentação maior. Ajustado para canto inferior direito, largura máxima 360 px e área segura móvel, tipografia/ícone/espaçamento compactos. Nova confirmação substitui a anterior, evitando acúmulo. Cópia bem-sucedida do PIX também passa a Toast; falha de cópia permanece junto da chave para orientar a ação manual. Avisos de progresso e recuperação continuam persistentes, pois não são confirmações transitórias.
+
+Teste de navegador reproduziu o posicionamento anterior e passou com posição/tamanho/expiração de Dados atualizados no desktop e celular e expiração da confirmação PIX. 9 Vitest e tipos/build aprovados; revisão focada sem achados importantes. Nenhuma mudança de API ou banco.

@@ -136,7 +136,7 @@ onUnmounted(() => {
       >
     </nav>
   </Drawer>
-  <Toast position="bottom-center" />
+  <Toast position="bottom-right" class="app-feedback-toast" />
   <div v-if="!online" class="offline" role="status">
     Sem conexão. Conecte-se à internet para consultar ou salvar.
   </div>
