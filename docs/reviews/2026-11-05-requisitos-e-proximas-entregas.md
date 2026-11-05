@@ -84,7 +84,7 @@ O núcleo da primeira versão está entregue. Não faltam os módulos principais
 ## Validações e operação, sem confundir com funcionalidade faltante
 
 - Login real da Juliana confirmado pelo usuário em 05/11/2026 no celular dela; pendência de autenticação encerrada. Uso dos demais fluxos de gestão com essa conta ainda não foi detalhado.
-- Confirmar instalação e abertura do PWA, login e retorno ao app instalado no Poco F5 e Samsung A34. A câmera e as buscas no Poco F5 já foram confirmadas; no Samsung A34 ainda não.
+- Confirmar instalação e abertura do PWA, login e retorno ao app instalado no Poco F5 e Samsung A34. A câmera e as buscas no Poco F5 já foram confirmadas; login e câmera no Samsung A34 também foram confirmados pelo usuário em 05/11/2026. A instalação como PWA continua sem confirmação.
 - Acrescentar jornada de execução de mutação pelo Swagger em navegador com sessão/CSRF; há testes de autorização, schema e operações da API, mas não uma jornada dessa interação completa.
 - Confirmar segunda cópia segura da chave de recuperação e notificações de falha do Actions na conta do usuário. Não inferir configuração pessoal a partir dos workflows.
 - Recuperação do banco e primitivas de recuperação da mídia já foram testadas. Um assistente automatizado de recuperação completa da conta Cloudinary não existe; o procedimento atual é documentado e manual, conforme operação.
