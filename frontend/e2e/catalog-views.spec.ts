@@ -86,9 +86,7 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
     fullPage: true,
     animations: "disabled",
   });
-  await page
-    .getByRole("combobox", { name: "Capas por linha no desktop" })
-    .click();
+  await page.getByRole("combobox", { name: "Capas por linha" }).click();
   await page.getByRole("option", { name: "9", exact: true }).click();
   await expect.poll(() => preferences.cover_columns).toBe(9);
   await page.reload();
@@ -99,10 +97,19 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
         (el) => getComputedStyle(el).gridTemplateColumns.split(" ").length,
       ),
   ).toBe(9);
+  await expect(
+    page.getByRole("button", { name: "Somente capas", exact: true }),
+  ).toHaveText("");
   const search = page.getByRole("textbox", { name: "Buscar no acervo" });
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
   await search.fill("a");
   await search.fill("ab");
+  await page.clock.fastForward(299);
+  expect(queries).not.toContain("ab");
+  await page.clock.fastForward(1);
   await expect.poll(() => queries.at(-1)).toBe("ab");
+  await page.clock.resume();
   expect(queries).not.toContain("a");
   await page.getByRole("button", { name: "Limpar busca" }).click();
   await expect(search).toHaveValue("");
@@ -165,6 +172,26 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
     .getByRole("button", { name: "Somente capas", exact: true })
     .click();
   await expect(page.locator(".book-info").first()).not.toBeVisible();
+  for (const columns of [3, 10]) {
+    await page.getByRole("combobox", { name: "Capas por linha" }).click();
+    await page
+      .getByRole("option", { name: String(columns), exact: true })
+      .click();
+    await expect.poll(() => preferences.cover_columns).toBe(columns);
+    expect(
+      await page
+        .locator(".book-grid")
+        .evaluate(
+          (el) => getComputedStyle(el).gridTemplateColumns.split(" ").length,
+        ),
+    ).toBe(columns);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+
   await page.screenshot({
     path: "../.superpowers/catalog-mobile-covers.png",
     fullPage: true,

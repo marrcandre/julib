@@ -29,6 +29,23 @@ def test_catalog_preferences_are_validated_and_private_to_each_account():
         ).status_code
         == 422
     )
+    for columns in (3, 10):
+        assert (
+            client.put(
+                "/api/v1/preferences/catalog",
+                {"catalog_view": "covers", "cover_columns": columns},
+                content_type="application/json",
+            ).status_code
+            == 200
+        )
+    assert (
+        client.put(
+            "/api/v1/preferences/catalog",
+            {"catalog_view": "covers", "cover_columns": 2},
+            content_type="application/json",
+        ).status_code
+        == 422
+    )
     client.force_login(two)
     other = client.get("/api/v1/session").json()
     assert (other["catalog_view"], other["cover_columns"]) == ("covers", 7)

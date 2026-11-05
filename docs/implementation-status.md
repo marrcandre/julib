@@ -156,3 +156,9 @@ Somente capas passa a ser a primeira opção e o padrão, seguida por Cartões e
 Busca automática após 400 ms de pausa, botão acessível para limpar e proteção contra respostas antigas substituírem resultados recentes. Detalhes exibem a capa atual à direita do envio de imagem, incluindo disposição móvel sem sobreposição. Testes cobrem persistência, isolamento entre usuários, validação, CSRF, inserções compatíveis com a versão anterior e comportamento visual/busca.
 
 Publicação concluída pelo PR #6: CI 42024937166 e Deploy 42025168340 aprovados. Validação final: 43 testes backend, 6 Vitest, tipos/build e verificações estáticas; oito jornadas locais e teste focado sobre a interface publicada aprovados. GET/HEAD de prontidão retornam 200 e no-store, private. Conferência somente leitura preservou os 312 livros e 312 exemplares; usuários existentes receberam Somente capas/sete colunas. Backup automático concluído antes da migração.
+
+## Controles compactos e capas em empréstimos — 05/11/2026
+
+Controles de visualização exibem apenas ícones, preservando nomes acessíveis e dicas. Densidade de Somente capas aceita de três a dez colunas e vale em qualquer largura, com a mesma preferência por usuário. Busca automática reduzida a 300 ms, verificada com relógio controlado em 299/300 ms. Empréstimos no painel e na página própria exibem miniatura, origem quando aplicável e marcador para capa ausente ou falha de imagem. A API passa a incluir URL e atribuição sem consultas adicionais por empréstimo; migração apenas ajusta o validador mínimo da preferência.
+
+Verificação local: 44 testes backend, 6 Vitest, Ruff/mypy, schema/tipos/build aprovados. Duas jornadas focadas conferem controles, persistência, densidade móvel, busca concorrente e miniaturas/fallback em desktop e celular.

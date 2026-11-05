@@ -448,7 +448,7 @@ watch(q, (value) => {
   clearTimeout(searchTimer);
   ++loadVersion;
   if (!value) searchNow();
-  else searchTimer = setTimeout(searchNow, 400);
+  else searchTimer = setTimeout(searchNow, 300);
 });
 onMounted(() =>
   run(async () => {
@@ -577,30 +577,33 @@ onUnmounted(() => {
     aria-label="Visualização dos livros"
   >
     <Button
-      label="Somente capas"
+      aria-label="Somente capas"
+      title="Somente capas"
       icon="pi pi-book"
       :aria-pressed="catalogView === 'covers'"
       :outlined="catalogView !== 'covers'"
       @click="catalogView = 'covers'"
     />
     <Button
-      label="Cartões"
+      aria-label="Cartões"
+      title="Cartões"
       icon="pi pi-th-large"
       :aria-pressed="catalogView === 'cards'"
       :outlined="catalogView !== 'cards'"
       @click="catalogView = 'cards'"
     />
     <Button
-      label="Lista"
+      aria-label="Lista"
+      title="Lista"
       icon="pi pi-list"
       :aria-pressed="catalogView === 'list'"
       :outlined="catalogView !== 'list'"
       @click="catalogView = 'list'"
     /><label v-if="catalogView === 'covers'" class="density-control"
-      >Por linha (desktop)<Select
+      >Por linha<Select
         v-model="coverColumns"
-        :options="[5, 6, 7, 8, 9, 10]"
-        aria-label="Capas por linha no desktop"
+        :options="[3, 4, 5, 6, 7, 8, 9, 10]"
+        aria-label="Capas por linha"
     /></label>
   </div>
   <div v-if="!books.length" class="empty">

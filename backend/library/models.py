@@ -15,7 +15,7 @@ class User(AbstractUser):
         choices=[(v, v) for v in ("covers", "cards", "list")],
     )
     cover_columns = models.PositiveSmallIntegerField(
-        default=7, db_default=7, validators=[MinValueValidator(5), MaxValueValidator(10)]
+        default=7, db_default=7, validators=[MinValueValidator(3), MaxValueValidator(10)]
     )
 
 

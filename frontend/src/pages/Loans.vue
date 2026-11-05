@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoanBook from "../components/LoanBook.vue";
 import { ref, onMounted } from "vue";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
@@ -160,8 +161,7 @@ onMounted(() => run(load));
   </div>
   <div v-else class="panel">
     <div v-for="loan in loans" :key="loan.id" class="loan-row">
-      <div>
-        <b>{{ loan.title }}</b>
+      <LoanBook :loan="loan">
         <div class="muted">
           #{{ loan.copy_number }} · {{ loan.person_name }}
         </div>
@@ -174,7 +174,7 @@ onMounted(() => run(load));
         ><span v-if="loan.state === 'lost'" class="status warn"
           >Encerrado por perda</span
         >
-      </div>
+      </LoanBook>
       <div v-if="loan.state === 'open'" class="actions">
         <Button
           label="Devolver"
