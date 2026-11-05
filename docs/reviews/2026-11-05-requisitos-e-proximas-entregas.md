@@ -16,7 +16,7 @@ O núcleo da primeira versão está entregue. Não faltam os módulos principais
 | Organização | Tags criáveis e associáveis aos livros; localização hierárquica, edição, ciclos bloqueados, filtro por descendentes/sem localização e movimentação em lote. |
 | Circulação | Pessoas reutilizáveis, contatos obrigatórios/opcionais conforme decisão, três datas, mês calendário, devolução, atraso, perda, venda/doação, reativação e histórico por pessoa/exemplar. |
 | Importação | Prévia Goodreads, seleção, cópia explícita, lotes de 25, retomada e idempotência. 312 livros e exemplares importados; páginas recuperadas para 284. |
-| Apresentação | Painel, cinco últimas aquisições distintas por data, capas/cartões/lista, densidade de 3 a 10 por usuário, busca em 300 ms e limpeza; capas no editor/detalhes/empréstimos. |
+| Apresentação | Painel, cinco últimas aquisições distintas por data, capas/cartões/lista, densidade local de 3 a 10 por usuário/navegador, busca em 300 ms e limpeza; capas no editor/detalhes/empréstimos. |
 | Imagens | Referências externas com atribuição; upload manual assinado e verificado no Cloudinary, com capa gerenciada no backup. |
 | Compartilhamento | Link público somente leitura, revogável, sem locais, contatos, números de exemplares ou histórico. |
 | Identidade/PWA | Menu superior, paleta aprovada, dois temas com preferência inicial do sistema, avatar Google, Sobre/homenagem/PIX, manifesto e ícones, aviso sem conexão. Instalação física ainda precisa de confirmação. |

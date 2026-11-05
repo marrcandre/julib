@@ -74,6 +74,12 @@ MIT. Apoio voluntário via PIX está disponível na página Sobre.
 
 ## Cadastro pela câmera
 
-Em Livros → Câmera, permita o acesso e aponte para o código de barras ISBN (normalmente EAN-13, começando por 978 ou 979). O navegador prefere a câmera traseira e consulta os dados automaticamente ao reconhecer um ISBN válido. Escolha o resultado, confira os campos e pressione Salvar e continuar; reconhecer o código não cadastra o livro sozinho. Ler outro código libera uma nova tentativa. Se não houver resultado, use a busca manual ou preencha os campos. Fechar a janela desliga a câmera.
+Em Livros → + (Adicionar livro) → Escanear ISBN, permita o acesso e aponte para o código de barras ISBN (normalmente EAN-13, começando por 978 ou 979). O navegador prefere a câmera traseira e consulta os dados automaticamente ao reconhecer um ISBN válido. Escolha o resultado, confira os campos e pressione Salvar e continuar; reconhecer o código não cadastra o livro sozinho. Ler outro código libera uma nova tentativa. Se não houver resultado, use a busca manual ou preencha os campos. Fechar a janela desliga a câmera.
 
 A imagem é processada no navegador; a busca envia o ISBN, sem enviar vídeo ou fotos. A câmera exige permissão do navegador e acesso por HTTPS (ou localhost em desenvolvimento). Leitura de texto/fotografia da capa não faz parte desse recurso.
+
+## Consulta do acervo
+
+A busca do catálogo ocorre após 300 ms. Filtros e visualização ficam nos botões ao lado da busca; o menu ⋮ reúne importação, organização de exemplares e compartilhamento. O badge ao lado de Livros mostra a quantidade de edições encontradas.
+
+Em Visualização, o slider ajusta de 3 a 10 livros por linha. Essa densidade fica salva por usuário neste navegador/dispositivo, independente dos outros aparelhos; o padrão inicial é quatro no celular e sete no desktop. Limpar os dados do navegador remove essa preferência local. O modo Somente capas/Cartões/Lista continua associado à conta.
