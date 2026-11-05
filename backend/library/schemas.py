@@ -132,7 +132,7 @@ class PublicCatalogOut(Schema):
 
 class CatalogPreferencesIn(Schema):
     catalog_view: Literal["covers", "cards", "list"]
-    cover_columns: int = Field(ge=5, le=10)
+    cover_columns: int = Field(ge=3, le=10)
 
 
 class SessionOut(Schema):
@@ -161,6 +161,9 @@ class PersonOut(Schema):
 
 
 class LoanOut(Schema):
+    cover_url: str = ""
+    attribution_name: str = ""
+    attribution_url: str = ""
     id: int
     copy_id: int
     copy_number: int

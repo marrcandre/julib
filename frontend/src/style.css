@@ -755,9 +755,6 @@ video {
   flex-shrink: 0;
 }
 @media (max-width: 800px) {
-  .book-grid.catalog-covers {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
   .density-control {
     margin-left: 0;
   }
@@ -784,4 +781,13 @@ video {
 .cover-upload input[type="file"] {
   width: 100%;
   max-width: 100%;
+}
+
+@media (max-width: 800px) {
+  .catalog-covers .cover-status {
+    font-size: 8px;
+    padding: 2px;
+    right: 2px;
+    top: 2px;
+  }
 }

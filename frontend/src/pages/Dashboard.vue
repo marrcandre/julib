@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoanBook from "../components/LoanBook.vue";
 import SourceAttribution from "../components/SourceAttribution.vue";
 import { ref, onMounted, inject, type Ref } from "vue";
 import Button from "primevue/button";
@@ -77,12 +78,11 @@ onMounted(async () => {
     </div>
     <div v-else class="panel">
       <div v-for="loan in data.attention" :key="loan.id" class="loan-row">
-        <div>
-          <b>{{ loan.title }}</b>
+        <LoanBook :loan="loan">
           <div class="muted">
             {{ loan.person_name }} · Exemplar #{{ loan.copy_number }}
           </div>
-        </div>
+        </LoanBook>
         <div>
           <span class="status" :class="{ warn: loan.overdue }"
             >{{ loan.overdue ? "Em atraso" : "Previsto" }} ·

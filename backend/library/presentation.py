@@ -23,8 +23,20 @@ def book_data(book: Book, public: bool = False) -> dict[str, Any]:
         ]
     }
     result["tags"] = [{"id": t.pk, "name": t.name} for t in book.tags.all()]
-    result["attribution_name"] = ""
-    result["attribution_url"] = ""
+    result.update(cover_attribution(book))
+    result["available"] = any(
+        c.state == "active" and not any(loan.state == "open" for loan in c.loans.all())
+        for c in copies
+    )
+    if not public:
+        result["copies"] = [copy_data(c) for c in copies]
+        result["source"] = book.source
+        result["source_id"] = book.source_id
+    return result
+
+
+def cover_attribution(book: Book) -> dict[str, str]:
+    result = {"attribution_name": "", "attribution_url": ""}
     if book.source == "google" and book.source_id:
         result["attribution_name"] = "Google Books"
         result["attribution_url"] = "https://books.google.com/books?id=" + quote(
@@ -50,14 +62,6 @@ def book_data(book: Book, public: bool = False) -> dict[str, Any]:
                 if book.isbn
                 else "https://openlibrary.org"
             )
-    result["available"] = any(
-        c.state == "active" and not any(loan.state == "open" for loan in c.loans.all())
-        for c in copies
-    )
-    if not public:
-        result["copies"] = [copy_data(c) for c in copies]
-        result["source"] = book.source
-        result["source_id"] = book.source_id
     return result
 
 
@@ -79,6 +83,8 @@ def loan_data(loan: Loan) -> dict[str, Any]:
         "copy_id": loan.copy_id,
         "copy_number": loan.copy.number,
         "title": loan.copy.book.title,
+        "cover_url": loan.copy.book.cover_url,
+        **cover_attribution(loan.copy.book),
         "person_id": loan.person_id,
         "person_name": loan.person.name,
         "started_on": loan.started_on.isoformat(),

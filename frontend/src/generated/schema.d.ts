@@ -729,6 +729,21 @@ export interface components {
         };
         /** LoanOut */
         LoanOut: {
+            /**
+             * Cover Url
+             * @default
+             */
+            cover_url: string;
+            /**
+             * Attribution Name
+             * @default
+             */
+            attribution_name: string;
+            /**
+             * Attribution Url
+             * @default
+             */
+            attribution_url: string;
             /** Id */
             id: number;
             /** Copy Id */
