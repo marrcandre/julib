@@ -138,6 +138,7 @@ class CatalogPreferencesIn(Schema):
 
 
 class SessionOut(Schema):
+    user_id: int
     catalog_view: Literal["covers", "cards", "list"] = "covers"
     cover_columns: int = 7
     avatar_url: str
@@ -146,6 +147,10 @@ class SessionOut(Schema):
     technical: bool
     library: str | None
     csrf: str
+
+
+class ShareStatusOut(Schema):
+    active: bool
 
 
 class LocationOut(Schema):

@@ -1,6 +1,7 @@
 import { createApp } from "vue";
 import { createRouter, createWebHistory } from "vue-router";
 import PrimeVue from "primevue/config";
+import ToastService from "primevue/toastservice";
 import Aura from "@primeuix/themes/aura";
 import { definePreset } from "@primeuix/themes";
 import App from "./App.vue";
@@ -17,6 +18,7 @@ import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
 import "@fontsource/inter/800.css";
 import "./style.css";
+import "./catalog.css";
 import "primeicons/primeicons.css";
 const router = createRouter({
   history: createWebHistory(),
@@ -49,5 +51,6 @@ const preset = definePreset(Aura, {
 });
 createApp(App)
   .use(router)
+  .use(ToastService)
   .use(PrimeVue, { theme: { preset, options: { darkModeSelector: ".dark" } } })
   .mount("#app");

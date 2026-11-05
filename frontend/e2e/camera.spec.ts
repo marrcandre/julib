@@ -16,6 +16,7 @@ test("camera reads ISBN automatically without saving or overwriting selected dat
     let json: unknown = [];
     if (url.pathname.endsWith("/session"))
       json = {
+        user_id: 1,
         name: "Teste",
         email: "test@example.com",
         technical: false,
@@ -40,7 +41,10 @@ test("camera reads ISBN automatically without saving or overwriting selected dat
     return route.fulfill({ json });
   });
   await page.goto("/livros");
-  await page.getByRole("button", { name: "Câmera", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Adicionar livro", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Escanear ISBN" }).click();
   await expect.poll(() => searches.length).toBe(1);
   expect(searches[0]).toBe("isbn:9780261102217");
   expect(writes).toHaveLength(0);
@@ -96,6 +100,7 @@ test("camera permission denial keeps manual registration available", async ({
     route.fulfill({
       json: new URL(route.request().url()).pathname.endsWith("/session")
         ? {
+            user_id: 1,
             name: "Teste",
             email: "test@example.com",
             technical: false,
@@ -109,7 +114,10 @@ test("camera permission denial keeps manual registration available", async ({
     }),
   );
   await page.goto("/livros");
-  await page.getByRole("button", { name: "Câmera", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Adicionar livro", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Escanear ISBN" }).click();
   await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
     "Permita o acesso ou digite o ISBN",
   );
@@ -141,6 +149,7 @@ test("closing while camera permission is pending stops the late stream", async (
     route.fulfill({
       json: new URL(route.request().url()).pathname.endsWith("/session")
         ? {
+            user_id: 1,
             name: "Teste",
             email: "test@example.com",
             technical: false,
@@ -154,7 +163,10 @@ test("closing while camera permission is pending stops the late stream", async (
     }),
   );
   await page.goto("/livros");
-  await page.getByRole("button", { name: "Câmera", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Adicionar livro", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Escanear ISBN" }).click();
   await expect(page.locator("video")).toHaveCount(1);
   await page
     .getByRole("dialog")

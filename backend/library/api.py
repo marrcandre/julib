@@ -78,6 +78,7 @@ def session(request: HttpRequest) -> dict[str, Any]:
     membership = user.membership_set.select_related("library").first()
     google_account = SocialAccount.objects.filter(user=user, provider="google").first()
     return {
+        "user_id": user.pk,
         "name": user.get_full_name() or user.username,
         "email": user.email,
         "catalog_view": user.catalog_view,
@@ -405,6 +406,13 @@ def import_process(request: HttpRequest, pk: int, payload: s.ImportActions) -> l
     return imports.process_rows(
         require_library(request), pk, [a.model_dump() for a in payload.actions]
     )
+
+
+@api.get("/share/manage", response=s.ShareStatusOut)
+def share_status(request: HttpRequest) -> dict[str, bool]:
+    return {
+        "active": ShareLink.objects.filter(library=require_library(request), active=True).exists()
+    }
 
 
 @api.post("/share/manage")

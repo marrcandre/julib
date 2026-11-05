@@ -1,5 +1,11 @@
 <script setup lang="ts">
 import SourceAttribution from "../components/SourceAttribution.vue";
+import CatalogToolbar, {
+  type CatalogView,
+  type CatalogFilters,
+} from "../components/CatalogToolbar.vue";
+import { readCoverColumns, writeCoverColumns } from "../catalog-preferences";
+import { useToast } from "primevue/usetoast";
 import {
   ref,
   onMounted,
@@ -7,6 +13,7 @@ import {
   nextTick,
   watch,
   inject,
+  computed,
   type Ref,
 } from "vue";
 import { canonicalIsbn, isbnFromBarcode } from "../isbn";
@@ -34,13 +41,21 @@ import {
   BrowserMultiFormatReader,
   type IScannerControls,
 } from "@zxing/browser";
-type CatalogView = "cards" | "covers" | "list";
 const session = inject<Ref<Session | null>>("session");
 const catalogView = ref<CatalogView>(session?.value?.catalog_view || "covers");
-const coverColumns = ref(session?.value?.cover_columns || 7);
+const coverColumns = ref(
+  readCoverColumns(
+    session?.value?.user_id,
+    window.matchMedia("(max-width: 800px)").matches,
+  ),
+);
+const densitySaved = ref(true);
+watch(coverColumns, (value) => {
+  densitySaved.value = writeCoverColumns(session?.value?.user_id, value);
+});
 let preferenceSave = Promise.resolve();
 let preferenceVersion = 0;
-watch([catalogView, coverColumns], ([view, columns]) => {
+watch(catalogView, (view) => {
   const version = ++preferenceVersion;
   preferenceSave = preferenceSave
     .then(async () => {
@@ -49,7 +64,10 @@ watch([catalogView, coverColumns], ([view, columns]) => {
         cover_columns: number;
       }>("/preferences/catalog", {
         method: "PUT",
-        body: JSON.stringify({ catalog_view: view, cover_columns: columns }),
+        body: JSON.stringify({
+          catalog_view: view,
+          cover_columns: session?.value?.cover_columns || 7,
+        }),
       });
       if (session?.value && version === preferenceVersion)
         Object.assign(session.value, saved);
@@ -59,7 +77,6 @@ watch([catalogView, coverColumns], ([view, columns]) => {
         "Não foi possível salvar sua preferência de visualização. Tente novamente.";
     });
 });
-const searchContainer = ref<HTMLDivElement | null>(null);
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 let loadVersion = 0;
 const pendingRegistration = ref<Record<string, unknown> | null>(null);
@@ -95,6 +112,55 @@ const external = ref(""),
 let controls: IScannerControls | undefined,
   scanLocked = false,
   cameraAttempt = 0;
+const entryMethod = ref<"camera" | "search" | "manual">("search");
+const shareOpen = ref(false),
+  shareActive = ref(false);
+const toast = useToast();
+watch(message, (value) => {
+  if (!value) return;
+  toast.add({
+    severity: value.startsWith("Nenhum") ? "info" : "success",
+    summary: value,
+    life: 3500,
+  });
+  message.value = "";
+});
+const currentFilters = computed<CatalogFilters>(() => ({
+  tag: tag.value,
+  location: loc.value,
+  available: available.value,
+  missingLocation: missingLocation.value,
+}));
+function applyFilters(filters: CatalogFilters) {
+  tag.value = filters.tag;
+  loc.value = filters.location;
+  available.value = filters.available;
+  missingLocation.value = filters.missingLocation;
+  searchNow();
+}
+function addBook(method: "camera" | "search" | "manual") {
+  entryMethod.value = method;
+  newBook();
+  if (method === "camera") void startCamera();
+}
+async function openShare() {
+  shareUrl.value = "";
+  shareOpen.value = true;
+  shareActive.value = false;
+  await run(async () => {
+    const data = await api<{ active: boolean }>("/share/manage");
+    shareActive.value = data.active;
+  });
+}
+async function copyShareLink() {
+  try {
+    await navigator.clipboard.writeText(shareUrl.value);
+    message.value = "Link copiado.";
+  } catch {
+    error.value =
+      "Não foi possível copiar. Selecione o link e copie manualmente.";
+  }
+}
 const stateLabels: Record<string, string> = {
   sold: "Vendido",
   donated: "Doado",
@@ -190,6 +256,7 @@ function edit(book: Book) {
     name: book.attribution_name || "",
     url: book.attribution_url || "",
   };
+  entryMethod.value = "manual";
   editing.value = book.id;
   form.value = {
     ...blank(),
@@ -379,12 +446,18 @@ async function share() {
   await run(async () => {
     const data = await post<{ token: string }>("/share/manage");
     shareUrl.value = location.origin + "/colecao/" + data.token;
+    shareActive.value = true;
   });
 }
 async function disableShare() {
+  if (
+    !confirm("Desativar o link de consulta? Quem o recebeu perderá o acesso.")
+  )
+    return;
   await run(async () => {
     await api("/share/manage", { method: "DELETE" });
     shareUrl.value = "";
+    shareActive.value = false;
     message.value = "Link de consulta desativado.";
   });
 }
@@ -462,12 +535,6 @@ function searchNow() {
   page.value = 1;
   void refresh();
 }
-function clearQuery() {
-  q.value = "";
-  void nextTick(() =>
-    searchContainer.value?.querySelector<HTMLInputElement>("input")?.focus(),
-  );
-}
 watch(q, (value) => {
   clearTimeout(searchTimer);
   ++loadVersion;
@@ -493,143 +560,24 @@ onUnmounted(() => {
 });
 </script>
 <template>
-  <div class="page-heading">
-    <div>
-      <div class="eyebrow">HISTÓRIAS NA SUA ESTANTE</div>
-      <h1>Livros</h1>
-      <p class="muted">{{ total }} edições na sua biblioteca.</p>
-    </div>
-    <div class="actions">
-      <Button
-        label="Câmera"
-        icon="pi pi-camera"
-        severity="secondary"
-        @click="
-          newBook();
-          startCamera();
-        "
-      /><Button
-        label="Adicionar livro"
-        icon="pi pi-plus"
-        class="primary"
-        @click="newBook"
-      />
-    </div>
-  </div>
-  <div class="actions">
-    <RouterLink to="/importar">Importar Goodreads</RouterLink
-    ><Button
-      label="Localização em lote"
-      text
-      @click="
-        bulkOpen = true;
-        selectedCopies = [];
-      "
-    /><Button
-      label="Gerar link de consulta"
-      size="small"
-      text
-      @click="share"
-    /><Button label="Desativar link" size="small" text @click="disableShare" />
-  </div>
-  <div v-if="shareUrl" class="notice">
-    <label
-      >Seu link somente leitura
-      <input :value="shareUrl" readonly aria-label="Link de consulta"
-    /></label>
-    <p>Qualquer pessoa com o link pode consultar a coleção.</p>
-  </div>
+  <CatalogToolbar
+    v-model:query="q"
+    v-model:view="catalogView"
+    v-model:columns="coverColumns"
+    :total="total"
+    :tags="tags"
+    :locations="locations"
+    :filters="currentFilters"
+    :density-saved="densitySaved"
+    @filters="applyFilters"
+    @add="addBook"
+    @bulk="
+      bulkOpen = true;
+      selectedCopies = [];
+    "
+    @share="openShare"
+  />
   <p v-if="error" class="error" role="alert">{{ error }}</p>
-  <p v-if="message" class="notice" role="status">{{ message }}</p>
-  <form class="toolbar" @submit.prevent="searchNow">
-    <div ref="searchContainer" class="catalog-search">
-      <InputText
-        v-model="q"
-        placeholder="Título, autor ou ISBN"
-        aria-label="Buscar no acervo"
-      /><button
-        v-if="q"
-        type="button"
-        class="search-clear"
-        aria-label="Limpar busca"
-        title="Limpar busca"
-        @click="clearQuery"
-      >
-        <i class="pi pi-times" aria-hidden="true" />
-      </button>
-    </div>
-    <Select
-      v-model="tag"
-      :options="tags"
-      option-label="name"
-      option-value="id"
-      placeholder="Todas as tags"
-      show-clear
-      aria-label="Filtrar por tag"
-    /><Select
-      v-model="loc"
-      :options="
-        locations.map((l) => ({
-          id: l.id,
-          name: locationLabel(locations, l.id),
-        }))
-      "
-      option-label="name"
-      option-value="id"
-      placeholder="Todos os locais"
-      show-clear
-      aria-label="Filtrar por local"
-    /><Select
-      v-model="available"
-      :options="[
-        { name: 'Disponíveis', value: true },
-        { name: 'Indisponíveis', value: false },
-      ]"
-      option-label="name"
-      option-value="value"
-      placeholder="Disponibilidade"
-      show-clear
-      aria-label="Disponibilidade"
-    /><label
-      style="display: flex; gap: 5px; align-items: center; font-size: 12px"
-      ><input type="checkbox" v-model="missingLocation" />Sem localização</label
-    ><Button type="submit" label="Buscar" :loading="busy" />
-  </form>
-  <div
-    class="catalog-view-switch"
-    role="group"
-    aria-label="Visualização dos livros"
-  >
-    <Button
-      aria-label="Somente capas"
-      title="Somente capas"
-      icon="pi pi-book"
-      :aria-pressed="catalogView === 'covers'"
-      :outlined="catalogView !== 'covers'"
-      @click="catalogView = 'covers'"
-    />
-    <Button
-      aria-label="Cartões"
-      title="Cartões"
-      icon="pi pi-th-large"
-      :aria-pressed="catalogView === 'cards'"
-      :outlined="catalogView !== 'cards'"
-      @click="catalogView = 'cards'"
-    />
-    <Button
-      aria-label="Lista"
-      title="Lista"
-      icon="pi pi-list"
-      :aria-pressed="catalogView === 'list'"
-      :outlined="catalogView !== 'list'"
-      @click="catalogView = 'list'"
-    /><label v-if="catalogView === 'covers'" class="density-control"
-      >Por linha<Select
-        v-model="coverColumns"
-        :options="[3, 4, 5, 6, 7, 8, 9, 10]"
-        aria-label="Capas por linha"
-    /></label>
-  </div>
   <div v-if="!books.length" class="empty">
     <i class="pi pi-book" />Nenhum livro encontrado. Cadastre um livro ou altere
     os filtros.
@@ -685,6 +633,47 @@ onUnmounted(() => {
       "
     />
   </div>
+  <Dialog
+    v-model:visible="shareOpen"
+    modal
+    header="Compartilhar coleção"
+    :style="{ width: '500px' }"
+  >
+    <p v-if="error" class="error" role="alert">{{ error }}</p>
+    <p class="muted">
+      Consulta somente leitura, sem contatos, histórico de empréstimos ou
+      localizações.
+    </p>
+    <p v-if="shareActive && !shareUrl" class="notice">
+      Um link está ativo. Para compartilhar outro, renove o link; o anterior
+      deixará de funcionar.
+    </p>
+    <label v-if="shareUrl" class="share-link-field"
+      >Seu link somente leitura<InputText
+        :model-value="shareUrl"
+        readonly
+        aria-label="Link de consulta" /><Button
+        label="Copiar link"
+        icon="pi pi-copy"
+        @click="copyShareLink"
+    /></label>
+    <div class="actions">
+      <Button
+        :label="shareActive ? 'Renovar link' : 'Gerar link de consulta'"
+        icon="pi pi-share-alt"
+        :loading="busy"
+        :disabled="busy"
+        @click="share"
+      /><Button
+        v-if="shareActive"
+        label="Desativar link"
+        severity="danger"
+        text
+        :disabled="busy"
+        @click="disableShare"
+      />
+    </div>
+  </Dialog>
   <Dialog
     v-model:visible="bulkOpen"
     modal
@@ -760,61 +749,68 @@ onUnmounted(() => {
       <video ref="video" autoplay playsinline muted />
       <Button label="Ler outro código" text @click="scanLocked = false" />
     </template>
-    <form class="toolbar" @submit.prevent="find">
-      <InputText
-        v-model="external"
-        placeholder="Buscar por título, autor ou ISBN"
-        aria-label="Buscar em APIs"
-      /><Button label="Buscar dados" type="submit" :loading="searching" />
-    </form>
-    <p v-if="candidates.some((c) => c.source === 'google')" class="muted">
-      <img
-        src="https://books.google.com/googlebooks/images/poweredby.png"
-        alt="Powered by Google"
-        style="background: white; padding: 3px; border-radius: 3px; width: 88px"
-      />
-      Google Books search results
-    </p>
-    <div v-if="candidates.length" class="panel">
-      <div v-for="(candidate, i) in candidates" :key="i">
-        <button
-          class="loan-row"
+    <template v-if="entryMethod !== 'manual'">
+      <form class="toolbar" @submit.prevent="find">
+        <InputText
+          v-model="external"
+          placeholder="Buscar por título, autor ou ISBN"
+          aria-label="Buscar em APIs"
+        /><Button label="Buscar dados" type="submit" :loading="searching" />
+      </form>
+      <p v-if="candidates.some((c) => c.source === 'google')" class="muted">
+        <img
+          src="https://books.google.com/googlebooks/images/poweredby.png"
+          alt="Powered by Google"
           style="
-            width: 100%;
-            background: none;
-            color: inherit;
-            text-align: left;
-            border: 0;
-          "
-          @click="useCandidate(candidate)"
-        >
-          <span
-            ><b>{{ candidate.title }}</b
-            ><br />{{ candidate.authors?.join(", ") }} ·
-            {{ candidate.isbn }}</span
-          ><i class="pi pi-plus" /></button
-        ><SourceAttribution
-          v-if="candidate.source === 'google'"
-          name="Google Books"
-          :url="
-            'https://books.google.com/books?id=' +
-            encodeURIComponent(candidate.source_id || '')
-          "
-        /><SourceAttribution
-          v-else-if="candidate.source === 'openlibrary'"
-          name="Open Library"
-          :url="'https://openlibrary.org' + candidate.source_id"
-        /><SourceAttribution
-          v-else-if="candidate.source === 'brasilapi'"
-          name="BrasilAPI (CBL)"
-          :url="
-            'https://brasilapi.com.br/api/isbn/v1/' +
-            encodeURIComponent(candidate.source_id || '') +
-            '?providers=cbl'
+            background: white;
+            padding: 3px;
+            border-radius: 3px;
+            width: 88px;
           "
         />
+        Google Books search results
+      </p>
+      <div v-if="candidates.length" class="panel">
+        <div v-for="(candidate, i) in candidates" :key="i">
+          <button
+            class="loan-row"
+            style="
+              width: 100%;
+              background: none;
+              color: inherit;
+              text-align: left;
+              border: 0;
+            "
+            @click="useCandidate(candidate)"
+          >
+            <span
+              ><b>{{ candidate.title }}</b
+              ><br />{{ candidate.authors?.join(", ") }} ·
+              {{ candidate.isbn }}</span
+            ><i class="pi pi-plus" /></button
+          ><SourceAttribution
+            v-if="candidate.source === 'google'"
+            name="Google Books"
+            :url="
+              'https://books.google.com/books?id=' +
+              encodeURIComponent(candidate.source_id || '')
+            "
+          /><SourceAttribution
+            v-else-if="candidate.source === 'openlibrary'"
+            name="Open Library"
+            :url="'https://openlibrary.org' + candidate.source_id"
+          /><SourceAttribution
+            v-else-if="candidate.source === 'brasilapi'"
+            name="BrasilAPI (CBL)"
+            :url="
+              'https://brasilapi.com.br/api/isbn/v1/' +
+              encodeURIComponent(candidate.source_id || '') +
+              '?providers=cbl'
+            "
+          />
+        </div>
       </div>
-    </div>
+    </template>
     <p v-if="pendingRegistration" class="notice">
       Uma tentativa está aguardando confirmação. Salvar novamente repete a mesma
       operação com segurança.

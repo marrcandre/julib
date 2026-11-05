@@ -51,6 +51,7 @@ test("loan covers appear in dashboard and loans with safe missing-image fallback
     const path = new URL(route.request().url()).pathname;
     const json = path.endsWith("/session")
       ? {
+          user_id: 1,
           name: "Teste",
           email: "test@example.com",
           technical: false,

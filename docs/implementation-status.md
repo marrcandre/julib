@@ -210,3 +210,11 @@ Busca agora normaliza ISBN digitado/prefixado/com hífens, exige correspondênci
 Referências técnicas: https://developers.google.com/books/docs/v1/using ; https://github.com/BrasilAPI/BrasilAPI/blob/main/pages/api/isbn/v1/%5Bisbn%5D.js .
 
 PR #10 publicado: CI 42066854800 e CI integrado 42067260763 aprovados; Deploy 42067571355 concluído com backup prévio. Duas jornadas focadas passaram na interface pública com respostas de API interceptadas pelo teste, sem gravar na coleção. Consulta real aos provedores com o código novo já havia confirmado ambos os ISBNs. GET/HEAD de prontidão responderam 200. Sem migração ou alteração dos livros existentes.
+
+## Catálogo compacto aprovado — 05/11/2026
+
+Implementação da prévia aprovada: header de 56 px e navegação móvel em drawer; título com badge numérico acessível; + agrupa câmera/busca/manual; menu secundário agrupa importação/organização/compartilhamento; filtros em rascunho com Aplicar/Limpar e chips; modos e slider 3–10 em painel. Avisos de sucesso transitórios, erros persistentes.
+
+Densidade agora local por user_id e navegador/dispositivo, com padrão inicial quatro no celular/sete no desktop; não usa fingerprint nem sincroniza entre aparelhos. Modo de visualização permanece na conta. API legada de preferências continua compatível. Sessão inclui apenas o próprio user_id. GET autenticado de compartilhamento informa só active, sem gerar/revogar nem revelar token; geração e desativação são explícitas com confirmação. Token exibido somente no diálogo em que foi gerado, evitando reutilizar URL local possivelmente obsoleta. Sem migração de banco.
+
+Verificação: 55 backend, 9 Vitest, Ruff/mypy/tipos/build, 14 jornadas E2E e inspeção visual móvel/desktop. Câmera e cadastro contínuo preservados; teste cobre controles, slider pelo teclado, preferências isoladas entre contas/contextos, filtros só ao aplicar e compartilhamento sem mutação ao abrir. Primeira capa em 187 CSS px na conferência móvel; sem overflow/erros JS. Revisão independente focada sem achados importantes.

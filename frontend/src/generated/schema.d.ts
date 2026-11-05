@@ -428,7 +428,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Share Status */
+        get: operations["library_api_share_status"];
         put?: never;
         /** Share Create */
         post: operations["library_api_share_create"];
@@ -496,6 +497,8 @@ export interface components {
     schemas: {
         /** SessionOut */
         SessionOut: {
+            /** User Id */
+            user_id: number;
             /**
              * Catalog View
              * @default covers
@@ -809,6 +812,11 @@ export interface components {
         ImportActions: {
             /** Actions */
             actions: components["schemas"]["ImportAction"][];
+        };
+        /** ShareStatusOut */
+        ShareStatusOut: {
+            /** Active */
+            active: boolean;
         };
         /** PublicBookOut */
         PublicBookOut: {
@@ -1625,6 +1633,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    library_api_share_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareStatusOut"];
+                };
             };
         };
     };

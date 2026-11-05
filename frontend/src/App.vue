@@ -2,16 +2,25 @@
 import { ref, onMounted, onUnmounted, provide, watch } from "vue";
 import { useRoute } from "vue-router";
 import Button from "primevue/button";
+import Drawer from "primevue/drawer";
+import Toast from "primevue/toast";
 import { api, post, setCsrf, type Session } from "./api";
 import { applyTheme, initialTheme, type ThemePreference } from "./theme";
 const session = ref<Session | null>(null),
   avatarFailed = ref(false),
+  navigationOpen = ref(false),
   loading = ref(true),
   error = ref(""),
   online = ref(navigator.onLine);
 const theme = ref<ThemePreference>(initialTheme()),
   route = useRoute();
 provide("session", session);
+watch(
+  () => route.path,
+  () => {
+    navigationOpen.value = false;
+  },
+);
 watch(theme, applyTheme, { immediate: true });
 const syncOnline = () => (online.value = navigator.onLine);
 async function signOut() {
@@ -45,10 +54,18 @@ onUnmounted(() => {
 <template>
   <header class="app-header">
     <div class="header-inner">
+      <Button
+        v-if="session"
+        class="mobile-nav-trigger"
+        aria-label="Abrir navegação"
+        icon="pi pi-bars"
+        text
+        @click="navigationOpen = true"
+      />
       <RouterLink class="brand" to="/" aria-label="Julib início"
         ><i class="pi pi-book" /> Julib</RouterLink
       >
-      <nav v-if="session">
+      <nav v-if="session" class="desktop-nav" aria-label="Navegação principal">
         <RouterLink to="/">Painel</RouterLink
         ><RouterLink to="/livros">Livros</RouterLink
         ><RouterLink to="/emprestimos">Empréstimos</RouterLink
@@ -58,13 +75,27 @@ onUnmounted(() => {
         <button
           class="theme-toggle"
           type="button"
-          :aria-label="theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'"
+          :aria-label="
+            theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'
+          "
           :title="theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'"
           @click="theme = theme === 'dark' ? 'light' : 'dark'"
-        ><i :class="theme === 'dark' ? 'pi pi-sun' : 'pi pi-moon'" aria-hidden="true" /></button>
+        >
+          <i
+            :class="theme === 'dark' ? 'pi pi-sun' : 'pi pi-moon'"
+            aria-hidden="true"
+          />
+        </button>
         <details v-if="session" class="account">
           <summary :aria-label="'Conta de ' + session.name">
-            <img v-if="session.avatar_url && !avatarFailed" class="avatar avatar-photo" :src="session.avatar_url" alt="" referrerpolicy="no-referrer" @error="avatarFailed = true" />
+            <img
+              v-if="session.avatar_url && !avatarFailed"
+              class="avatar avatar-photo"
+              :src="session.avatar_url"
+              alt=""
+              referrerpolicy="no-referrer"
+              @error="avatarFailed = true"
+            />
             <span v-else class="avatar">{{
               session.name.slice(0, 2).toUpperCase()
             }}</span>
@@ -81,10 +112,35 @@ onUnmounted(() => {
       </div>
     </div>
   </header>
+  <Drawer
+    v-model:visible="navigationOpen"
+    header="Julib"
+    position="left"
+    class="app-navigation-drawer"
+  >
+    <nav class="drawer-navigation" aria-label="Navegação principal">
+      <RouterLink to="/" @click="navigationOpen = false"
+        ><i class="pi pi-chart-bar" aria-hidden="true" />Painel</RouterLink
+      >
+      <RouterLink to="/livros" @click="navigationOpen = false"
+        ><i class="pi pi-book" aria-hidden="true" />Livros</RouterLink
+      >
+      <RouterLink to="/emprestimos" @click="navigationOpen = false"
+        ><i
+          class="pi pi-arrow-up-right"
+          aria-hidden="true"
+        />Empréstimos</RouterLink
+      >
+      <RouterLink to="/locais" @click="navigationOpen = false"
+        ><i class="pi pi-map-marker" aria-hidden="true" />Locais</RouterLink
+      >
+    </nav>
+  </Drawer>
+  <Toast position="bottom-center" />
   <div v-if="!online" class="offline" role="status">
     Sem conexão. Conecte-se à internet para consultar ou salvar.
   </div>
-  <main class="container">
+  <main class="container" :class="{ 'catalog-main': route.path === '/livros' }">
     <p v-if="loading" role="status" class="muted">Carregando sua biblioteca…</p>
     <template v-else
       ><RouterView
