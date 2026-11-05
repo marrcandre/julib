@@ -162,3 +162,5 @@ Publicação concluída pelo PR #6: CI 42024937166 e Deploy 42025168340 aprovado
 Controles de visualização exibem apenas ícones, preservando nomes acessíveis e dicas. Densidade de Somente capas aceita de três a dez colunas e vale em qualquer largura, com a mesma preferência por usuário. Busca automática reduzida a 300 ms, verificada com relógio controlado em 299/300 ms. Empréstimos no painel e na página própria exibem miniatura, origem quando aplicável e marcador para capa ausente ou falha de imagem. A API passa a incluir URL e atribuição sem consultas adicionais por empréstimo; migração apenas ajusta o validador mínimo da preferência.
 
 Verificação local: 44 testes backend, 6 Vitest, Ruff/mypy, schema/tipos/build aprovados. Duas jornadas focadas conferem controles, persistência, densidade móvel, busca concorrente e miniaturas/fallback em desktop e celular.
+
+PR #7 integrado e publicado: CI 42027697100 e Deploy 42027933166 aprovados, com backup anterior à migração. Ambas as jornadas focadas passaram também na interface pública, com dados fictícios interceptados pelo teste e sem escrever na coleção. GET/HEAD de prontidão responderam 200 com no-store, private.
