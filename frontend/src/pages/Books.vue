@@ -118,6 +118,7 @@ const shareOpen = ref(false),
 const toast = useToast();
 watch(message, (value) => {
   if (!value) return;
+  toast.removeAllGroups();
   toast.add({
     severity: value.startsWith("Nenhum") ? "info" : "success",
     summary: value,
