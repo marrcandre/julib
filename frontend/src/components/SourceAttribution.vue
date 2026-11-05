@@ -3,13 +3,19 @@ defineProps<{ name?: string; url?: string }>();
 </script>
 <template>
   <p v-if="name && url" class="source-attribution">
-    <a :href="url" target="_blank" rel="noopener noreferrer" @click.stop
+    <a
+      :href="url"
+      :aria-label="'Fonte: ' + name"
+      :title="'Fonte: ' + name"
+      target="_blank"
+      rel="noopener noreferrer"
+      @click.stop
       ><img
         v-if="name === 'Google Books'"
         src="https://books.google.com/googlebooks/images/poweredby.png"
         alt="Powered by Google"
         referrerpolicy="no-referrer"
-      /><span>{{ name }} ↗</span></a
+      /><span v-if="name !== 'Google Books'">{{ name }} ↗</span></a
     >
   </p>
 </template>

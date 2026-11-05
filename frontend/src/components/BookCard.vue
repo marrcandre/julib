@@ -1,31 +1,205 @@
 <script setup lang="ts">
-import type { Book } from "../api";
-defineProps<{ book: Omit<Book, "copies" | "source" | "source_id"> }>();
+import { computed, ref, watch } from "vue";
+import type { Book, Copy } from "../api";
+const props = withDefaults(
+  defineProps<{
+    book: Omit<Book, "copies" | "source" | "source_id"> & { copies?: Copy[] };
+    variant?: "cards" | "covers" | "list";
+  }>(),
+  { variant: "cards" },
+);
+const failed = ref(false);
+watch(
+  () => props.book.cover_url,
+  () => (failed.value = false),
+);
+const availability = computed(() =>
+  props.book.available
+    ? "Disponível"
+    : props.book.copies?.some((c) => c.on_loan)
+      ? "Emprestado"
+      : "Indisponível",
+);
+const statusIcon = computed(() =>
+  props.book.available
+    ? "pi-check-circle"
+    : availability.value === "Emprestado"
+      ? "pi-arrow-up-right"
+      : "pi-minus-circle",
+);
 </script>
 <template>
-  <article class="book-card">
+  <article class="book-card" :class="'book-card--' + variant">
     <div class="cover">
       <img
-        v-if="book.cover_url"
+        v-if="book.cover_url && !failed"
         :src="book.cover_url"
         :alt="'Capa de ' + book.title"
         loading="lazy"
         referrerpolicy="no-referrer"
-        @error="($event.target as HTMLImageElement).style.display = 'none'"
-      /><i v-else class="pi pi-book" aria-hidden="true" />
+        @error="failed = true"
+      />
+      <div v-else class="cover-placeholder">
+        <i class="pi pi-book" aria-hidden="true" /><span
+          v-if="variant === 'covers'"
+          >{{ book.title }}</span
+        >
+      </div>
+      <i
+        v-if="variant === 'covers'"
+        class="pi availability cover-status"
+        :class="statusIcon"
+        role="img"
+        :aria-label="availability"
+        :title="availability"
+      />
     </div>
-    <h3>{{ book.title }}</h3>
-    <p class="muted">{{ book.authors.join(", ") }}</p>
-    <div class="tag-list">
-      <span v-for="tag in book.tags" :key="tag.id" class="tag-pill">{{
-        tag.name
-      }}</span>
+    <div class="book-info">
+      <h3 class="book-title">
+        <span>{{ book.title }}</span
+        ><i
+          class="pi availability"
+          :class="statusIcon"
+          role="img"
+          :aria-label="availability"
+          :title="availability"
+        />
+      </h3>
+      <p class="muted book-authors">{{ book.authors.join(", ") }}</p>
+      <p v-if="variant === 'list'" class="muted book-meta">
+        {{ [book.publisher, book.year, book.isbn].filter(Boolean).join(" · ") }}
+      </p>
+      <div v-if="book.tags.length" class="tag-list">
+        <span v-for="tag in book.tags" :key="tag.id" class="tag-pill">{{
+          tag.name
+        }}</span>
+      </div>
     </div>
-    <span class="status"
-      ><i
-        class="pi"
-        :class="book.available ? 'pi-check-circle' : 'pi-clock'"
-      />{{ book.available ? "Disponível" : "Indisponível" }}</span
-    >
   </article>
 </template>
+<style scoped>
+.book-title {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  justify-content: flex-start;
+}
+.book-title span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.availability {
+  font-size: 14px;
+  color: var(--green);
+  flex-shrink: 0;
+}
+.pi-arrow-up-right,
+.pi-minus-circle {
+  color: #aa741f;
+}
+.dark .pi-arrow-up-right,
+.dark .pi-minus-circle {
+  color: #ffbd59;
+}
+.book-info {
+  min-width: 0;
+}
+.book-authors {
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.book-meta {
+  overflow-wrap: anywhere;
+  margin-top: 8px !important;
+  line-height: 1.6;
+}
+.book-card--covers {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.book-card--covers .book-info {
+  display: none;
+}
+.book-card--covers .cover {
+  max-height: none;
+}
+.cover {
+  position: relative;
+}
+.cover-status {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  background: var(--surface);
+  padding: 5px;
+  border-radius: 50%;
+  box-shadow: var(--shadow);
+}
+.book-card--list {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  padding: 16px;
+}
+.book-card--list .cover {
+  height: 90px;
+  width: 60px;
+  aspect-ratio: auto;
+}
+.book-card--list h3 {
+  margin-top: 0;
+}
+.book-card--list .book-title span {
+  -webkit-line-clamp: unset;
+}
+@media (max-width: 800px) {
+  .book-card:not(.book-card--list) h3 {
+    font-size: 12px;
+    gap: 4px;
+  }
+  .book-card:not(.book-card--list) p {
+    font-size: 10px;
+  }
+  .availability {
+    font-size: 12px;
+  }
+  .book-card--list {
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
+  .book-card--list .cover {
+    width: 48px;
+    height: 72px;
+  }
+  .book-card--list h3 {
+    font-size: 14px;
+  }
+}
+.cover-placeholder {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 10px;
+  text-align: center;
+  max-width: 100%;
+}
+.cover-placeholder span {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>
