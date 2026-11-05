@@ -9,7 +9,7 @@ import {
   inject,
   type Ref,
 } from "vue";
-import { canonicalIsbn } from "../isbn";
+import { canonicalIsbn, isbnFromBarcode } from "../isbn";
 import { useRoute } from "vue-router";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
@@ -93,7 +93,8 @@ const external = ref(""),
   camera = ref(false),
   video = ref<HTMLVideoElement | null>(null);
 let controls: IScannerControls | undefined,
-  scanLocked = false;
+  scanLocked = false,
+  cameraAttempt = 0;
 const stateLabels: Record<string, string> = {
   sold: "Vendido",
   donated: "Doado",
@@ -247,7 +248,6 @@ function useCandidate(candidate: Partial<Book>) {
     tag_ids: [],
   };
   candidates.value = [];
-  scanLocked = false;
 }
 async function save() {
   await run(async () => {
@@ -381,30 +381,44 @@ async function disableShare() {
   });
 }
 async function startCamera() {
+  const attempt = ++cameraAttempt;
   camera.value = true;
   formOpen.value = true;
   await nextTick();
   try {
     if (!video.value) return;
-    controls = await new BrowserMultiFormatReader().decodeFromVideoDevice(
-      undefined,
-      video.value,
-      (result) => {
-        if (result && !scanLocked) {
-          scanLocked = true;
-          external.value = "isbn:" + result.getText();
-          void find();
-        }
-      },
-    );
+    const startedControls =
+      await new BrowserMultiFormatReader().decodeFromVideoDevice(
+        undefined,
+        video.value,
+        (result) => {
+          if (
+            result &&
+            !scanLocked &&
+            camera.value &&
+            attempt === cameraAttempt
+          ) {
+            const isbn = isbnFromBarcode(result.getText());
+            if (!isbn) return;
+            scanLocked = true;
+            external.value = "isbn:" + isbn;
+            void find();
+          }
+        },
+      );
+    if (attempt !== cameraAttempt || !camera.value) startedControls.stop();
+    else controls = startedControls;
   } catch {
+    if (attempt !== cameraAttempt) return;
     error.value =
       "Não foi possível acessar a câmera. Permita o acesso ou digite o ISBN.";
     camera.value = false;
   }
 }
 function stopCamera() {
+  ++cameraAttempt;
   controls?.stop();
+  controls = undefined;
   camera.value = false;
   scanLocked = false;
 }
@@ -730,7 +744,14 @@ onUnmounted(() => {
     :style="{ width: '650px' }"
     @hide="stopCamera"
     ><p v-if="error" class="error" role="alert">{{ error }}</p>
-    <video v-if="camera" ref="video" autoplay playsinline />
+    <template v-if="camera">
+      <p class="muted">
+        Aponte para o código de barras ISBN do livro. A busca começa
+        automaticamente; confira os dados antes de salvar.
+      </p>
+      <video ref="video" autoplay playsinline muted />
+      <Button label="Ler outro código" text @click="scanLocked = false" />
+    </template>
     <form class="toolbar" @submit.prevent="find">
       <InputText
         v-model="external"
