@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 from uuid import UUID
 
 from ninja import Schema
@@ -129,7 +130,14 @@ class PublicCatalogOut(Schema):
     total: int
 
 
+class CatalogPreferencesIn(Schema):
+    catalog_view: Literal["covers", "cards", "list"]
+    cover_columns: int = Field(ge=5, le=10)
+
+
 class SessionOut(Schema):
+    catalog_view: Literal["covers", "cards", "list"] = "covers"
+    cover_columns: int = 7
     avatar_url: str
     name: str
     email: str

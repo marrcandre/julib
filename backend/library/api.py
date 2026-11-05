@@ -80,11 +80,22 @@ def session(request: HttpRequest) -> dict[str, Any]:
     return {
         "name": user.get_full_name() or user.username,
         "email": user.email,
+        "catalog_view": user.catalog_view,
+        "cover_columns": user.cover_columns,
         "avatar_url": (google_account.get_avatar_url() or "") if google_account else "",
         "technical": technical(request.user),
         "library": membership.library.name if membership else None,
         "csrf": get_token(request),
     }
+
+
+@api.put("/preferences/catalog", response=s.CatalogPreferencesIn)
+def catalog_preferences(request: HttpRequest, payload: s.CatalogPreferencesIn) -> dict[str, Any]:
+    user = cast(User, request.user)
+    user.catalog_view = payload.catalog_view
+    user.cover_columns = payload.cover_columns
+    user.save(update_fields=["catalog_view", "cover_columns"])
+    return payload.model_dump()
 
 
 @api.post("/logout")
