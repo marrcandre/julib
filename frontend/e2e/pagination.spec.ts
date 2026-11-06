@@ -69,6 +69,28 @@ for (const width of [393, 1280])
     await expect(
       page.getByText(`1–${initial} de 322 livros`, { exact: true }),
     ).toBeVisible();
+    const contrast = await page
+      .locator(".catalog-page-links a")
+      .first()
+      .evaluate((el) => {
+        const luminance = (color: string) => {
+          const values = color
+            .match(/[\d.]+/g)!
+            .slice(0, 3)
+            .map(Number)
+            .map((v) => {
+              const c = v / 255;
+              return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+            });
+          return values[0] * 0.2126 + values[1] * 0.7152 + values[2] * 0.0722;
+        };
+        const ink = luminance(getComputedStyle(el).color),
+          bg = luminance(
+            getComputedStyle(document.documentElement).backgroundColor,
+          );
+        return (Math.max(ink, bg) + 0.05) / (Math.min(ink, bg) + 0.05);
+      });
+    expect(contrast).toBeGreaterThanOrEqual(4.5);
     const last = Math.ceil(322 / initial);
     await page
       .getByRole("link", { name: `Ir para página ${last}`, exact: true })
@@ -93,12 +115,10 @@ for (const width of [393, 1280])
     await expect(
       page.locator('.catalog-pagination [aria-current="page"]'),
     ).toHaveText("1");
-    await page
-      .locator(".catalog-pagination")
-      .screenshot({
-        path: `../.superpowers/pager-${width}.png`,
-        animations: "disabled",
-      });
+    await page.locator(".catalog-pagination").screenshot({
+      path: `../.superpowers/pager-${width}.png`,
+      animations: "disabled",
+    });
     const url = new URL(page.url()).search;
     await page
       .getByRole("link", { name: "Abrir Livro 1", exact: true })
