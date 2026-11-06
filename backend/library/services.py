@@ -84,7 +84,10 @@ def add_copy(
     library: Library, book_id: int, location_id: int | None = None, acquired_on: date | None = None
 ) -> Copy:
     library = Library.objects.select_for_update().get(pk=library.pk)
-    book = owned(Book, library, book_id)
+    book = owned(Book, library, book_id, lock=True)
+    if book.is_desired:
+        book.is_desired = False
+        book.save(update_fields=["is_desired"])
     location = owned(Location, library, location_id) if location_id else None
     copy = Copy.objects.create(
         library=library,
@@ -126,7 +129,7 @@ def locate_copies(library: Library, copy_ids: list[int], location_id: int | None
 
 
 @transaction.atomic
-def register_copy(library: Library, data: dict[str, Any]) -> dict[str, int]:
+def register_copy(library: Library, data: dict[str, Any]) -> dict[str, int | None]:
     """One confirmed intent creates at most one edition/copy, even after a lost response."""
     import hashlib
     import json
@@ -134,25 +137,73 @@ def register_copy(library: Library, data: dict[str, Any]) -> dict[str, int]:
     from .models import Registration
 
     Library.objects.select_for_update().get(pk=library.pk)
-    fingerprint = hashlib.sha256(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
+    canonical = data.copy()
+    target = canonical.pop("target", "collection")
+    if target not in {"collection", "wishlist"}:
+        raise ValidationError("Destino inválido.")
+    if target != "collection":
+        canonical["target"] = target
+    fingerprint = hashlib.sha256(
+        json.dumps(canonical, sort_keys=True, default=str).encode()
+    ).hexdigest()
     receipt = Registration.objects.filter(library=library, key=data["key"]).first()
     if receipt:
         if receipt.fingerprint != fingerprint:
             raise ValidationError(
                 "Esta operação já foi concluída com outros dados. Abra um novo cadastro."
             )
+        if receipt.book_id is None or (target == "collection" and receipt.copy_id is None):
+            raise ValidationError("Este cadastro foi excluído ou movido. Abra um novo cadastro.")
         return {
             "book_id": receipt.book_id,
             "copy_id": receipt.copy_id,
-            "number": receipt.copy.number,
+            "number": receipt.copy.number if receipt.copy else None,
         }
     book = (
         owned(Book, library, data["existing_book_id"])
         if data.get("existing_book_id")
         else create_book(library, data["book"])
     )
-    copy = add_copy(library, book.pk, data.get("location_id"), data.get("acquired_on"))
+    if target == "wishlist":
+        if book.copies.filter(state="active").exists():
+            raise ValidationError("Este livro está no acervo. Use a ação Mover para desejados.")
+        book.is_desired = True
+        book.save(update_fields=["is_desired"])
+        copy = None
+    else:
+        copy = add_copy(library, book.pk, data.get("location_id"), data.get("acquired_on"))
     Registration.objects.create(
         library=library, key=data["key"], fingerprint=fingerprint, book=book, copy=copy
     )
-    return {"book_id": book.pk, "copy_id": copy.pk, "number": copy.number}
+    return {
+        "book_id": book.pk,
+        "copy_id": copy.pk if copy else None,
+        "number": copy.number if copy else None,
+    }
+
+
+@transaction.atomic
+def delete_book(library: Library, book_id: int) -> None:
+    """Serialize with acquisition, reclassification and lending; preserve all loan history."""
+    Library.objects.select_for_update().get(pk=library.pk)
+    book = owned(Book, library, book_id, lock=True)
+    copies = list(book.copies.select_for_update().order_by("pk"))
+    if any(copy.loans.exists() for copy in copies):
+        raise ValidationError("Não é possível excluir: este livro possui histórico de empréstimos.")
+    book.copies.all().delete()
+    book.delete()
+
+
+@transaction.atomic
+def move_to_wishlist(library: Library, book_id: int) -> Book:
+    Library.objects.select_for_update().get(pk=library.pk)
+    book = owned(Book, library, book_id, lock=True)
+    copies = list(book.copies.select_for_update().filter(state="active").order_by("pk"))
+    if any(copy.loans.exists() for copy in copies):
+        raise ValidationError(
+            "Exemplar com histórico de empréstimos: registre a baixa antes de mover para desejados."
+        )
+    book.copies.filter(pk__in=[copy.pk for copy in copies]).delete()
+    book.is_desired = True
+    book.save(update_fields=["is_desired"])
+    return book

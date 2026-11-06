@@ -87,6 +87,7 @@ class Tag(Owned):
 
 
 class Book(Owned):
+    is_desired = models.BooleanField(default=False, db_default=False)
     title = models.CharField(max_length=300)
     authors = models.JSONField(default=list)
     isbn = models.CharField(max_length=13, blank=True, default="")
@@ -213,7 +214,7 @@ class ImportRow(models.Model):
     position = models.PositiveIntegerField()
     data = models.JSONField()
     result = models.CharField(max_length=20, blank=True)
-    copy = models.ForeignKey(Copy, null=True, on_delete=models.PROTECT)
+    copy = models.ForeignKey(Copy, null=True, on_delete=models.SET_NULL)
 
     class Meta:
         ordering = ["position"]
@@ -225,8 +226,8 @@ class ImportRow(models.Model):
 class Registration(Owned):
     key = models.UUIDField()
     fingerprint = models.CharField(max_length=64)
-    book = models.ForeignKey(Book, on_delete=models.PROTECT)
-    copy = models.ForeignKey(Copy, on_delete=models.PROTECT)
+    book = models.ForeignKey(Book, null=True, on_delete=models.SET_NULL)
+    copy = models.ForeignKey(Copy, null=True, on_delete=models.SET_NULL)
 
     class Meta:
         constraints = [

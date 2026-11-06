@@ -232,3 +232,11 @@ Teste de navegador reproduziu o posicionamento anterior e passou com posição/t
 PR #12 integrado: CI 42080469241, CI da main 42080876738 e Deploy 42081189863 aprovados. Teste sobre a interface pública confirmou posição compacta no canto, desaparecimento automático após edição no desktop/celular e confirmação temporária do PIX, com API interceptada e sem gravar na coleção. Nenhuma migração foi necessária.
 
 Usuário solicitou em seguida exclusão definitiva e livros desejados. Proposta em docs/superpowers/specs/2026-11-06-wishlist-deletion-proposal.md; regra para histórico de empréstimos foi perguntada e ainda aguarda resposta. A nova funcionalidade não foi implementada nesta etapa.
+
+## Desejados e exclusão definitiva — 06/11/2026
+
+Regra confirmada pelo usuário: bloquear exclusão quando houver qualquer histórico de empréstimo, inclusive devolvido. Implementados seletor compacto Acervo/Desejados, destino no cadastro por câmera/busca/manual, aquisição com localização/data, reclassificação explícita de registros elegíveis e exclusão com confirmação digitada. Desejados não criam exemplares, não contam no painel e não aparecem no link público. Histórico de exemplares anteriormente baixados permanece preservado.
+
+A migração 0007 mantém todos os livros existentes no acervo, com default false também no banco. Referências técnicas de cadastro/importação passam a SET_NULL; recibos e resultados concluídos permanecem e bloqueiam recriação por retry. Fingerprints anteriores ao campo de destino são compatíveis. Aquisição, reclassificação, empréstimo e exclusão usam locks transacionais por biblioteca; empréstimos históricos continuam protegidos. Reversão do esquema faz preflight para não descartar desejados ou recibos.
+
+Validação local: 64 testes backend, 9 Vitest e 17 jornadas Playwright; duas jornadas adicionais focadas em telas de 393/1280 px passaram, incluindo perda de resposta e retry da aquisição sem duplicar exemplar. Ruff, mypy, checks Django/migrações, build/tipos e git diff --check aprovados. Nenhum livro real foi excluído ou movido. Publicação e revisão final registradas no adendo a seguir quando concluídas.

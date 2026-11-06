@@ -89,7 +89,7 @@ def process_rows(
                 row.result = "skipped"
             else:
                 book = matching(library, row.data)
-                if book and action["action"] != "copy":
+                if book and not book.is_desired and action["action"] != "copy":
                     row.result = "existing"
                 else:
                     book = book or create_book(library, row.data)

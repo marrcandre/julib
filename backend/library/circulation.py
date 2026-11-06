@@ -22,7 +22,10 @@ def lend(
     started_on: date | None = None,
     due_on: date | None = None,
 ) -> Loan:
+    Library.objects.select_for_update().get(pk=library.pk)
     copy = owned(Copy, library, copy_id, lock=True)
+    if copy.book.is_desired:
+        raise ValidationError("Adicione este livro ao acervo antes de emprestar.")
     person = owned(Person, library, person_id)
     if copy.state != "active" or copy.loans.filter(state="open").exists() or person.archived:
         raise ValidationError("Exemplar ou pessoa indisponível para empréstimo.")
@@ -57,7 +60,10 @@ def return_loan(library: Library, loan_id: int, returned_on: date) -> Loan:
 def retire_copy(library: Library, copy_id: int, reason: str) -> Copy:
     if reason not in {"sold", "donated", "lost", "active"}:
         raise ValidationError("Motivo inválido.")
+    Library.objects.select_for_update().get(pk=library.pk)
     copy = owned(Copy, library, copy_id, lock=True)
+    if reason == "active" and copy.book.is_desired:
+        raise ValidationError("Adicione este livro ao acervo antes de reativar exemplares.")
     loans = copy.loans.filter(state="open")
     if loans.exists() and reason != "lost":
         raise ValidationError("Registre a devolução antes de dar baixa.")

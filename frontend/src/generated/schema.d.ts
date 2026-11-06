@@ -126,6 +126,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/books/{pk}/wishlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move To Wishlist */
+        post: operations["library_api_move_to_wishlist"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/copies": {
         parameters: {
             query?: never;
@@ -569,6 +586,10 @@ export interface components {
             tags: components["schemas"]["TagOut"][];
             /** Available */
             available: boolean;
+            /** Is Desired */
+            is_desired: boolean;
+            /** Can Delete */
+            can_delete: boolean;
             /** Copies */
             copies: components["schemas"]["CopyOut"][];
             /** Source */
@@ -874,8 +895,23 @@ export interface components {
              */
             acquired_on: string;
         };
+        /** RegistrationOut */
+        RegistrationOut: {
+            /** Book Id */
+            book_id: number;
+            /** Copy Id */
+            copy_id: number | null;
+            /** Number */
+            number: number | null;
+        };
         /** RegistrationIn */
         RegistrationIn: {
+            /**
+             * Target
+             * @default collection
+             * @enum {string}
+             */
+            target: "collection" | "wishlist";
             /**
              * Key
              * Format: uuid
@@ -1020,6 +1056,7 @@ export interface operations {
                 available?: boolean | null;
                 page?: number;
                 missing_location?: boolean;
+                scope?: "collection" | "wishlist" | "all";
             };
             header?: never;
             path?: never;
@@ -1127,6 +1164,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    library_api_move_to_wishlist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pk: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookOut"];
+                };
             };
         };
     };
@@ -1760,7 +1819,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["RegistrationOut"];
+                };
             };
         };
     };

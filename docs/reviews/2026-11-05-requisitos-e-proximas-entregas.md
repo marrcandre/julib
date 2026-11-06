@@ -111,3 +111,7 @@ Workflow privado conferido por leitura no GitHub: agendamento diário UTC 06:23,
 Executar cada entrega com teste que reproduza a lacuna, implementação mínima, atualização do contrato OpenAPI, testes de API/interface, CI e deploy. Usar migrações aditivas quando necessárias e o backup já integrado ao pipeline; manter a infraestrutura existente e o orçamento gratuito. As validações físicas e da segunda conta podem ocorrer em paralelo, sem desenvolver outro módulo.
 
 Convites, cadastro aberto/outras bibliotecas, leitura/avaliações, notificações, reservas, categorias hierárquicas, etiquetas e uso offline continuam fora da primeira versão. A futura abertura exige um desenho próprio para participação/convites, remoção de acesso e escolha de biblioteca; não basta retirar a allowlist, pois o primeiro login hoje associa à biblioteca inicial.
+
+## Atualização — 06/11/2026: desejados e exclusão
+
+A regra de exclusão foi confirmada: nenhum empréstimo histórico pode ser apagado; qualquer histórico bloqueia a exclusão do livro. O novo fluxo elimina edição e exemplares somente quando elegíveis, mediante confirmação reforçada. Recibos técnicos e resultados de importação ficam preservados, com referências anuladas, para impedir recriação acidental. Foram acrescentados desejados separados do acervo, aquisição e reclassificação com preservação de histórico. O detalhamento técnico e evidências estão em `docs/implementation-status.md` e no plano de 06/11/2026.

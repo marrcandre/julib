@@ -49,6 +49,12 @@ const coverColumns = ref(
     window.matchMedia("(max-width: 800px)").matches,
   ),
 );
+const scope = ref<"collection" | "wishlist">("collection");
+const registrationTarget = ref<"collection" | "wishlist">("collection");
+const acquireOpen = ref(false),
+  deleteOpen = ref(false),
+  deleteConfirmation = ref("");
+const pendingAcquisition = ref<Record<string, unknown> | null>(null);
 const densitySaved = ref(true);
 watch(coverColumns, (value) => {
   densitySaved.value = writeCoverColumns(session?.value?.user_id, value);
@@ -221,7 +227,11 @@ async function run(fn: () => Promise<void>) {
 async function load() {
   const version = ++loadVersion;
   const searchValue = q.value;
-  const params = new URLSearchParams({ q: q.value, page: String(page.value) });
+  const params = new URLSearchParams({
+    q: q.value,
+    page: String(page.value),
+    scope: scope.value,
+  });
   if (missingLocation.value) params.set("missing_location", "true");
   if (tag.value) params.set("tag_id", String(tag.value));
   if (loc.value) params.set("location_id", String(loc.value));
@@ -247,6 +257,7 @@ function newBook() {
   pendingRegistration.value = null;
   operationKey.value = crypto.randomUUID();
   editing.value = null;
+  registrationTarget.value = scope.value;
   form.value = blank();
   formAttribution.value = { name: "", url: "" };
   candidates.value = [];
@@ -274,6 +285,8 @@ async function open(book: Book) {
   await run(async () => {
     detail.value = await api<Book>("/books/" + book.id);
     selectedCopies.value = [];
+    copyLocation.value = null;
+    acquired.value = "";
     history.value = [];
   });
 }
@@ -344,7 +357,8 @@ async function save() {
         let existing: Book | undefined;
         if (form.value.isbn) {
           const data = await api<{ items: Book[] }>(
-            "/books?q=" + encodeURIComponent(canonicalIsbn(form.value.isbn)),
+            "/books?scope=all&q=" +
+              encodeURIComponent(canonicalIsbn(form.value.isbn)),
           );
           existing = data.items.find(
             (b) => b.isbn === canonicalIsbn(form.value.isbn),
@@ -353,16 +367,27 @@ async function save() {
         if (
           existing &&
           !confirm(
-            `Este livro já tem ${existing.copies.length} exemplar(es). Adicionar outra cópia?`,
+            registrationTarget.value === "wishlist"
+              ? "Este livro já está cadastrado. Mantê-lo nos desejados? Livros do acervo precisam ser movidos pelos detalhes."
+              : existing.is_desired
+                ? "Este livro está nos desejados. Adicionar um exemplar ao acervo?"
+                : `Este livro já tem ${existing.copies.length} exemplar(es). Adicionar outra cópia?`,
           )
         )
           return;
         pendingRegistration.value = {
           key: operationKey.value,
+          target: registrationTarget.value,
           book: payload,
           existing_book_id: existing?.id || null,
-          location_id: copyLocation.value,
-          acquired_on: acquired.value || null,
+          location_id:
+            registrationTarget.value === "collection"
+              ? copyLocation.value
+              : null,
+          acquired_on:
+            registrationTarget.value === "collection"
+              ? acquired.value || null
+              : null,
         };
       }
       try {
@@ -377,7 +402,9 @@ async function save() {
     }
     message.value = editing.value
       ? "Dados atualizados."
-      : "Exemplar cadastrado.";
+      : registrationTarget.value === "wishlist"
+        ? "Livro adicionado aos desejados."
+        : "Exemplar cadastrado.";
     if (camera.value) {
       form.value = blank();
       scanLocked = false;
@@ -398,6 +425,75 @@ async function addCopy() {
     });
     duplicateKey.value = crypto.randomUUID();
     await open(detail.value!);
+    await load();
+  });
+}
+function changeScope(value: "collection" | "wishlist") {
+  scope.value = value;
+  loc.value = null;
+  available.value = null;
+  missingLocation.value = false;
+  selectedCopies.value = [];
+  page.value = 1;
+  void refresh();
+}
+async function moveToWishlist() {
+  if (
+    !detail.value ||
+    !confirm(
+      `Mover “${detail.value.title}” para desejados? Os ${detail.value.copies.filter((c) => c.state === "active").length} exemplares ativos sem histórico serão removidos do acervo. Exemplares baixados e seus históricos serão preservados.`,
+    )
+  )
+    return;
+  await run(async () => {
+    await post("/books/" + detail.value!.id + "/wishlist", {});
+    detail.value = null;
+    message.value = "Livro movido para desejados.";
+    await load();
+  });
+}
+function startAcquisition() {
+  pendingAcquisition.value = null;
+  copyLocation.value = null;
+  acquired.value = "";
+  acquireOpen.value = true;
+}
+async function acquireWish() {
+  if (!detail.value) return;
+  await run(async () => {
+    if (!pendingAcquisition.value)
+      pendingAcquisition.value = {
+        key: crypto.randomUUID(),
+        target: "collection",
+        book: {
+          ...detail.value!,
+          tag_ids: detail.value!.tags.map((t) => t.id),
+        },
+        existing_book_id: detail.value!.id,
+        location_id: copyLocation.value,
+        acquired_on: acquired.value || null,
+      };
+    try {
+      await post("/registrations", pendingAcquisition.value);
+    } catch (e) {
+      if (e instanceof ApiError && e.status && e.status < 500)
+        pendingAcquisition.value = null;
+      throw e;
+    }
+    pendingAcquisition.value = null;
+    acquireOpen.value = false;
+    detail.value = null;
+    message.value = "Livro adicionado ao acervo.";
+    await load();
+  });
+}
+async function deleteBook() {
+  if (!detail.value || deleteConfirmation.value !== "EXCLUIR") return;
+  await run(async () => {
+    await api("/books/" + detail.value!.id, { method: "DELETE" });
+    deleteOpen.value = false;
+    detail.value = null;
+    message.value = "Livro excluído definitivamente.";
     await load();
   });
 }
@@ -562,6 +658,8 @@ onUnmounted(() => {
 </script>
 <template>
   <CatalogToolbar
+    :scope="scope"
+    @update:scope="changeScope"
     v-model:query="q"
     v-model:view="catalogView"
     v-model:columns="coverColumns"
@@ -643,7 +741,7 @@ onUnmounted(() => {
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     <p class="muted">
       Consulta somente leitura, sem contatos, histórico de empréstimos ou
-      localizações.
+      localizações. Livros desejados não são compartilhados.
     </p>
     <p v-if="shareActive && !shareUrl" class="notice">
       Um link está ativo. Para compartilhar outro, renove o link; o anterior
@@ -817,6 +915,16 @@ onUnmounted(() => {
       operação com segurança.
     </p>
     <form class="fields" @submit.prevent="save">
+      <label v-if="!editing"
+        >Salvar em<select
+          v-model="registrationTarget"
+          aria-label="Destino do cadastro"
+          :disabled="!!pendingRegistration"
+        >
+          <option value="collection">Acervo — já possuo</option>
+          <option value="wishlist">Desejados — quero adquirir</option>
+        </select></label
+      >
       <figure v-if="form.cover_url" class="edit-cover">
         <img
           :src="form.cover_url"
@@ -878,7 +986,7 @@ onUnmounted(() => {
           @click="addTag"
         />
       </div>
-      <template v-if="!editing"
+      <template v-if="!editing && registrationTarget === 'collection'"
         ><label
           >Localização<Select
             v-model="copyLocation"
@@ -950,107 +1058,148 @@ onUnmounted(() => {
         :name="detail.attribution_name"
         :url="detail.attribution_url"
       />
-      <h3>Exemplares</h3>
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Selecionar</th>
-              <th>Número</th>
-              <th>Local</th>
-              <th>Aquisição</th>
-              <th>Situação</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="copy in detail.copies" :key="copy.id">
-              <td>
-                <input
-                  type="checkbox"
-                  v-model="selectedCopies"
-                  :value="copy.id"
-                  :aria-label="'Selecionar exemplar ' + copy.number"
-                />
-              </td>
-              <td>#{{ copy.number }}</td>
-              <td>{{ locationLabel(locations, copy.location_id) }}</td>
-              <td>
-                <input
-                  type="date"
-                  v-model="copy.acquired_on"
-                  :aria-label="'Aquisição do exemplar ' + copy.number"
-                /><Button
-                  label="Salvar data"
-                  text
-                  size="small"
-                  @click="saveAcquisition(copy)"
-                />
-              </td>
-              <td>
-                {{
-                  copy.state === "active"
-                    ? copy.on_loan
-                      ? "Emprestado"
-                      : "Disponível"
-                    : stateLabels[copy.state]
-                }}
-              </td>
-              <td>
-                <Button
-                  label="Histórico"
-                  text
-                  size="small"
-                  @click="showHistory(copy.id)"
-                /><select
-                  v-if="copy.state === 'active'"
-                  aria-label="Dar baixa"
-                  @change="
-                    retire(copy.id, ($event.target as HTMLSelectElement).value);
-                    ($event.target as HTMLSelectElement).value = '';
-                  "
-                >
-                  <option value="">Dar baixa…</option>
-                  <option value="sold">Venda</option>
-                  <option value="donated">Doação</option>
-                  <option value="lost">Perda</option></select
-                ><Button
-                  v-else
-                  label="Reativar"
-                  text
-                  size="small"
-                  @click="retire(copy.id, 'active')"
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="toolbar">
-        <Select
-          v-model="copyLocation"
-          :options="
-            locations.map((l) => ({
-              id: l.id,
-              name: locationLabel(locations, l.id),
-            }))
-          "
-          option-label="name"
-          option-value="id"
-          placeholder="Sem localização"
-          show-clear
-          aria-label="Local de destino"
-        /><Button
-          label="Mover selecionados"
-          :disabled="!selectedCopies.length || busy"
-          @click="moveCopies"
-        /><Button
-          label="Adicionar exemplar"
+      <p v-if="detail.is_desired" class="notice">
+        Este livro está nos seus desejados.
+      </p>
+      <div class="actions book-lifecycle-actions">
+        <Button
+          v-if="detail.is_desired"
+          label="Adicionar ao acervo"
+          icon="pi pi-plus"
+          :disabled="busy"
+          @click="startAcquisition"
+        />
+        <Button
+          v-else
+          label="Mover para desejados"
+          icon="pi pi-heart"
           text
           :disabled="busy"
-          @click="addCopy"
+          @click="moveToWishlist"
+        />
+        <Button
+          label="Excluir definitivamente"
+          icon="pi pi-trash"
+          text
+          severity="danger"
+          :disabled="busy || !detail.can_delete"
+          @click="
+            deleteConfirmation = '';
+            deleteOpen = true;
+          "
         />
       </div>
+      <p v-if="!detail.can_delete" class="muted">
+        A exclusão está bloqueada porque existe histórico de empréstimos.
+      </p>
+      <template v-if="!detail.is_desired || detail.copies.length">
+        <h3>
+          {{ detail.is_desired ? "Exemplares anteriores" : "Exemplares" }}
+        </h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Selecionar</th>
+                <th>Número</th>
+                <th>Local</th>
+                <th>Aquisição</th>
+                <th>Situação</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="copy in detail.copies" :key="copy.id">
+                <td>
+                  <input
+                    type="checkbox"
+                    v-model="selectedCopies"
+                    :value="copy.id"
+                    :aria-label="'Selecionar exemplar ' + copy.number"
+                  />
+                </td>
+                <td>#{{ copy.number }}</td>
+                <td>{{ locationLabel(locations, copy.location_id) }}</td>
+                <td>
+                  <input
+                    type="date"
+                    v-model="copy.acquired_on"
+                    :aria-label="'Aquisição do exemplar ' + copy.number"
+                  /><Button
+                    label="Salvar data"
+                    text
+                    size="small"
+                    @click="saveAcquisition(copy)"
+                  />
+                </td>
+                <td>
+                  {{
+                    copy.state === "active"
+                      ? copy.on_loan
+                        ? "Emprestado"
+                        : "Disponível"
+                      : stateLabels[copy.state]
+                  }}
+                </td>
+                <td>
+                  <Button
+                    label="Histórico"
+                    text
+                    size="small"
+                    @click="showHistory(copy.id)"
+                  /><select
+                    v-if="copy.state === 'active'"
+                    aria-label="Dar baixa"
+                    @change="
+                      retire(
+                        copy.id,
+                        ($event.target as HTMLSelectElement).value,
+                      );
+                      ($event.target as HTMLSelectElement).value = '';
+                    "
+                  >
+                    <option value="">Dar baixa…</option>
+                    <option value="sold">Venda</option>
+                    <option value="donated">Doação</option>
+                    <option value="lost">Perda</option></select
+                  ><Button
+                    v-else-if="!detail.is_desired"
+                    label="Reativar"
+                    text
+                    size="small"
+                    @click="retire(copy.id, 'active')"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-if="!detail.is_desired" class="toolbar">
+          <Select
+            v-model="copyLocation"
+            :options="
+              locations.map((l) => ({
+                id: l.id,
+                name: locationLabel(locations, l.id),
+              }))
+            "
+            option-label="name"
+            option-value="id"
+            placeholder="Sem localização"
+            show-clear
+            aria-label="Local de destino"
+          /><Button
+            label="Mover selecionados"
+            :disabled="!selectedCopies.length || busy"
+            @click="moveCopies"
+          /><Button
+            label="Adicionar exemplar"
+            text
+            :disabled="busy"
+            @click="addCopy"
+          />
+        </div>
+      </template>
       <div v-if="history.length" class="panel">
         <h3>Histórico do exemplar</h3>
         <div v-for="loan in history" :key="loan.id" class="loan-row">
@@ -1066,4 +1215,79 @@ onUnmounted(() => {
       </div></template
     ></Dialog
   >
+  <Dialog
+    v-model:visible="acquireOpen"
+    modal
+    header="Adicionar ao acervo"
+    :style="{ width: '480px' }"
+    :closable="!busy"
+  >
+    <p v-if="error" class="error" role="alert">{{ error }}</p>
+    <p>Um exemplar será criado para este livro, que sairá dos desejados.</p>
+    <p v-if="pendingAcquisition" class="notice">
+      Há uma tentativa aguardando confirmação. Repita para confirmar a mesma
+      aquisição com segurança.
+    </p>
+    <form class="fields" @submit.prevent="acquireWish">
+      <label
+        >Localização<Select
+          v-model="copyLocation"
+          :disabled="!!pendingAcquisition"
+          :options="
+            locations.map((l) => ({
+              id: l.id,
+              name: locationLabel(locations, l.id),
+            }))
+          "
+          option-label="name"
+          option-value="id"
+          placeholder="Sem localização"
+          show-clear
+      /></label>
+      <label
+        >Data de aquisição<InputText
+          type="date"
+          v-model="acquired"
+          :disabled="!!pendingAcquisition"
+        /><small class="muted">Em branco, usamos a data de hoje.</small></label
+      >
+      <Button
+        label="Confirmar aquisição"
+        type="submit"
+        :loading="busy"
+        :disabled="busy"
+      />
+    </form>
+  </Dialog>
+  <Dialog
+    v-model:visible="deleteOpen"
+    modal
+    header="Excluir livro definitivamente"
+    :style="{ width: '480px' }"
+    :closable="!busy"
+  >
+    <p v-if="error" class="error" role="alert">{{ error }}</p>
+    <p>
+      Excluir “{{ detail?.title }}” e seus
+      {{ detail?.copies.length || 0 }} exemplares? Esta ação não pode ser
+      desfeita.
+    </p>
+    <p class="muted">
+      Livros com qualquer histórico de empréstimo não podem ser excluídos.
+    </p>
+    <form class="fields" @submit.prevent="deleteBook">
+      <label
+        >Digite EXCLUIR para confirmar<InputText
+          v-model="deleteConfirmation"
+          autocomplete="off"
+      /></label>
+      <Button
+        label="Confirmar exclusão definitiva"
+        type="submit"
+        severity="danger"
+        :disabled="busy || deleteConfirmation !== 'EXCLUIR'"
+        :loading="busy"
+      />
+    </form>
+  </Dialog>
 </template>

@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth import logout
@@ -118,9 +118,12 @@ def books(
     available: bool | None = None,
     page: int = 1,
     missing_location: bool = False,
+    scope: Literal["collection", "wishlist", "all"] = "collection",
 ) -> dict[str, Any]:
     lib = require_library(request)
     qs = books_query(lib)
+    if scope != "all":
+        qs = qs.filter(is_desired=scope == "wishlist")
     if q:
         qs = qs.filter(Q(title__icontains=q) | Q(authors__icontains=q) | Q(isbn__icontains=q))
     if tag_id:
@@ -171,11 +174,13 @@ def edit_book(request: HttpRequest, pk: int, payload: s.BookIn) -> dict[str, Any
 
 @api.delete("/books/{pk}")
 def delete_book(request: HttpRequest, pk: int) -> dict[str, bool]:
-    book = services.owned(Book, require_library(request), pk)
-    if book.copies.exists():
-        raise ValidationError("Dê baixa nos exemplares; livros com exemplares não são apagados.")
-    book.delete()
+    services.delete_book(require_library(request), pk)
     return {"ok": True}
+
+
+@api.post("/books/{pk}/wishlist", response=s.BookOut)
+def move_to_wishlist(request: HttpRequest, pk: int) -> dict[str, Any]:
+    return book_data(services.move_to_wishlist(require_library(request), pk))
 
 
 @api.post("/copies")
@@ -312,7 +317,7 @@ def return_book(request: HttpRequest, pk: int, payload: s.ReturnIn) -> dict[str,
 @api.get("/dashboard")
 def dashboard(request: HttpRequest) -> dict[str, Any]:
     lib = require_library(request)
-    active = Copy.objects.filter(library=lib, state="active")
+    active = Copy.objects.filter(library=lib, state="active", book__is_desired=False)
     open_loans = Loan.objects.filter(library=lib, state="open").select_related(
         "copy__book", "person"
     )
@@ -444,6 +449,6 @@ def update_copy(request: HttpRequest, pk: int, payload: s.CopyUpdate) -> dict[st
     return {"ok": True}
 
 
-@api.post("/registrations")
-def register_copy(request: HttpRequest, payload: s.RegistrationIn) -> dict[str, int]:
+@api.post("/registrations", response=s.RegistrationOut)
+def register_copy(request: HttpRequest, payload: s.RegistrationIn) -> dict[str, int | None]:
     return services.register_copy(require_library(request), payload.model_dump())

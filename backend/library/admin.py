@@ -75,7 +75,9 @@ class SafeAdmin(admin.ModelAdmin):
 @admin.register(Book)
 class BookAdmin(SafeAdmin):
     form = BookAdminForm
-    list_display = ("title", "isbn", "library")
+    list_display = ("title", "isbn", "is_desired", "library")
+    list_filter = ("is_desired", "library")
+    readonly_fields = ("created_at", "is_desired")
     search_fields = ("title", "isbn")
     filter_horizontal = ("tags",)
 

@@ -3,7 +3,10 @@ import { computed, ref, watch } from "vue";
 import type { Book, Copy } from "../api";
 const props = withDefaults(
   defineProps<{
-    book: Omit<Book, "copies" | "source" | "source_id"> & { copies?: Copy[] };
+    book: Omit<
+      Book,
+      "copies" | "source" | "source_id" | "is_desired" | "can_delete"
+    > & { copies?: Copy[]; is_desired?: boolean };
     variant?: "cards" | "covers" | "list";
   }>(),
   { variant: "cards" },
@@ -14,18 +17,22 @@ watch(
   () => (failed.value = false),
 );
 const availability = computed(() =>
-  props.book.available
-    ? "Disponível"
-    : props.book.copies?.some((c) => c.on_loan)
-      ? "Emprestado"
-      : "Indisponível",
+  props.book.is_desired
+    ? "Desejado"
+    : props.book.available
+      ? "Disponível"
+      : props.book.copies?.some((c) => c.on_loan)
+        ? "Emprestado"
+        : "Indisponível",
 );
 const statusIcon = computed(() =>
-  props.book.available
-    ? "pi-check-circle"
-    : availability.value === "Emprestado"
-      ? "pi-arrow-up-right"
-      : "pi-minus-circle",
+  props.book.is_desired
+    ? "pi-heart"
+    : props.book.available
+      ? "pi-check-circle"
+      : availability.value === "Emprestado"
+        ? "pi-arrow-up-right"
+        : "pi-minus-circle",
 );
 </script>
 <template>
