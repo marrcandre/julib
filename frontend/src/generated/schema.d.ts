@@ -1142,6 +1142,7 @@ export interface operations {
                 scope?: "collection" | "wishlist" | "all";
                 statuses?: string | null;
                 order?: "newest" | "oldest" | "title_asc" | "title_desc" | "author" | "acquired_desc" | "acquired_asc" | "year_desc" | "year_asc";
+                page_size?: number;
             };
             header?: never;
             path?: never;

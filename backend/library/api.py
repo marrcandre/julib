@@ -10,7 +10,7 @@ from django.http import HttpRequest, HttpResponseForbidden
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from ninja import File, NinjaAPI, Status
+from ninja import File, NinjaAPI, Query, Status
 from ninja.files import UploadedFile
 
 from . import catalog, circulation, imports, media, providers, services, sharing
@@ -121,6 +121,7 @@ def books(
     scope: Literal["collection", "wishlist", "all"] = "collection",
     statuses: str | None = None,
     order: catalog.CatalogOrder = "newest",
+    page_size: int = Query(24, ge=1, le=100),
 ) -> dict[str, Any]:
     lib = require_library(request)
     qs = books_query(lib)
@@ -151,11 +152,12 @@ def books(
         )
         qs = qs.filter(pk__in=available_ids) if available else qs.exclude(pk__in=available_ids)
     qs = catalog.ordered(qs.distinct(), order)
-    page = max(1, page)
-    size = 24
+    total = qs.count()
+    size = page_size
+    page = min(max(1, page), max(1, (total + size - 1) // size))
     return {
         "items": [book_data(b) for b in qs[(page - 1) * size : page * size]],
-        "total": qs.count(),
+        "total": total,
         "page": page,
         "page_size": size,
     }

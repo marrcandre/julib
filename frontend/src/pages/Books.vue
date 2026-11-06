@@ -4,6 +4,13 @@ import {
   writeCatalogOrder,
   type Situation,
 } from "../catalog-options";
+import CatalogPagination from "../components/CatalogPagination.vue";
+import {
+  pageForOffset,
+  sizeForLayout,
+  readPagePreferences,
+  savePagePreferences,
+} from "../pagination";
 import BookCredits from "../components/BookCredits.vue";
 import SourceAttribution from "../components/SourceAttribution.vue";
 import CatalogToolbar, {
@@ -52,12 +59,40 @@ import {
   type IScannerControls,
 } from "@zxing/browser";
 const session = inject<Ref<Session | null>>("session");
+const gridMedia = window.matchMedia("(max-width: 800px)");
+const gridMobile = ref(gridMedia.matches);
+const savedPagination = readPagePreferences(session?.value?.user_id);
+const rows = ref(savedPagination.rows),
+  listSize = ref(savedPagination.listSize);
+const resultsRoot = ref<HTMLElement>();
+let catalogReady = false;
+const updateGridMedia = () => {
+  gridMobile.value = gridMedia.matches;
+};
+onMounted(() => gridMedia.addEventListener("change", updateGridMedia));
+onUnmounted(() => gridMedia.removeEventListener("change", updateGridMedia));
 const catalogView = ref<CatalogView>(session?.value?.catalog_view || "covers");
 const coverColumns = ref(
   readCoverColumns(
     session?.value?.user_id,
     window.matchMedia("(max-width: 800px)").matches,
   ),
+);
+const requestedSize = computed(() =>
+  sizeForLayout(
+    catalogView.value,
+    rows.value,
+    coverColumns.value,
+    gridMobile.value,
+    listSize.value,
+  ),
+);
+const pageSize = ref(requestedSize.value);
+watch([rows, listSize], () =>
+  savePagePreferences(session?.value?.user_id, {
+    rows: rows.value,
+    listSize: listSize.value,
+  }),
 );
 const scope = computed(() =>
   statuses.value.length === 1 && statuses.value[0] === "wishlist"
@@ -112,7 +147,12 @@ const q = ref(initialCatalog.q),
   loc = ref<number | null>(initialCatalog.location),
   statuses = ref<Situation[]>(initialCatalog.statuses),
   order = ref(initialCatalog.order),
-  page = ref(initialCatalog.page),
+  page = ref(
+    pageForOffset(
+      (initialCatalog.page - 1) * initialCatalog.pageSize,
+      pageSize.value,
+    ),
+  ),
   total = ref(0);
 watch(order, (value) => {
   writeCatalogOrder(session?.value?.user_id, value);
@@ -224,6 +264,47 @@ async function run(fn: () => Promise<void>) {
     busy.value = false;
   }
 }
+watch(requestedSize, async (size) => {
+  const elements = [
+    ...(resultsRoot.value?.querySelectorAll<HTMLElement>("[data-book-id]") ||
+      []),
+  ];
+  const index = Math.max(
+    0,
+    elements.findIndex((el) => {
+      const box = el.getBoundingClientRect();
+      return box.bottom > 0 && box.top < innerHeight;
+    }),
+  );
+  const anchor = books.value[index]?.id;
+  const offset = (page.value - 1) * pageSize.value + index;
+  pageSize.value = size;
+  page.value = pageForOffset(offset, size);
+  selectedCopies.value = [];
+  if (catalogReady) {
+    await refresh();
+    await nextTick();
+    if (pageSize.value === size && anchor)
+      resultsRoot.value
+        ?.querySelector<HTMLElement>(`[data-book-id="${anchor}"]`)
+        ?.scrollIntoView({ block: "nearest" });
+  }
+});
+function pageHref(target: number) {
+  return router.resolve({
+    path: "/livros",
+    query: catalogQuery({ ...catalogState(), page: target }),
+  }).fullPath;
+}
+async function selectPage(target: number) {
+  if (busy.value || target === page.value) return;
+  page.value = target;
+  selectedCopies.value = [];
+  await router.push(pageHref(target));
+  await refresh();
+  await nextTick();
+  resultsRoot.value?.scrollIntoView({ block: "start" });
+}
 function catalogState() {
   return {
     q: q.value,
@@ -233,6 +314,7 @@ function catalogState() {
     missing: missingLocation.value,
     page: page.value,
     order: order.value,
+    pageSize: pageSize.value,
   };
 }
 const catalogUrl = computed(
@@ -254,7 +336,18 @@ watch(
       query,
       readCatalogOrder(session?.value?.user_id),
     );
-    if (JSON.stringify(state) === JSON.stringify(catalogState())) return;
+    state.page = pageForOffset(
+      (state.page - 1) * state.pageSize,
+      requestedSize.value,
+    );
+    state.pageSize = requestedSize.value;
+    if (
+      JSON.stringify(catalogQuery(state)) ===
+      JSON.stringify(catalogQuery(catalogState()))
+    )
+      return;
+    const changedPage = state.page !== page.value;
+    selectedCopies.value = [];
     clearTimeout(searchTimer);
     q.value = state.q;
     tag.value = state.tag;
@@ -263,7 +356,13 @@ watch(
     order.value = state.order;
     missingLocation.value = state.missing;
     page.value = state.page;
-    void refresh();
+    pageSize.value = state.pageSize;
+    void refresh().then(async () => {
+      if (changedPage) {
+        await nextTick();
+        resultsRoot.value?.scrollIntoView({ block: "start" });
+      }
+    });
   },
 );
 async function load() {
@@ -275,6 +374,7 @@ async function load() {
   const params = new URLSearchParams({
     q: q.value,
     page: String(page.value),
+    page_size: String(pageSize.value),
     statuses: statuses.value.join(","),
     order: order.value,
   });
@@ -282,12 +382,19 @@ async function load() {
   if (tag.value) params.set("tag_id", String(tag.value));
   if (loc.value) params.set("location_id", String(loc.value));
   try {
-    const data = await api<{ items: Book[]; total: number }>(
+    const data = await api<{ items: Book[]; total: number; page?: number }>(
       "/books?" + params,
     );
     if (version !== loadVersion || searchValue !== q.value) return;
     books.value = data.items;
     total.value = data.total;
+    const clamped =
+      data.page ||
+      Math.min(page.value, Math.max(1, Math.ceil(data.total / pageSize.value)));
+    if (clamped !== page.value) {
+      page.value = clamped;
+      void router.replace(catalogUrl.value);
+    }
   } catch (cause) {
     if (version !== loadVersion || searchValue !== q.value) return;
     throw cause;
@@ -515,6 +622,7 @@ onMounted(() =>
       api<Location[]>("/locations"),
       api<Tag[]>("/tags"),
     ]);
+    catalogReady = true;
     await load();
     await nextTick();
     requestAnimationFrame(() =>
@@ -535,6 +643,8 @@ onUnmounted(() => {
     v-model:query="q"
     v-model:view="catalogView"
     v-model:columns="coverColumns"
+    v-model:rows="rows"
+    v-model:list-size="listSize"
     :total="total"
     :tags="tags"
     :locations="locations"
@@ -549,58 +659,58 @@ onUnmounted(() => {
     @share="openShare"
   />
   <p v-if="error" class="error" role="alert">{{ error }}</p>
-  <div v-if="!books.length" class="empty">
-    <i class="pi pi-book" />Nenhum livro encontrado. Cadastre um livro ou altere
-    os filtros.
-  </div>
-  <div
-    v-else
-    :class="
-      catalogView === 'list'
-        ? 'catalog-list'
-        : ['book-grid', { 'catalog-covers': catalogView === 'covers' }]
-    "
-    :style="{ '--cover-columns': coverColumns }"
+  <section
+    ref="resultsRoot"
+    class="catalog-results"
+    aria-label="Resultados dos livros"
   >
-    <div v-for="book in books" :key="book.id" class="catalog-item">
-      <RouterLink
-        :to="bookLink(book)"
-        :aria-label="'Abrir ' + book.title"
-        :title="book.title"
-        class="book-open"
-        style="
-          width: 100%;
-          text-align: left;
-          border: 0;
-          padding: 0;
-          background: none;
-          color: inherit;
-        "
-      >
-        <BookCard :book="book" :variant="catalogView" /></RouterLink
-      ><BookCredits :item="book" />
+    <div v-if="!books.length" class="empty">
+      <i class="pi pi-book" />Nenhum livro encontrado. Cadastre um livro ou
+      altere os filtros.
     </div>
-  </div>
-  <div class="pagination">
-    <Button
-      label="Anterior"
-      text
-      :disabled="page === 1"
-      @click="
-        page--;
-        refresh();
+    <div
+      v-else
+      :class="
+        catalogView === 'list'
+          ? 'catalog-list'
+          : ['book-grid', { 'catalog-covers': catalogView === 'covers' }]
       "
-    /><span>Página {{ page }}</span
-    ><Button
-      label="Próxima"
-      text
-      :disabled="page * 24 >= total"
-      @click="
-        page++;
-        refresh();
-      "
-    />
-  </div>
+      :style="{ '--cover-columns': coverColumns }"
+    >
+      <div
+        v-for="book in books"
+        :key="book.id"
+        :data-book-id="book.id"
+        class="catalog-item"
+      >
+        <RouterLink
+          :to="bookLink(book)"
+          :aria-label="'Abrir ' + book.title"
+          :title="book.title"
+          class="book-open"
+          style="
+            width: 100%;
+            text-align: left;
+            border: 0;
+            padding: 0;
+            background: none;
+            color: inherit;
+          "
+        >
+          <BookCard :book="book" :variant="catalogView" /></RouterLink
+        ><BookCredits :item="book" />
+      </div>
+    </div>
+  </section>
+  <CatalogPagination
+    :page="page"
+    :page-size="pageSize"
+    :total="total"
+    :compact="gridMobile"
+    :busy="busy"
+    :href="pageHref"
+    @select="selectPage"
+  />
   <Dialog
     v-model:visible="shareOpen"
     modal

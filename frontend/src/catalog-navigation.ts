@@ -14,6 +14,7 @@ export type CatalogState = {
   order: CatalogOrder;
   missing: boolean;
   page: number;
+  pageSize: number;
 };
 const one = (v: LocationQuery[string]) => (Array.isArray(v) ? v[0] : v);
 const id = (v: LocationQuery[string]) => {
@@ -51,6 +52,10 @@ export function readCatalogQuery(
       : fallback,
     missing: one(query.sem_local) === "true",
     page: id(query.pagina) || 1,
+    pageSize:
+      id(query.por_pagina) && id(query.por_pagina)! <= 100
+        ? id(query.por_pagina)!
+        : 24,
   };
 }
 export function catalogQuery(s: CatalogState): LocationQueryRaw {
@@ -62,6 +67,7 @@ export function catalogQuery(s: CatalogState): LocationQueryRaw {
     ordem: s.order,
     sem_local: s.missing ? "true" : undefined,
     pagina: s.page > 1 ? s.page : undefined,
+    por_pagina: s.pageSize,
   };
 }
 export function safeCatalogReturn(value: LocationQuery[string]): string {

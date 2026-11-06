@@ -33,6 +33,7 @@ it("restores wishlist filters and pagination without accepting invalid IDs", () 
     tag: 3,
     location: null,
     page: 2,
+    pageSize: 24,
     statuses: ["wishlist"],
     order: "newest",
     missing: true,
@@ -58,4 +59,10 @@ it("roundtrips multiple situations and ordering", () => {
   expect(
     readCatalogQuery({ situacao: "invalid", ordem: "invalid" }).statuses,
   ).toEqual(["available", "loaned"]);
+});
+
+it("keeps the effective size in return links without accepting unbounded sizes", () => {
+  const state = readCatalogQuery({ pagina: "3", por_pagina: "35" });
+  expect(readCatalogQuery(catalogQuery(state) as never)).toEqual(state);
+  expect(readCatalogQuery({ por_pagina: "9999" }).pageSize).toBe(24);
 });
