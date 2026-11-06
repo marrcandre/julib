@@ -10,5 +10,7 @@ Regra confirmada pelo usuário: bloquear exclusão quando qualquer exemplar tive
 - [x] Implementar migração aditiva: is_desired=false; Registration.book/copy nullable SET_NULL e ImportRow.copy SET_NULL; manter fingerprints legados no destino padrão. Reversão exige preflight de recibos nulos, sem reversão automática/destrutiva.
 - [x] Services/API/Admin/query pública e dashboard: transações, ações protegidas e schemas atualizados; testar e gerar tipos.
 - [x] UI: acesso compacto a Acervo/Desejados, destino no formulário sem campos físicos no desejo, adquirir/mover/excluir com confirmação reforçada e motivos de bloqueio. Preservar scanner contínuo, preferências, filtros e busca em 300ms.
-- [ ] Testar fluxos reais e simulados desktop/móvel, histórico/retries/concorrência, Admin e privacidade; revisão focada.
+- [x] Testar fluxos reais e simulados desktop/móvel, histórico/retries/concorrência, Admin e privacidade; revisão focada.
 - [ ] CI, PR, publicação com backup prévio, verificação somente leitura do acervo e smoke; registrar evidência.
+
+Estado final desta etapa: implementação e revisão focada concluídas, sem achados importantes. CI/merge/deploy permanecem pendentes porque o GitHub bloqueou Actions antes de iniciar o job por pendência de faturamento da conta. PR #13 preservado, sem alterações de produção. Reexecutar a CI após liberação; não contornar o backup obrigatório.
