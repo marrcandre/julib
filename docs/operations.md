@@ -119,3 +119,20 @@ O monitor gera atividade real e detecta falhas; não garante que o plano gratuit
 A migração `0007` acrescenta `Book.is_desired` com default no banco `false`; todos os registros anteriores permanecem no acervo. Recibos de cadastro e linhas concluídas de importação passam a permitir referências nulas quando um cadastro elegível é removido. Chaves e resultados permanecem, impedindo recriação em tentativas antigas. Não limpar esses recibos como parte da exclusão de um livro.
 
 A publicação exige o backup privado prévio do workflow. Para rollback de aplicação, mantenha a migração aplicada; não descarte desejados ou recibos para forçar um esquema antigo. A reversão de `0007` faz preflight e bloqueia se houver desejados ou recibos sem livro/exemplar; uma reversão completa nessas condições exige plano de restauração revisado. Não há exclusão automática de mídia Cloudinary nem empréstimos históricos.
+
+## Operação manual temporária — Actions bloqueado (06/11/2026)
+
+O usuário autorizou pausar o GitHub Actions e continuar publicando manualmente enquanto o suporte analisa o bloqueio de faturamento da conta. CI e Deploy foram desativados no repositório Julib, e Private daily backup no repositório privado. Os arquivos dos workflows foram preservados. Essa decisão substitui temporariamente a exigência de execução remota, mantendo as validações e o backup pré-migração.
+
+Procedimento de publicação:
+
+1. Executar `make check-local` e `make e2e-local` em bancos Docker descartáveis, com servidores locais normais parados durante as jornadas. Exigir sucesso e revisão do código; registrar o commit publicado.
+2. Com ambiente privado de produção, gerar backup pelo `scripts/backup.py`, usando a chave pública existente, conexão administrativa session pooler e cliente PostgreSQL 17. Incluir capas gerenciadas; manter o limite de 50 MiB. Não exibir DSNs/tokens nem gerar pacote em texto claro no repositório.
+3. Guardar o arquivo cifrado fora da pasta pública e em um release `manual-<timestamp UTC>` do repositório **privado** `marrcandre/julib-backups`. Confirmar a privacidade por API antes do envio. Baixar novamente, comparar SHA-256, descriptografar em ambiente privado e restaurar somente em um banco novo/descartável. Conferir livros, exemplares, pessoas, empréstimos, recibos e presença dos arquivos de mídia no manifesto.
+4. Após backup e validação, integrar o PR com squash e mensagem explícita. A CI remota pendente é dispensada exclusivamente nesta operação autorizada; não registrar uma execução local como CI remota aprovada.
+5. Executar `secure_database --role julib_app`, `migrate --noinput` e `secure_database --role julib_app` usando MIGRATION_DATABASE_URL. Publicar backend e depois frontend com o CLI Vercel 65.11.0 e os projetos já vinculados. Gerar rewrites para https://julib-api.vercel.app. Segredos ficam no `.env` privado.
+6. Conferir prontidão pública, UI móvel/desktop e contagens/isolamento somente por leitura. Restaurar os servidores de desenvolvimento 8000/5173 e registrar evidência.
+
+Enquanto o Actions estiver pausado, **não há backup diário automático pelo GitHub**. Há uma nova cópia antes de cada publicação manual. Releases manuais não expiram automaticamente como artifacts: na rotina manual, remover somente releases `manual-*` com mais de sete dias, depois de confirmar uma cópia recente restaurável; não apagar a última cópia válida. Não considerar uma agenda diária restabelecida até reativá-la e validar sua execução.
+
+Após resolução do chamado: reativar CI com `gh workflow enable ci.yml --repo marrcandre/julib`; reativar backup com `gh workflow enable backup.yml --repo marrcandre/julib-backups` e validar uma execução privada; reativar Deploy com `gh workflow enable deploy.yml --repo marrcandre/julib`. Conferir DEPLOY_ENABLED e executar CI do commit atual antes de voltar às publicações automáticas. Não alterar planos nem limites pagos para esse procedimento.

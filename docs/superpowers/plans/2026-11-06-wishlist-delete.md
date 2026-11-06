@@ -14,3 +14,5 @@ Regra confirmada pelo usuário: bloquear exclusão quando qualquer exemplar tive
 - [ ] CI, PR, publicação com backup prévio, verificação somente leitura do acervo e smoke; registrar evidência.
 
 Estado final desta etapa: implementação e revisão focada concluídas, sem achados importantes. CI/merge/deploy permanecem pendentes porque o GitHub bloqueou Actions antes de iniciar o job por pendência de faturamento da conta. PR #13 preservado, sem alterações de produção. Reexecutar a CI após liberação; não contornar o backup obrigatório.
+
+Atualização autorizada pelo usuário: Actions temporariamente desativado; publicação manual substitui execução remota, com testes locais completos, backup privado cifrado e teste de recuperação antes da migração. Procedimento e retomada registrados em docs/operations.md. Última etapa passa a ser publicação manual verificada enquanto o chamado do GitHub estiver aberto.
