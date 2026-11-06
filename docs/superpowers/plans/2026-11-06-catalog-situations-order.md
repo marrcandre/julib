@@ -9,8 +9,10 @@ Approved design: situations available/loaned/wishlist/lost only; sort newest/old
 - [x] Backend RED/GREEN tests: OR statuses, duplicates, same-copy location, retired exclusion, default order, all sorting/nulls and library isolation. Implement query helper and optional API parameters, maintain legacy callers.
 - [x] Frontend RED/GREEN: URL roundtrip/legacy, sort preference fallback; replace scope selector with Livros, multi-select Situation, compact ordering menu; integrate query/load/return/reset/registration target.
 - [x] Relevant suites, full local gate and browser journeys; review whole diff and correct findings.
-- [ ] Record checks, backup/deploy per existing authorized manual routine, smoke-check production without modifying user records.
+- [x] Record checks, backup/deploy per existing authorized manual routine, smoke-check production without modifying user records.
 
 Review rulings: preserve historical lost-copy filtering even after move to wishlist; retain saved order on same-component navbar navigation; four inline checkboxes replace unstable mobile MultiSelect popup. Regression tests added. No session-scoped settings in production inspections.
 
 Verification: 78 backend, 17 Vitest, 24 Playwright passed; Ruff/mypy/Django/schema/types/build passed. First full browser run lost its runner processes; rerun in independent process completed all 24. Encrypted backup manual-20261106T173040Z restored successfully (239 managed media).
+
+Released via PR #16, source b0a8aca2c7340ded98ac01dea5e8005726803b46. Two additional mocked browser journeys passed on production frontend (320/1280px). Production ORM combinations and ordering checked inside transaction-scoped read-only block; default write setting remains off afterwards. No data changes.
