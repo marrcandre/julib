@@ -27,7 +27,7 @@ def public_books(
     if not link:
         raise ValidationError("Link inválido ou desativado.")
     qs = (
-        Book.objects.filter(library=link.library, copies__state="active")
+        Book.objects.filter(library=link.library, copies__state="active", is_desired=False)
         .prefetch_related("tags", "copies__loans")
         .distinct()
     )

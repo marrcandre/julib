@@ -77,6 +77,24 @@ main.container.catalog-main {
   letter-spacing: -0.6px;
   margin: 0;
 }
+.catalog-scope-heading select {
+  font: inherit;
+  letter-spacing: inherit;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  padding: 6px 4px;
+  max-width: 175px;
+  cursor: pointer;
+}
+.catalog-scope-heading select option {
+  color: var(--text);
+  background: var(--surface);
+  font-size: 16px;
+}
+.book-lifecycle-actions {
+  margin-block: 18px;
+}
 .catalog-count {
   display: inline-flex;
   align-items: center;

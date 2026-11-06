@@ -232,3 +232,19 @@ Teste de navegador reproduziu o posicionamento anterior e passou com posição/t
 PR #12 integrado: CI 42080469241, CI da main 42080876738 e Deploy 42081189863 aprovados. Teste sobre a interface pública confirmou posição compacta no canto, desaparecimento automático após edição no desktop/celular e confirmação temporária do PIX, com API interceptada e sem gravar na coleção. Nenhuma migração foi necessária.
 
 Usuário solicitou em seguida exclusão definitiva e livros desejados. Proposta em docs/superpowers/specs/2026-11-06-wishlist-deletion-proposal.md; regra para histórico de empréstimos foi perguntada e ainda aguarda resposta. A nova funcionalidade não foi implementada nesta etapa.
+
+## Desejados e exclusão definitiva — 06/11/2026
+
+Regra confirmada pelo usuário: bloquear exclusão quando houver qualquer histórico de empréstimo, inclusive devolvido. Implementados seletor compacto Acervo/Desejados, destino no cadastro por câmera/busca/manual, aquisição com localização/data, reclassificação explícita de registros elegíveis e exclusão com confirmação digitada. Desejados não criam exemplares, não contam no painel e não aparecem no link público. Histórico de exemplares anteriormente baixados permanece preservado.
+
+A migração 0007 mantém todos os livros existentes no acervo, com default false também no banco. Referências técnicas de cadastro/importação passam a SET_NULL; recibos e resultados concluídos permanecem e bloqueiam recriação por retry. Fingerprints anteriores ao campo de destino são compatíveis. Aquisição, reclassificação, empréstimo e exclusão usam locks transacionais por biblioteca; empréstimos históricos continuam protegidos. Reversão do esquema faz preflight para não descartar desejados ou recibos.
+
+Validação local: 64 testes backend, 9 Vitest e 17 jornadas Playwright; duas jornadas adicionais focadas em telas de 393/1280 px passaram, incluindo perda de resposta e retry da aquisição sem duplicar exemplar. Ruff, mypy, checks Django/migrações, build/tipos e git diff --check aprovados. Nenhum livro real foi excluído ou movido. Publicação e revisão final registradas no adendo a seguir quando concluídas.
+
+### Publicação pendente por bloqueio externo do GitHub
+
+PR #13: https://github.com/marrcandre/julib/pull/13, implementação no commit `600006d`. A CI https://github.com/marrcandre/julib/actions/runs/42212959255 foi recusada antes de iniciar o job: “The job was not started because your account is locked due to a billing issue.” Não é falha de testes; os checks locais acima passaram. GitGuardian não encontrou segredos. Não houve merge, migração nem deploy em produção. O usuário foi informado para verificar a conta, sem contratação de plano. Após liberação, reexecutar a CI do PR, integrar somente com sucesso e aguardar backup privado/migração/deploy do workflow normal.
+
+QA visual isolada com API simulada também passou: primeira capa em 187 px no celular, sem overflow ou erro JavaScript; desejados omitem filtros físicos e o botão de excluir mostra bloqueio quando há histórico. Servidores locais de desenvolvimento restaurados nas portas 8000/5173.
+
+Revisão independente focada concluída sem riscos importantes: isolamento/locks transacionais, preservação de empréstimos e recibos de idempotência conferidos. Plano atualizado com implementação/validação concluídas e CI/publicação explicitamente pendentes.

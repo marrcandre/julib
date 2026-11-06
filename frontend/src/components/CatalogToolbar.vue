@@ -16,6 +16,7 @@ export type CatalogFilters = {
   missingLocation: boolean;
 };
 const props = defineProps<{
+  scope: "collection" | "wishlist";
   query: string;
   total: number;
   tags: Tag[];
@@ -26,6 +27,7 @@ const props = defineProps<{
   densitySaved: boolean;
 }>();
 const emit = defineEmits<{
+  "update:scope": [value: "collection" | "wishlist"];
   "update:query": [value: string];
   "update:view": [value: CatalogView];
   "update:columns": [value: number];
@@ -139,7 +141,23 @@ function columnsChanged(event: Event) {
 </script>
 <template>
   <div class="catalog-heading">
-    <h1>Livros</h1>
+    <h1 class="catalog-scope-heading">
+      <select
+        :value="scope"
+        aria-label="Coleção exibida"
+        @change="
+          emit(
+            'update:scope',
+            ($event.target as HTMLSelectElement).value as
+              | 'collection'
+              | 'wishlist',
+          )
+        "
+      >
+        <option value="collection">Acervo</option>
+        <option value="wishlist">Desejados</option>
+      </select>
+    </h1>
     <span
       class="catalog-count"
       role="status"
@@ -177,7 +195,9 @@ function columnsChanged(event: Event) {
         :model-value="query"
         @update:model-value="emit('update:query', $event || '')"
         placeholder="Título, autor ou ISBN"
-        aria-label="Buscar no acervo"
+        :aria-label="
+          scope === 'wishlist' ? 'Buscar nos desejados' : 'Buscar no acervo'
+        "
       />
       <button
         v-if="query"
@@ -259,7 +279,7 @@ function columnsChanged(event: Event) {
           show-clear
           aria-label="Filtrar por tag"
       /></label>
-      <label
+      <label v-if="scope === 'collection'"
         >Localização<Select
           v-model="draft.location"
           :options="
@@ -274,7 +294,7 @@ function columnsChanged(event: Event) {
           show-clear
           aria-label="Filtrar por local"
       /></label>
-      <label
+      <label v-if="scope === 'collection'"
         >Disponibilidade<Select
           v-model="draft.available"
           :options="[
@@ -287,7 +307,7 @@ function columnsChanged(event: Event) {
           show-clear
           aria-label="Disponibilidade"
       /></label>
-      <label class="catalog-checkbox"
+      <label v-if="scope === 'collection'" class="catalog-checkbox"
         ><input type="checkbox" v-model="draft.missingLocation" />Sem
         localização</label
       >

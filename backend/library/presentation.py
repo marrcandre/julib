@@ -30,6 +30,8 @@ def book_data(book: Book, public: bool = False) -> dict[str, Any]:
         for c in copies
     )
     if not public:
+        result["is_desired"] = book.is_desired
+        result["can_delete"] = not any(list(c.loans.all()) for c in copies)
         result["copies"] = [copy_data(c) for c in copies]
         result["source"] = book.source
         result["source_id"] = book.source_id

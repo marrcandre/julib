@@ -1,6 +1,6 @@
-# Livros desejados e exclusão definitiva — proposta em revisão
+# Livros desejados e exclusão definitiva — decisões confirmadas
 
-Data: 06/11/2026. Pedido: permitir excluir cadastros definitivamente e manter livros cadastrados que ainda não pertencem ao acervo. Estado: levantamento; regra de exclusão com histórico ainda aguarda resposta do usuário.
+Data: 06/11/2026. Pedido: permitir excluir cadastros definitivamente e manter livros cadastrados que ainda não pertencem ao acervo. Estado: implementação autorizada. O usuário confirmou bloquear a exclusão definitiva quando existir qualquer histórico de empréstimo, inclusive devolvido.
 
 ## Abordagem proposta
 
@@ -8,7 +8,7 @@ Reutilizar Livro/Edição para metadados, ISBN, páginas, tags, capa e origem. A
 
 Cadastro por busca/câmera/manual permite escolher Acervo ou Desejados. Adquirir um desejado cria exemplar com localização e data de aquisição e o retira dos desejados, na mesma transação. Reclassificar livro atual exige conferir exemplares e histórico; exemplares efetivamente anteriores e seus empréstimos não devem desaparecer silenciosamente. Para cadastro equivocado sem histórico, é possível remover os exemplares indevidos e manter a edição nos desejados, após confirmação explícita.
 
-Exclusão nos detalhes deve apresentar livro, quantidade de exemplares e consequências antes da confirmação reforçada. Recomendação: excluir edição e exemplares somente sem qualquer histórico de empréstimo; quando houver, usar baixa/arquivo para preservar o histórico. A alternativa de apagar também histórico foi apresentada ao usuário e não está autorizada como comportamento padrão. Implementar o recurso não equivale a executar exclusões em produção.
+Exclusão nos detalhes deve apresentar livro, quantidade de exemplares e consequências antes da confirmação reforçada. Regra confirmada: excluir edição e exemplares somente sem qualquer histórico de empréstimo; quando houver, usar baixa/arquivo para preservar o histórico. Não apagar histórico de empréstimos. Implementar o recurso não equivale a executar exclusões em produção.
 
 ## Integridade técnica a preservar
 

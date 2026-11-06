@@ -80,6 +80,14 @@ A imagem é processada no navegador; a busca envia o ISBN, sem enviar vídeo ou 
 
 ## Consulta do acervo
 
-A busca do catálogo ocorre após 300 ms. Filtros e visualização ficam nos botões ao lado da busca; o menu ⋮ reúne importação, organização de exemplares e compartilhamento. O badge ao lado de Livros mostra a quantidade de edições encontradas.
+A busca do catálogo ocorre após 300 ms. Filtros e visualização ficam nos botões ao lado da busca; o menu ⋮ reúne importação, organização de exemplares e compartilhamento. O badge ao lado de Acervo/Desejados mostra a quantidade de edições encontradas.
 
 Em Visualização, o slider ajusta de 3 a 10 livros por linha. Essa densidade fica salva por usuário neste navegador/dispositivo, independente dos outros aparelhos; o padrão inicial é quatro no celular e sete no desktop. Limpar os dados do navegador remove essa preferência local. O modo Somente capas/Cartões/Lista continua associado à conta.
+
+### Desejados e exclusão de livros
+
+Na página **Livros**, o seletor **Acervo / Desejados** separa os livros possuídos dos que você quer adquirir. Ao cadastrar por câmera, busca ou manualmente, escolha o destino em **Salvar em**. Desejados guardam capa, ISBN, páginas e tags, sem criar exemplar, contar no painel ou aparecer no link público.
+
+Nos detalhes de um desejado, **Adicionar ao acervo** pede localização e data de aquisição e cria um exemplar da mesma edição. Para corrigir um cadastro do acervo, **Mover para desejados** remove os exemplares ativos sem histórico após confirmação; exemplares baixados e seus históricos permanecem preservados. Se um exemplar ativo já teve empréstimo, registre sua baixa apropriada antes de mover o livro.
+
+**Excluir definitivamente**, nos detalhes, exige digitar `EXCLUIR` e remove a edição e seus exemplares. Qualquer empréstimo anterior, inclusive devolvido, bloqueia a exclusão. Repetir um cadastro ou lote de importação já concluído não recria um livro excluído. Arquivos de capa não são apagados automaticamente do Cloudinary, para preservar referências compartilhadas; backups seguem a retenção de sete dias.

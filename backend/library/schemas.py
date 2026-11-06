@@ -114,6 +114,8 @@ class PublicBookOut(Schema):
 
 
 class BookOut(PublicBookOut):
+    is_desired: bool
+    can_delete: bool
     copies: list[CopyOut]
     source: str
     source_id: str
@@ -185,8 +187,15 @@ class LoanOut(Schema):
 
 
 class RegistrationIn(Schema):
+    target: Literal["collection", "wishlist"] = "collection"
     key: UUID
     book: BookIn
     existing_book_id: int | None = None
     location_id: int | None = None
     acquired_on: date | None = None
+
+
+class RegistrationOut(Schema):
+    book_id: int
+    copy_id: int | None
+    number: int | None
