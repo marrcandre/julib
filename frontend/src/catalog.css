@@ -562,6 +562,7 @@ main.container.catalog-main {
   border-radius: 8px;
 }
 .catalog-page-links a {
+  color: var(--ink);
   border: 1px solid var(--line);
   text-decoration: none;
 }
