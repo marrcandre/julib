@@ -13,7 +13,7 @@ from django.utils import timezone
 from ninja import File, NinjaAPI, Status
 from ninja.files import UploadedFile
 
-from . import circulation, imports, media, providers, services, sharing
+from . import catalog, circulation, imports, media, providers, services, sharing
 from . import schemas as s
 from .auth import AllowedSession, require_library, technical
 from .models import Book, Copy, ImportSession, Loan, Location, Person, ShareLink, Tag, User
@@ -119,16 +119,20 @@ def books(
     page: int = 1,
     missing_location: bool = False,
     scope: Literal["collection", "wishlist", "all"] = "collection",
+    statuses: str | None = None,
+    order: catalog.CatalogOrder = "newest",
 ) -> dict[str, Any]:
     lib = require_library(request)
     qs = books_query(lib)
-    if scope != "all":
+    if statuses is not None:
+        qs = catalog.by_situations(qs, lib, statuses, location_id, missing_location)
+    elif scope != "all":
         qs = qs.filter(is_desired=scope == "wishlist")
     if q:
         qs = qs.filter(Q(title__icontains=q) | Q(authors__icontains=q) | Q(isbn__icontains=q))
     if tag_id:
         qs = qs.filter(tags__id=tag_id)
-    if location_id:
+    if location_id and statuses is None:
         ids = [services.owned(Location, lib, location_id).pk]
         while children := list(
             Location.objects.filter(library=lib, parent_id__in=ids)
@@ -137,16 +141,16 @@ def books(
         ):
             ids += children
         qs = qs.filter(copies__location_id__in=ids)
-    if missing_location:
+    if missing_location and statuses is None:
         qs = qs.filter(copies__location__isnull=True, copies__state="active")
-    if available is not None:
+    if available is not None and statuses is None:
         available_ids = (
             Copy.objects.filter(library=lib, state="active")
             .exclude(loans__state="open")
             .values("book_id")
         )
         qs = qs.filter(pk__in=available_ids) if available else qs.exclude(pk__in=available_ids)
-    qs = qs.distinct()
+    qs = catalog.ordered(qs.distinct(), order)
     page = max(1, page)
     size = 24
     return {

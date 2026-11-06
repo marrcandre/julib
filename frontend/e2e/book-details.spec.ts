@@ -242,7 +242,7 @@ test("catalog links open in another tab and return with filters, page and scroll
     other.getByRole("heading", { name: "Livro 33", exact: true }),
   ).toBeVisible();
   await other.close();
-  await expect(page.getByLabel("Coleção exibida")).toHaveValue("wishlist");
+  await expect(page).toHaveURL(/situacao=wishlist/);
   await link.scrollIntoViewIfNeeded();
   const scroll = await page.evaluate(() => window.scrollY);
   await link.click();
@@ -252,7 +252,7 @@ test("catalog links open in another tab and return with filters, page and scroll
   await page
     .getByRole("link", { name: "Voltar ao catálogo", exact: true })
     .click();
-  await expect(page.getByLabel("Buscar nos desejados")).toHaveValue("Livro");
+  await expect(page.getByLabel("Buscar livros")).toHaveValue("Livro");
   await expect(page.getByText("Página 2", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Remover filtro Literatura" }),

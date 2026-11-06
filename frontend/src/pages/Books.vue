@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import {
+  readCatalogOrder,
+  writeCatalogOrder,
+  type Situation,
+} from "../catalog-options";
 import BookCredits from "../components/BookCredits.vue";
 import SourceAttribution from "../components/SourceAttribution.vue";
 import CatalogToolbar, {
@@ -54,7 +59,11 @@ const coverColumns = ref(
     window.matchMedia("(max-width: 800px)").matches,
   ),
 );
-const scope = ref<"collection" | "wishlist">("collection");
+const scope = computed(() =>
+  statuses.value.length === 1 && statuses.value[0] === "wishlist"
+    ? ("wishlist" as const)
+    : ("collection" as const),
+);
 const registrationTarget = ref<"collection" | "wishlist">("collection");
 const densitySaved = ref(true);
 watch(coverColumns, (value) => {
@@ -93,15 +102,22 @@ const route = useRoute(),
   books = ref<Book[]>([]),
   locations = ref<Location[]>([]),
   tags = ref<Tag[]>([]);
-const initialCatalog = readCatalogQuery(route.query);
+const initialCatalog = readCatalogQuery(
+  route.query,
+  readCatalogOrder(session?.value?.user_id),
+);
 const startNew = !!route.query.novo;
 const q = ref(initialCatalog.q),
   tag = ref<number | null>(initialCatalog.tag),
   loc = ref<number | null>(initialCatalog.location),
-  available = ref<boolean | null>(initialCatalog.available),
+  statuses = ref<Situation[]>(initialCatalog.statuses),
+  order = ref(initialCatalog.order),
   page = ref(initialCatalog.page),
   total = ref(0);
-scope.value = initialCatalog.scope;
+watch(order, (value) => {
+  writeCatalogOrder(session?.value?.user_id, value);
+  if (route.query.ordem !== value) searchNow();
+});
 const error = ref(""),
   message = ref(""),
   busy = ref(false),
@@ -136,13 +152,14 @@ watch(message, (value) => {
 const currentFilters = computed<CatalogFilters>(() => ({
   tag: tag.value,
   location: loc.value,
-  available: available.value,
+  statuses: statuses.value,
   missingLocation: missingLocation.value,
 }));
 function applyFilters(filters: CatalogFilters) {
   tag.value = filters.tag;
   loc.value = filters.location;
-  available.value = filters.available;
+  statuses.value = filters.statuses;
+  selectedCopies.value = [];
   missingLocation.value = filters.missingLocation;
   searchNow();
 }
@@ -212,10 +229,10 @@ function catalogState() {
     q: q.value,
     tag: tag.value,
     location: loc.value,
-    available: available.value,
+    statuses: statuses.value,
     missing: missingLocation.value,
     page: page.value,
-    scope: scope.value,
+    order: order.value,
   };
 }
 const catalogUrl = computed(
@@ -233,16 +250,19 @@ watch(
   () => route.query,
   (query) => {
     if (route.path !== "/livros") return;
-    const state = readCatalogQuery(query);
+    const state = readCatalogQuery(
+      query,
+      readCatalogOrder(session?.value?.user_id),
+    );
     if (JSON.stringify(state) === JSON.stringify(catalogState())) return;
     clearTimeout(searchTimer);
     q.value = state.q;
     tag.value = state.tag;
     loc.value = state.location;
-    available.value = state.available;
+    statuses.value = state.statuses;
+    order.value = state.order;
     missingLocation.value = state.missing;
     page.value = state.page;
-    scope.value = state.scope;
     void refresh();
   },
 );
@@ -255,13 +275,12 @@ async function load() {
   const params = new URLSearchParams({
     q: q.value,
     page: String(page.value),
-    scope: scope.value,
+    statuses: statuses.value.join(","),
+    order: order.value,
   });
   if (missingLocation.value) params.set("missing_location", "true");
   if (tag.value) params.set("tag_id", String(tag.value));
   if (loc.value) params.set("location_id", String(loc.value));
-  if (available.value !== null)
-    params.set("available", String(available.value));
   try {
     const data = await api<{ items: Book[]; total: number }>(
       "/books?" + params,
@@ -385,15 +404,6 @@ async function save() {
     } else formOpen.value = false;
     await load();
   });
-}
-function changeScope(value: "collection" | "wishlist") {
-  scope.value = value;
-  loc.value = null;
-  available.value = null;
-  missingLocation.value = false;
-  selectedCopies.value = [];
-  page.value = 1;
-  void refresh();
 }
 async function moveCopies() {
   await run(async () => {
@@ -521,8 +531,7 @@ onUnmounted(() => {
 </script>
 <template>
   <CatalogToolbar
-    :scope="scope"
-    @update:scope="changeScope"
+    v-model:order="order"
     v-model:query="q"
     v-model:view="catalogView"
     v-model:columns="coverColumns"

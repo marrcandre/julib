@@ -33,15 +33,29 @@ it("restores wishlist filters and pagination without accepting invalid IDs", () 
     tag: 3,
     location: null,
     page: 2,
-    scope: "wishlist",
-    available: false,
+    statuses: ["wishlist"],
+    order: "newest",
     missing: true,
   });
   expect(catalogQuery(state)).toMatchObject({
     q: "Orwell",
     tag: 3,
     pagina: 2,
-    lista: "desejados",
-    disponivel: "false",
+    situacao: "wishlist",
+    ordem: "newest",
   });
+});
+
+it("roundtrips multiple situations and ordering", () => {
+  const state = readCatalogQuery({
+    situacao: "lost,wishlist",
+    ordem: "acquired_asc",
+    pagina: "3",
+  });
+  expect(state.statuses).toEqual(["wishlist", "lost"]);
+  expect(state.order).toBe("acquired_asc");
+  expect(readCatalogQuery(catalogQuery(state) as never)).toEqual(state);
+  expect(
+    readCatalogQuery({ situacao: "invalid", ordem: "invalid" }).statuses,
+  ).toEqual(["available", "loaned"]);
 });

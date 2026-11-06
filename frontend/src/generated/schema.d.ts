@@ -1140,6 +1140,8 @@ export interface operations {
                 page?: number;
                 missing_location?: boolean;
                 scope?: "collection" | "wishlist" | "all";
+                statuses?: string | null;
+                order?: "newest" | "oldest" | "title_asc" | "title_desc" | "author" | "acquired_desc" | "acquired_asc" | "year_desc" | "year_asc";
             };
             header?: never;
             path?: never;

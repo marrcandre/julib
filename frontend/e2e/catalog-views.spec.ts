@@ -130,7 +130,7 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
   await expect(
     page.getByRole("button", { name: "Somente capas", exact: true }),
   ).not.toBeVisible();
-  const search = page.getByRole("textbox", { name: "Buscar no acervo" });
+  const search = page.getByRole("textbox", { name: "Buscar livros" });
   await page.clock.install();
   await page.clock.pauseAt(new Date());
   await search.fill("a");
