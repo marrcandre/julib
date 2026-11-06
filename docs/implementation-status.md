@@ -274,3 +274,13 @@ Catálogo registra busca/filtros/página na query, com posição por navegação
 Validação: 66 testes backend, 11 Vitest, 21 jornadas Playwright, Ruff/mypy/Django/migrações/build/tipos e git diff --check aprovados. Inclui nova aba, recarga, retorno com query/rolagem, capa local/cancelar/salvar/retry, sessão encerrada, edição real de exemplar e bloqueio de exclusão após empréstimo devolvido. QA visual com APIs simuladas em1366/393/320px, temas, histórico e bloqueio de exclusão passou sem overflow/erro JS. Revisão independente questionou confirmação ao Cancelar; comparada com a prévia aprovada, manteve-se a ação explícita imediata e esclareceu-se o spec. Sem achado importante de integridade pendente.
 
 Backup manual pré-publicação cifrado e restauração conferida já concluídos; publicação/evidências remotas serão registradas no adendo final. Actions continua desativado por autorização prévia do usuário.
+
+### Detalhes/edição publicados e verificados
+
+PR #14 integrado no commit `7116330d3a1d411cabea4811f352a750456cd8de`; GitGuardian aprovado. Publicação manual autorizada, sem migração. Backend `dpl_A6ckq5NAXVGZCfAtn3V6bt9uTXPH` e frontend `dpl_7fDPWGxdTrQgMNDk5wsjEvFT7u6R` READY na Vercel; página disponível a participantes autenticados em https://julib.vercel.app/livros/ID.
+
+Backup `manual-20261106T131326Z` no repositório privado, 7,598,667 bytes cifrados, SHA-256 `c4245017172ddbe14f6fa66b668b5bfc3ac236315e31708144933cf83eb6234a`,237capas. Baixado, hash validado, descriptografado e banco restaurado em PostgreSQL17 descartável; contagens iguais e mídia presente. Banco temporário removido, cópia local cifrada fora do repositório público. Nenhum registro real alterado nos testes/publicação:322livros,322exemplares,1pessoa,1empréstimo,10recibos preservados.
+
+Checks finais66backend/11Vitest/21Playwright aprovados. Sobre o frontend publicado, outras3jornadas com APIs simuladas passaram: URL direta/nova aba/recarga, retorno com filtros/página/rolagem, imagem local e cancelamento, retry sem novo upload e link de login com next. QA visual publicado em1366/393/320px, temas, histórico e exclusão bloqueada passou sem overflow/erro JS. Smoke de ambas as origens confirmou GET/HEAD de prontidão200 sem cache, dados privados401 sem login e Swagger403 ao visitante; RLS e ausência de grants públicos conferidos por leitura.
+
+Servidores locais restaurados nas portas8000/5173. Actions e backup diário pelo GitHub continuam pausados; rotina manual com backup antes de publicar permanece vigente até resolução do chamado.
