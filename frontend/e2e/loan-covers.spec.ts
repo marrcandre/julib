@@ -125,7 +125,7 @@ test("loan covers appear in dashboard and loans with safe missing-image fallback
       ).toBeVisible();
       await expect(
         page.getByRole("link", { name: "Fonte: Open Library" }),
-      ).toBeVisible();
+      ).not.toBeVisible();
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,

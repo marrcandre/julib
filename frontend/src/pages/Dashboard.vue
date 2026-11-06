@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import LoanBook from "../components/LoanBook.vue";
-import SourceAttribution from "../components/SourceAttribution.vue";
+import BookCredits from "../components/BookCredits.vue";
 import { ref, onMounted, inject, type Ref } from "vue";
 import Button from "primevue/button";
 import BookCard from "../components/BookCard.vue";
@@ -106,10 +106,7 @@ onMounted(async () => {
       <div v-for="item in data.recent" :key="item.number">
         <RouterLink :to="'/livros/' + item.book.id"
           ><BookCard :book="item.book" variant="covers" /></RouterLink
-        ><SourceAttribution
-          :name="item.book.attribution_name"
-          :url="item.book.attribution_url"
-        />
+        ><BookCredits :item="item.book" />
       </div></div
   ></template>
 </template>

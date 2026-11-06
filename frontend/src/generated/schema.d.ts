@@ -552,6 +552,16 @@ export interface components {
         };
         /** BookOut */
         BookOut: {
+            /**
+             * Metadata Attribution Name
+             * @default
+             */
+            metadata_attribution_name: string;
+            /**
+             * Metadata Attribution Url
+             * @default
+             */
+            metadata_attribution_url: string;
             /** Page Count */
             page_count?: number | null;
             /**
@@ -811,6 +821,16 @@ export interface components {
         /** LoanOut */
         LoanOut: {
             /**
+             * Metadata Attribution Name
+             * @default
+             */
+            metadata_attribution_name: string;
+            /**
+             * Metadata Attribution Url
+             * @default
+             */
+            metadata_attribution_url: string;
+            /**
              * Cover Url
              * @default
              */
@@ -894,6 +914,16 @@ export interface components {
         };
         /** PublicBookOut */
         PublicBookOut: {
+            /**
+             * Metadata Attribution Name
+             * @default
+             */
+            metadata_attribution_name: string;
+            /**
+             * Metadata Attribution Url
+             * @default
+             */
+            metadata_attribution_url: string;
             /** Page Count */
             page_count?: number | null;
             /**

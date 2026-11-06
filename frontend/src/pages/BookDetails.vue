@@ -398,7 +398,9 @@ const facts = computed(() =>
           <div v-else class="book-detail-cover book-detail-placeholder">
             <i class="pi pi-book" aria-hidden="true" /><span>Sem capa</span>
           </div>
-          <figcaption>
+          <figcaption
+            v-if="book.attribution_url !== book.metadata_attribution_url"
+          >
             <SourceAttribution
               :name="book.attribution_name"
               :url="book.attribution_url"
@@ -428,6 +430,11 @@ const facts = computed(() =>
               <dd>{{ value || "Não informado" }}</dd>
             </div>
           </dl>
+          <SourceAttribution
+            :name="book.metadata_attribution_name"
+            :url="book.metadata_attribution_url"
+            kind="metadata"
+          />
         </section>
       </div>
       <section v-if="book.is_desired" class="book-detail-section">

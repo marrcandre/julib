@@ -66,22 +66,7 @@ def same_book(info: dict, isbn: str, title: str, authors: list[str]) -> bool:
     )
 
 
-def lookup_cover(client: httpx.Client, isbn: str, title: str, authors: list[str]) -> str:
-    query = (
-        f"isbn:{isbn}" if isbn else f'intitle:"{title}" inauthor:"{authors[0] if authors else ""}"'
-    )
-    response = data(
-        client, "https://www.googleapis.com/books/v1/volumes", {"q": query[:200], "maxResults": 12}
-    )
-    candidates = {
-        item.get("volumeInfo", {}).get("imageLinks", {}).get("thumbnail", "")
-        for item in response.get("items", [])
-        if same_book(item.get("volumeInfo", {}), isbn, title, authors)
-    } - {""}
-    if candidates and (isbn or len(candidates) == 1):
-        for url in sorted(candidates):
-            if cover := usable(client, url):
-                return cover
+def openlibrary_cover(client: httpx.Client, isbn: str, title: str, authors: list[str]) -> str:
     if isbn:
         response = data(
             client,
@@ -117,4 +102,25 @@ def lookup_cover(client: httpx.Client, isbn: str, title: str, authors: list[str]
     }
     if len(covers) == 1:
         return usable(client, f"https://covers.openlibrary.org/b/id/{covers.pop()}-L.jpg")
+    return ""
+
+
+def lookup_cover(client: httpx.Client, isbn: str, title: str, authors: list[str]) -> str:
+    if cover := openlibrary_cover(client, isbn, title, authors):
+        return cover
+    query = (
+        f"isbn:{isbn}" if isbn else f'intitle:"{title}" inauthor:"{authors[0] if authors else ""}"'
+    )
+    response = data(
+        client, "https://www.googleapis.com/books/v1/volumes", {"q": query[:200], "maxResults": 12}
+    )
+    candidates = {
+        item.get("volumeInfo", {}).get("imageLinks", {}).get("thumbnail", "")
+        for item in response.get("items", [])
+        if same_book(item.get("volumeInfo", {}), isbn, title, authors)
+    } - {""}
+    if candidates and (isbn or len(candidates) == 1):
+        for url in sorted(candidates):
+            if cover := usable(client, url):
+                return cover
     return ""

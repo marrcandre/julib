@@ -99,3 +99,9 @@ Cada livro tem página própria em `/livros/ID`. Os livros no catálogo são lin
 A consulta mostra a ficha completa, capa e exemplares em cartões. **Editar livro** permite alterar dados e capa juntos; selecionar um arquivo só cria uma prévia local. **Salvar alterações** envia a imagem e confirma o vínculo com os metadados na mesma transação. Falha de validação mantém o rascunho para correção e não aplica parcialmente a edição. **Cancelar** descarta explicitamente o rascunho; navegar ou fechar a aba com alterações pede confirmação.
 
 Localização e data de aquisição são editadas no exemplar, separadamente da edição bibliográfica. Histórico informa inclusive quando não há empréstimos. Baixa, reativação, aquisição de desejado e exclusão protegida continuam disponíveis. **Mais ações** reúne mover para desejados e excluir. Voltar ao catálogo preserva busca, filtros, página, visualização e posição na navegação da mesma aba.
+
+### Prioridade das fontes e créditos
+
+Buscas priorizam Open Library, depois BrasilAPI com CBL/Mercado Editorial para ISBN, e por último Google Books. A procura de capas prioriza Open Library e usa Google como alternativa. As buscas por ISBN mantêm correspondência exata; erro ou resposta inválida de uma fonte permite tentar a próxima.
+
+Créditos opcionais dos provedores não aparecem no catálogo. A origem dos dados permanece registrada internamente. Quando conteúdo Google é usado, sua atribuição obrigatória é mantida e identificada como **Dados bibliográficos** ou **Capa**. Uma foto enviada ao Cloudinary não recebe o crédito da capa anterior; trocar a foto não altera a procedência dos dados bibliográficos. A avaliação de fontes está em `docs/reviews/2026-11-06-fontes-api-creditos.md`.

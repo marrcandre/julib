@@ -182,6 +182,11 @@ onUnmounted(clearFile);
               /></label>
             </details>
             <SourceAttribution
+              v-if="
+                !file &&
+                form.cover_url === book.cover_url &&
+                book.attribution_url !== book.metadata_attribution_url
+              "
               :name="book.attribution_name"
               :url="book.attribution_url"
             />
@@ -249,6 +254,11 @@ onUnmounted(clearFile);
         </div>
       </div>
     </fieldset>
+    <SourceAttribution
+      :name="book.metadata_attribution_name"
+      :url="book.metadata_attribution_url"
+      kind="metadata"
+    />
     <div class="book-save-bar">
       <p class="muted">Dados e capa serão salvos juntos.</p>
       <div class="actions">

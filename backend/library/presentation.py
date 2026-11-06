@@ -25,6 +25,7 @@ def book_data(book: Book, public: bool = False) -> dict[str, Any]:
     }
     result["tags"] = [{"id": t.pk, "name": t.name} for t in book.tags.all()]
     result.update(cover_attribution(book))
+    result.update(metadata_attribution(book))
     result["available"] = any(
         c.state == "active" and not any(loan.state == "open" for loan in c.loans.all())
         for c in copies
@@ -38,41 +39,28 @@ def book_data(book: Book, public: bool = False) -> dict[str, Any]:
     return result
 
 
-def cover_attribution(book: Book) -> dict[str, str]:
-    result = {"attribution_name": "", "attribution_url": ""}
+def metadata_attribution(book: Book) -> dict[str, str]:
     if book.source == "google" and book.source_id:
-        result["attribution_name"] = "Google Books"
-        result["attribution_url"] = "https://books.google.com/books?id=" + quote(
-            book.source_id, safe=""
-        )
-    elif book.source == "openlibrary" and book.source_id:
-        result["attribution_name"] = "Open Library"
-        result["attribution_url"] = "https://openlibrary.org" + "/" + book.source_id.lstrip("/")
-    elif book.source == "brasilapi" and book.source_id:
-        result["attribution_name"] = "BrasilAPI (CBL)"
-        result["attribution_url"] = (
-            "https://brasilapi.com.br/api/isbn/v1/"
-            + quote(book.source_id, safe="")
-            + "?providers=cbl"
-        )
-    # Cover provenance can differ from Goodreads metadata provenance.
+        return {
+            "metadata_attribution_name": "Google Books",
+            "metadata_attribution_url": "https://books.google.com/books?id="
+            + quote(book.source_id, safe=""),
+        }
+    return {"metadata_attribution_name": "", "metadata_attribution_url": ""}
+
+
+def cover_attribution(book: Book) -> dict[str, str]:
+    # Only the actual current image determines its credit. The metadata origin
+    # remains independent, including after the user uploads their own cover.
     cover = urlsplit(book.cover_url)
-    if book.source not in {"google", "openlibrary"}:
-        if cover.hostname in {"books.google.com", "books.googleusercontent.com"}:
-            volume = parse_qs(cover.query).get("id", [""])[0]
-            if volume:
-                result["attribution_name"] = "Google Books"
-                result["attribution_url"] = "https://books.google.com/books?id=" + quote(
-                    volume, safe=""
-                )
-        elif cover.hostname == "covers.openlibrary.org":
-            result["attribution_name"] = "Open Library"
-            result["attribution_url"] = (
-                "https://openlibrary.org/isbn/" + quote(book.isbn, safe="")
-                if book.isbn
-                else "https://openlibrary.org"
-            )
-    return result
+    if cover.hostname in {"books.google.com", "books.googleusercontent.com"}:
+        volume = parse_qs(cover.query).get("id", [""])[0]
+        if volume:
+            return {
+                "attribution_name": "Google Books",
+                "attribution_url": "https://books.google.com/books?id=" + quote(volume, safe=""),
+            }
+    return {"attribution_name": "", "attribution_url": ""}
 
 
 def copy_data(copy: Copy) -> dict[str, Any]:
@@ -95,6 +83,7 @@ def loan_data(loan: Loan) -> dict[str, Any]:
         "title": loan.copy.book.title,
         "cover_url": loan.copy.book.cover_url,
         **cover_attribution(loan.copy.book),
+        **metadata_attribution(loan.copy.book),
         "person_id": loan.person_id,
         "person_name": loan.person.name,
         "started_on": loan.started_on.isoformat(),

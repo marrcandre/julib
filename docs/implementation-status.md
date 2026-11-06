@@ -284,3 +284,13 @@ Backup `manual-20261106T131326Z` no repositório privado, 7,598,667 bytes cifrad
 Checks finais66backend/11Vitest/21Playwright aprovados. Sobre o frontend publicado, outras3jornadas com APIs simuladas passaram: URL direta/nova aba/recarga, retorno com filtros/página/rolagem, imagem local e cancelamento, retry sem novo upload e link de login com next. QA visual publicado em1366/393/320px, temas, histórico e exclusão bloqueada passou sem overflow/erro JS. Smoke de ambas as origens confirmou GET/HEAD de prontidão200 sem cache, dados privados401 sem login e Swagger403 ao visitante; RLS e ausência de grants públicos conferidos por leitura.
 
 Servidores locais restaurados nas portas8000/5173. Actions e backup diário pelo GitHub continuam pausados; rotina manual com backup antes de publicar permanece vigente até resolução do chamado.
+
+## Crédito da capa e prioridade de APIs — 06/11/2026
+
+Problema reproduzido por leitura do livro313: origemOpenLibrary e capa gerenciada no Cloudinary, mas a apresentação creditava a origem bibliográfica como se fosse da imagem. Separados cover_attribution (imagem atual) e metadata_attribution (dadosGoogle), com campos no schema e tipos gerados, sem migração. Créditos opcionais saem da interface; Google obrigatório é rotulado Dados bibliográficos/Capa e deduplicado quando o volume é igual.
+
+O usuário revogou a desativação completa de GoogleBooks antes de qualquer modificação no acervo. Decisão vigente: OpenLibrary primeiro, BrasilAPI com CBL/MercadoEditorial depois para ISBN, Google por último. Capas priorizamOpenLibrary e mantêmGoogle como alternativa. Os4registrosGoogle e21URLs de capasGoogle auditados foram somente lidos e não serão removidos/reclassificados. Fonte interna e identificadores preservados.
+
+Prova:74testesbackend,14Vitest,22Playwright e Ruff/mypy/Django/migrações/build/tipos aprovados. A revisão apontou JSONmalformado daOpenLibrary bloqueando fallback; RED→GREEN com4formas inválidas e handler corrigido. Caso313 calculado com novo código retorna ambos os créditos vazios, preservando capa e origem interna; novoE2E distingue Googlemetadados da capa própria. Testes passaram a usar chaveBooksAPIfictícia, evitando exposição da configuração real em diagnósticos. Nenhum segredo encontrado nos arquivos versionáveis na conferência local.
+
+Backup pré-publicação restaurado e publicação manual em preparação; evidência final no adendo posterior. Actions permanece pausado.

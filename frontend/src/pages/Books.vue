@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BookCredits from "../components/BookCredits.vue";
 import SourceAttribution from "../components/SourceAttribution.vue";
 import CatalogToolbar, {
   type CatalogView,
@@ -310,20 +311,7 @@ function useCandidate(candidate: Partial<Book>) {
             "https://books.google.com/books?id=" +
             encodeURIComponent(candidate.source_id || ""),
         }
-      : candidate.source === "openlibrary"
-        ? {
-            name: "Open Library",
-            url: "https://openlibrary.org" + candidate.source_id,
-          }
-        : candidate.source === "brasilapi"
-          ? {
-              name: "BrasilAPI (CBL)",
-              url:
-                "https://brasilapi.com.br/api/isbn/v1/" +
-                encodeURIComponent(candidate.source_id || "") +
-                "?providers=cbl",
-            }
-          : { name: "", url: "" };
+      : { name: "", url: "" };
   form.value = {
     ...blank(),
     ...candidate,
@@ -581,10 +569,7 @@ onUnmounted(() => {
         "
       >
         <BookCard :book="book" :variant="catalogView" /></RouterLink
-      ><SourceAttribution
-        :name="book.attribution_name"
-        :url="book.attribution_url"
-      />
+      ><BookCredits :item="book" />
     </div>
   </div>
   <div class="pagination">
@@ -761,27 +746,19 @@ onUnmounted(() => {
               ><b>{{ candidate.title }}</b
               ><br />{{ candidate.authors?.join(", ") }} ·
               {{ candidate.isbn }}</span
-            ><i class="pi pi-plus" /></button
-          ><SourceAttribution
+            ><i class="pi pi-plus" />
+          </button>
+          <a
             v-if="candidate.source === 'google'"
-            name="Google Books"
-            :url="
+            :href="
               'https://books.google.com/books?id=' +
               encodeURIComponent(candidate.source_id || '')
             "
-          /><SourceAttribution
-            v-else-if="candidate.source === 'openlibrary'"
-            name="Open Library"
-            :url="'https://openlibrary.org' + candidate.source_id"
-          /><SourceAttribution
-            v-else-if="candidate.source === 'brasilapi'"
-            name="BrasilAPI (CBL)"
-            :url="
-              'https://brasilapi.com.br/api/isbn/v1/' +
-              encodeURIComponent(candidate.source_id || '') +
-              '?providers=cbl'
-            "
-          />
+            target="_blank"
+            rel="noopener noreferrer"
+            class="muted"
+            >Ver no Google Books ↗</a
+          >
         </div>
       </div>
     </template>
@@ -809,6 +786,7 @@ onUnmounted(() => {
         <figcaption class="muted">Capa atual</figcaption>
       </figure>
       <SourceAttribution
+        kind="metadata"
         :name="formAttribution.name"
         :url="formAttribution.url"
       />

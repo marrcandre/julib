@@ -1,12 +1,20 @@
 <script setup lang="ts">
-defineProps<{ name?: string; url?: string }>();
+withDefaults(
+  defineProps<{ name?: string; url?: string; kind?: "cover" | "metadata" }>(),
+  { kind: "cover" },
+);
 </script>
 <template>
-  <p v-if="name && url" class="source-attribution">
+  <p v-if="name === 'Google Books' && url" class="source-attribution">
+    <span>{{ kind === "metadata" ? "Dados bibliográficos:" : "Capa:" }}</span>
     <a
       :href="url"
-      :aria-label="'Fonte: ' + name"
-      :title="'Fonte: ' + name"
+      :aria-label="
+        (kind === 'metadata' ? 'Fonte dos dados: ' : 'Fonte da capa: ') + name
+      "
+      :title="
+        (kind === 'metadata' ? 'Fonte dos dados: ' : 'Fonte da capa: ') + name
+      "
       target="_blank"
       rel="noopener noreferrer"
       @click.stop
@@ -23,6 +31,10 @@ defineProps<{ name?: string; url?: string }>();
 .source-attribution {
   font-size: 11px;
   margin: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 .source-attribution a {
   display: inline-flex;
