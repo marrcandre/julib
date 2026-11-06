@@ -253,7 +253,7 @@ test("catalog links open in another tab and return with filters, page and scroll
     .getByRole("link", { name: "Voltar ao catálogo", exact: true })
     .click();
   await expect(page.getByLabel("Buscar livros")).toHaveValue("Livro");
-  await expect(page.getByText("Página 2", { exact: true })).toBeVisible();
+  await expect(page.locator(".catalog-pagination [aria-current=page]")).toHaveText("2");
   await expect(
     page.getByRole("button", { name: "Remover filtro Literatura" }),
   ).toBeVisible();

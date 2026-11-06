@@ -31,6 +31,8 @@ const props = defineProps<{
   filters: CatalogFilters;
   view: CatalogView;
   columns: number;
+  rows: number;
+  listSize: number;
   densitySaved: boolean;
 }>();
 const emit = defineEmits<{
@@ -38,6 +40,8 @@ const emit = defineEmits<{
   "update:query": [value: string];
   "update:view": [value: CatalogView];
   "update:columns": [value: number];
+  "update:rows": [value: number];
+  "update:listSize": [value: number];
   filters: [value: CatalogFilters];
   add: [method: "camera" | "search" | "manual"];
   bulk: [];
@@ -390,6 +394,25 @@ function columnsChanged(event: Event) {
         @click="emit('update:view', option.value)"
       />
     </div>
+    <label class="catalog-page-setting" v-if="view !== 'list'"
+      >Linhas por página
+      <Select
+        :model-value="rows"
+        :options="[3, 5, 8, 10]"
+        aria-label="Linhas por página"
+        @update:model-value="emit('update:rows', $event)"
+      />
+    </label>
+    <label class="catalog-page-setting" v-else
+      >Livros por página
+      <Select
+        :model-value="listSize"
+        :options="[24, 48, 96]"
+        aria-label="Livros por página"
+        @update:model-value="emit('update:listSize', $event)"
+      />
+    </label>
+    <p class="muted">Escolha salva por conta neste navegador/dispositivo.</p>
     <div v-if="view === 'covers'" class="catalog-density">
       <div class="catalog-density-heading">
         <label for="cover-density">Livros por linha</label
