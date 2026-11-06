@@ -7,6 +7,7 @@ import { definePreset } from "@primeuix/themes";
 import App from "./App.vue";
 const Dashboard = () => import("./pages/Dashboard.vue");
 const Books = () => import("./pages/Books.vue");
+const BookDetails = () => import("./pages/BookDetails.vue");
 const Loans = () => import("./pages/Loans.vue");
 const Locations = () => import("./pages/Locations.vue");
 const ImportBooks = () => import("./pages/ImportBooks.vue");
@@ -19,12 +20,19 @@ import "@fontsource/inter/700.css";
 import "@fontsource/inter/800.css";
 import "./style.css";
 import "./catalog.css";
+import "./book-details.css";
 import "primeicons/primeicons.css";
 const router = createRouter({
   history: createWebHistory(),
+  scrollBehavior(to, from, saved) {
+    if (saved) return saved;
+    if (to.path === from.path) return;
+    return { top: 0, left: 0 };
+  },
   routes: [
     { path: "/", component: Dashboard },
     { path: "/livros", component: Books },
+    { path: "/livros/:id", component: BookDetails },
     { path: "/emprestimos", component: Loans },
     { path: "/locais", component: Locations },
     { path: "/importar", component: ImportBooks },

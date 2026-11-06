@@ -168,8 +168,8 @@ def create_book(request: HttpRequest, payload: s.BookIn) -> dict[str, Any]:
 
 
 @api.put("/books/{pk}", response=s.BookOut)
-def edit_book(request: HttpRequest, pk: int, payload: s.BookIn) -> dict[str, Any]:
-    return book_data(services.create_book(require_library(request), payload.model_dump(), pk))
+def edit_book(request: HttpRequest, pk: int, payload: s.BookEditIn) -> dict[str, Any]:
+    return book_data(services.edit_book(require_library(request), pk, payload.model_dump()))
 
 
 @api.delete("/books/{pk}")

@@ -17,7 +17,13 @@ import {
   type Ref,
 } from "vue";
 import { canonicalIsbn, isbnFromBarcode } from "../isbn";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
+import {
+  readCatalogQuery,
+  catalogQuery,
+  saveCatalogPosition,
+  catalogPosition,
+} from "../catalog-navigation";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
 import InputText from "primevue/inputtext";
@@ -30,11 +36,9 @@ import {
   ApiError,
   post,
   locationLabel,
-  type Copy,
   type Book,
   type Location,
   type Tag,
-  type Loan,
   type Session,
 } from "../api";
 import {
@@ -51,10 +55,6 @@ const coverColumns = ref(
 );
 const scope = ref<"collection" | "wishlist">("collection");
 const registrationTarget = ref<"collection" | "wishlist">("collection");
-const acquireOpen = ref(false),
-  deleteOpen = ref(false),
-  deleteConfirmation = ref("");
-const pendingAcquisition = ref<Record<string, unknown> | null>(null);
 const densitySaved = ref(true);
 watch(coverColumns, (value) => {
   densitySaved.value = writeCoverColumns(session?.value?.user_id, value);
@@ -87,29 +87,29 @@ let searchTimer: ReturnType<typeof setTimeout> | undefined;
 let loadVersion = 0;
 const pendingRegistration = ref<Record<string, unknown> | null>(null);
 const operationKey = ref(crypto.randomUUID());
-const duplicateKey = ref(crypto.randomUUID());
+const router = useRouter();
 const route = useRoute(),
   books = ref<Book[]>([]),
   locations = ref<Location[]>([]),
   tags = ref<Tag[]>([]);
-const q = ref(""),
-  tag = ref<number | null>(null),
-  loc = ref<number | null>(null),
-  available = ref<boolean | null>(null),
-  page = ref(1),
+const initialCatalog = readCatalogQuery(route.query);
+const startNew = !!route.query.novo;
+const q = ref(initialCatalog.q),
+  tag = ref<number | null>(initialCatalog.tag),
+  loc = ref<number | null>(initialCatalog.location),
+  available = ref<boolean | null>(initialCatalog.available),
+  page = ref(initialCatalog.page),
   total = ref(0);
+scope.value = initialCatalog.scope;
 const error = ref(""),
   message = ref(""),
   busy = ref(false),
   formOpen = ref(false),
-  detail = ref<Book | null>(null),
-  editing = ref<number | null>(null),
   copyLocation = ref<number | null>(null),
   acquired = ref(""),
-  selectedCopies = ref<number[]>([]),
-  history = ref<Loan[]>([]);
+  selectedCopies = ref<number[]>([]);
 const bulkOpen = ref(false),
-  missingLocation = ref(false);
+  missingLocation = ref(initialCatalog.missing);
 const external = ref(""),
   candidates = ref<Partial<Book>[]>([]),
   searching = ref(false),
@@ -177,24 +177,6 @@ function confirmMove() {
   if (window.confirm("Confirmar mudança dos exemplares selecionados?"))
     void moveCopies();
 }
-async function saveAcquisition(copy: Copy) {
-  await run(async () => {
-    await api("/copies/" + copy.id, {
-      method: "PUT",
-      body: JSON.stringify({
-        acquired_on: copy.acquired_on,
-        location_id: copy.location_id,
-      }),
-    });
-    message.value = "Data atualizada.";
-    await load();
-  });
-}
-async function showHistory(copyId: number) {
-  await run(async () => {
-    history.value = await api<Loan[]>("/loans?copy_id=" + copyId);
-  });
-}
 const blank = () => ({
   title: "",
   authors: "",
@@ -224,8 +206,50 @@ async function run(fn: () => Promise<void>) {
     busy.value = false;
   }
 }
+function catalogState() {
+  return {
+    q: q.value,
+    tag: tag.value,
+    location: loc.value,
+    available: available.value,
+    missing: missingLocation.value,
+    page: page.value,
+    scope: scope.value,
+  };
+}
+const catalogUrl = computed(
+  () =>
+    router.resolve({ path: "/livros", query: catalogQuery(catalogState()) })
+      .fullPath,
+);
+function bookLink(book: Book) {
+  return { path: "/livros/" + book.id, query: { voltar: catalogUrl.value } };
+}
+onBeforeRouteLeave(() => {
+  saveCatalogPosition(catalogUrl.value);
+});
+watch(
+  () => route.query,
+  (query) => {
+    if (route.path !== "/livros") return;
+    const state = readCatalogQuery(query);
+    if (JSON.stringify(state) === JSON.stringify(catalogState())) return;
+    clearTimeout(searchTimer);
+    q.value = state.q;
+    tag.value = state.tag;
+    loc.value = state.location;
+    available.value = state.available;
+    missingLocation.value = state.missing;
+    page.value = state.page;
+    scope.value = state.scope;
+    void refresh();
+  },
+);
 async function load() {
   const version = ++loadVersion;
+  const path = catalogUrl.value;
+  if (route.path === "/livros" && route.fullPath !== path)
+    void router.replace(path);
   const searchValue = q.value;
   const params = new URLSearchParams({
     q: q.value,
@@ -256,39 +280,11 @@ async function refresh() {
 function newBook() {
   pendingRegistration.value = null;
   operationKey.value = crypto.randomUUID();
-  editing.value = null;
   registrationTarget.value = scope.value;
   form.value = blank();
   formAttribution.value = { name: "", url: "" };
   candidates.value = [];
   formOpen.value = true;
-}
-function edit(book: Book) {
-  formAttribution.value = {
-    name: book.attribution_name || "",
-    url: book.attribution_url || "",
-  };
-  entryMethod.value = "manual";
-  editing.value = book.id;
-  form.value = {
-    ...blank(),
-    ...book,
-    authors: book.authors.join("; "),
-    tag_ids: book.tags.map((t) => t.id),
-    source: book.source || "",
-    source_id: book.source_id || "",
-  };
-  detail.value = null;
-  formOpen.value = true;
-}
-async function open(book: Book) {
-  await run(async () => {
-    detail.value = await api<Book>("/books/" + book.id);
-    selectedCopies.value = [];
-    copyLocation.value = null;
-    acquired.value = "";
-    history.value = [];
-  });
 }
 async function find() {
   searching.value = true;
@@ -347,84 +343,58 @@ async function save() {
         .map((a) => a.trim())
         .filter(Boolean),
     };
-    if (editing.value) {
-      await api<Book>("/books/" + editing.value, {
-        method: "PUT",
-        body: JSON.stringify(payload),
-      });
-    } else {
-      if (!pendingRegistration.value) {
-        let existing: Book | undefined;
-        if (form.value.isbn) {
-          const data = await api<{ items: Book[] }>(
-            "/books?scope=all&q=" +
-              encodeURIComponent(canonicalIsbn(form.value.isbn)),
-          );
-          existing = data.items.find(
-            (b) => b.isbn === canonicalIsbn(form.value.isbn),
-          );
-        }
-        if (
-          existing &&
-          !confirm(
-            registrationTarget.value === "wishlist"
-              ? "Este livro já está cadastrado. Mantê-lo nos desejados? Livros do acervo precisam ser movidos pelos detalhes."
-              : existing.is_desired
-                ? "Este livro está nos desejados. Adicionar um exemplar ao acervo?"
-                : `Este livro já tem ${existing.copies.length} exemplar(es). Adicionar outra cópia?`,
-          )
+    if (!pendingRegistration.value) {
+      let existing: Book | undefined;
+      if (form.value.isbn) {
+        const data = await api<{ items: Book[] }>(
+          "/books?scope=all&q=" +
+            encodeURIComponent(canonicalIsbn(form.value.isbn)),
+        );
+        existing = data.items.find(
+          (b) => b.isbn === canonicalIsbn(form.value.isbn),
+        );
+      }
+      if (
+        existing &&
+        !confirm(
+          registrationTarget.value === "wishlist"
+            ? "Este livro já está cadastrado. Mantê-lo nos desejados? Livros do acervo precisam ser movidos pelos detalhes."
+            : existing.is_desired
+              ? "Este livro está nos desejados. Adicionar um exemplar ao acervo?"
+              : `Este livro já tem ${existing.copies.length} exemplar(es). Adicionar outra cópia?`,
         )
-          return;
-        pendingRegistration.value = {
-          key: operationKey.value,
-          target: registrationTarget.value,
-          book: payload,
-          existing_book_id: existing?.id || null,
-          location_id:
-            registrationTarget.value === "collection"
-              ? copyLocation.value
-              : null,
-          acquired_on:
-            registrationTarget.value === "collection"
-              ? acquired.value || null
-              : null,
-        };
-      }
-      try {
-        await post("/registrations", pendingRegistration.value);
-      } catch (e) {
-        if (e instanceof ApiError && e.status && e.status < 500)
-          pendingRegistration.value = null;
-        throw e;
-      }
-      pendingRegistration.value = null;
-      operationKey.value = crypto.randomUUID();
+      )
+        return;
+      pendingRegistration.value = {
+        key: operationKey.value,
+        target: registrationTarget.value,
+        book: payload,
+        existing_book_id: existing?.id || null,
+        location_id:
+          registrationTarget.value === "collection" ? copyLocation.value : null,
+        acquired_on:
+          registrationTarget.value === "collection"
+            ? acquired.value || null
+            : null,
+      };
     }
-    message.value = editing.value
-      ? "Dados atualizados."
-      : registrationTarget.value === "wishlist"
+    try {
+      await post("/registrations", pendingRegistration.value);
+    } catch (e) {
+      if (e instanceof ApiError && e.status && e.status < 500)
+        pendingRegistration.value = null;
+      throw e;
+    }
+    pendingRegistration.value = null;
+    operationKey.value = crypto.randomUUID();
+    message.value =
+      registrationTarget.value === "wishlist"
         ? "Livro adicionado aos desejados."
         : "Exemplar cadastrado.";
     if (camera.value) {
       form.value = blank();
       scanLocked = false;
     } else formOpen.value = false;
-    await load();
-  });
-}
-async function addCopy() {
-  if (!detail.value) return;
-  if (!confirm("Adicionar outra cópia desta edição?")) return;
-  await run(async () => {
-    await post("/registrations", {
-      key: duplicateKey.value,
-      book: { ...detail.value!, tag_ids: detail.value!.tags.map((t) => t.id) },
-      existing_book_id: detail.value!.id,
-      location_id: copyLocation.value,
-      acquired_on: acquired.value || null,
-    });
-    duplicateKey.value = crypto.randomUUID();
-    await open(detail.value!);
     await load();
   });
 }
@@ -437,91 +407,13 @@ function changeScope(value: "collection" | "wishlist") {
   page.value = 1;
   void refresh();
 }
-async function moveToWishlist() {
-  if (
-    !detail.value ||
-    !confirm(
-      `Mover “${detail.value.title}” para desejados? Os ${detail.value.copies.filter((c) => c.state === "active").length} exemplares ativos sem histórico serão removidos do acervo. Exemplares baixados e seus históricos serão preservados.`,
-    )
-  )
-    return;
-  await run(async () => {
-    await post("/books/" + detail.value!.id + "/wishlist", {});
-    detail.value = null;
-    message.value = "Livro movido para desejados.";
-    await load();
-  });
-}
-function startAcquisition() {
-  pendingAcquisition.value = null;
-  copyLocation.value = null;
-  acquired.value = "";
-  acquireOpen.value = true;
-}
-async function acquireWish() {
-  if (!detail.value) return;
-  await run(async () => {
-    if (!pendingAcquisition.value)
-      pendingAcquisition.value = {
-        key: crypto.randomUUID(),
-        target: "collection",
-        book: {
-          ...detail.value!,
-          tag_ids: detail.value!.tags.map((t) => t.id),
-        },
-        existing_book_id: detail.value!.id,
-        location_id: copyLocation.value,
-        acquired_on: acquired.value || null,
-      };
-    try {
-      await post("/registrations", pendingAcquisition.value);
-    } catch (e) {
-      if (e instanceof ApiError && e.status && e.status < 500)
-        pendingAcquisition.value = null;
-      throw e;
-    }
-    pendingAcquisition.value = null;
-    acquireOpen.value = false;
-    detail.value = null;
-    message.value = "Livro adicionado ao acervo.";
-    await load();
-  });
-}
-async function deleteBook() {
-  if (!detail.value || deleteConfirmation.value !== "EXCLUIR") return;
-  await run(async () => {
-    await api("/books/" + detail.value!.id, { method: "DELETE" });
-    deleteOpen.value = false;
-    detail.value = null;
-    message.value = "Livro excluído definitivamente.";
-    await load();
-  });
-}
 async function moveCopies() {
   await run(async () => {
     await post("/copies/locate", {
       copy_ids: selectedCopies.value,
       location_id: copyLocation.value,
     });
-    if (detail.value)
-      detail.value = await api<Book>("/books/" + detail.value.id);
     selectedCopies.value = [];
-    await load();
-  });
-}
-async function retire(id: number, reason: string) {
-  if (
-    !confirm(
-      reason === "active"
-        ? "Reativar exemplar?"
-        : "Confirmar baixa do exemplar? O histórico será preservado.",
-    )
-  )
-    return;
-  await run(async () => {
-    await post("/copies/" + id + "/retire", { reason });
-    if (detail.value)
-      detail.value = await api<Book>("/books/" + detail.value.id);
     await load();
   });
 }
@@ -600,33 +492,6 @@ function stopCamera() {
   camera.value = false;
   scanLocked = false;
 }
-async function upload(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0];
-  if (!file || !detail.value) return;
-  if (file.size > 5 * 1024 * 1024) {
-    error.value = "A imagem deve ter até 5 MB.";
-    return;
-  }
-  await run(async () => {
-    const signed = await post<Record<string, string>>("/media/sign");
-    const body = new FormData();
-    for (const [key, value] of Object.entries(signed)) {
-      if (key !== "cloud_name") body.append(key, String(value));
-    }
-    body.append("file", file);
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${signed.cloud_name}/image/upload`,
-      { method: "POST", body },
-    );
-    const data = await response.json();
-    if (!response.ok) throw new Error("Não foi possível enviar a imagem.");
-    await post("/books/" + detail.value!.id + "/cover", {
-      public_id: data.public_id,
-    });
-    detail.value = await api<Book>("/books/" + detail.value!.id);
-    await load();
-  });
-}
 function searchNow() {
   clearTimeout(searchTimer);
   page.value = 1;
@@ -634,20 +499,30 @@ function searchNow() {
 }
 watch(q, (value) => {
   clearTimeout(searchTimer);
+  if (value === readCatalogQuery(route.query).q) return;
   ++loadVersion;
   if (!value) searchNow();
   else searchTimer = setTimeout(searchNow, 300);
 });
 onMounted(() =>
   run(async () => {
+    if (route.query.livro) {
+      await router.replace({
+        path: "/livros/" + String(route.query.livro),
+        query: { voltar: catalogUrl.value },
+      });
+      return;
+    }
     [locations.value, tags.value] = await Promise.all([
       api<Location[]>("/locations"),
       api<Tag[]>("/tags"),
     ]);
     await load();
-    if (route.query.novo) newBook();
-    if (route.query.livro)
-      detail.value = await api<Book>("/books/" + route.query.livro);
+    await nextTick();
+    requestAnimationFrame(() =>
+      window.scrollTo({ top: catalogPosition(catalogUrl.value) }),
+    );
+    if (startNew) newBook();
   }),
 );
 onUnmounted(() => {
@@ -691,7 +566,8 @@ onUnmounted(() => {
     :style="{ '--cover-columns': coverColumns }"
   >
     <div v-for="book in books" :key="book.id" class="catalog-item">
-      <button
+      <RouterLink
+        :to="bookLink(book)"
         :aria-label="'Abrir ' + book.title"
         :title="book.title"
         class="book-open"
@@ -703,9 +579,8 @@ onUnmounted(() => {
           background: none;
           color: inherit;
         "
-        @click="open(book)"
       >
-        <BookCard :book="book" :variant="catalogView" /></button
+        <BookCard :book="book" :variant="catalogView" /></RouterLink
       ><SourceAttribution
         :name="book.attribution_name"
         :url="book.attribution_url"
@@ -836,7 +711,7 @@ onUnmounted(() => {
   ><Dialog
     v-model:visible="formOpen"
     modal
-    :header="editing ? 'Editar livro' : 'Cadastrar livro'"
+    header="Cadastrar livro"
     :style="{ width: '650px' }"
     @hide="stopCamera"
     ><p v-if="error" class="error" role="alert">{{ error }}</p>
@@ -915,7 +790,7 @@ onUnmounted(() => {
       operação com segurança.
     </p>
     <form class="fields" @submit.prevent="save">
-      <label v-if="!editing"
+      <label
         >Salvar em<select
           v-model="registrationTarget"
           aria-label="Destino do cadastro"
@@ -986,7 +861,7 @@ onUnmounted(() => {
           @click="addTag"
         />
       </div>
-      <template v-if="!editing && registrationTarget === 'collection'"
+      <template v-if="registrationTarget === 'collection'"
         ><label
           >Localização<Select
             v-model="copyLocation"
@@ -1015,279 +890,4 @@ onUnmounted(() => {
         :loading="busy"
       /></form
   ></Dialog>
-  <Dialog
-    :visible="!!detail"
-    modal
-    :header="detail?.title"
-    :style="{ width: '850px' }"
-    @update:visible="detail = null"
-    ><template v-if="detail"
-      ><p v-if="error" class="error">{{ error }}</p>
-      <p>{{ detail.authors.join(", ") }}</p>
-      <p class="muted">
-        {{ detail.isbn }} · {{ detail.publisher }} · {{ detail.year }} ·
-        {{ detail.edition }}
-      </p>
-      <div class="tag-list">
-        <span v-for="t in detail.tags" :key="t.id" class="tag-pill">{{
-          t.name
-        }}</span>
-      </div>
-      <p v-if="detail.page_count" class="muted">
-        {{ detail.page_count }} páginas
-      </p>
-      <div class="detail-cover-actions">
-        <div class="actions">
-          <Button label="Editar dados" text @click="edit(detail)" /><label
-            class="tag-pill cover-upload"
-            >Enviar capa<input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              @change="upload"
-          /></label>
-        </div>
-        <img
-          v-if="detail.cover_url"
-          class="detail-cover"
-          :src="detail.cover_url"
-          alt="Capa do livro"
-          referrerpolicy="no-referrer"
-        />
-      </div>
-      <SourceAttribution
-        :name="detail.attribution_name"
-        :url="detail.attribution_url"
-      />
-      <p v-if="detail.is_desired" class="notice">
-        Este livro está nos seus desejados.
-      </p>
-      <div class="actions book-lifecycle-actions">
-        <Button
-          v-if="detail.is_desired"
-          label="Adicionar ao acervo"
-          icon="pi pi-plus"
-          :disabled="busy"
-          @click="startAcquisition"
-        />
-        <Button
-          v-else
-          label="Mover para desejados"
-          icon="pi pi-heart"
-          text
-          :disabled="busy"
-          @click="moveToWishlist"
-        />
-        <Button
-          label="Excluir definitivamente"
-          icon="pi pi-trash"
-          text
-          severity="danger"
-          :disabled="busy || !detail.can_delete"
-          @click="
-            deleteConfirmation = '';
-            deleteOpen = true;
-          "
-        />
-      </div>
-      <p v-if="!detail.can_delete" class="muted">
-        A exclusão está bloqueada porque existe histórico de empréstimos.
-      </p>
-      <template v-if="!detail.is_desired || detail.copies.length">
-        <h3>
-          {{ detail.is_desired ? "Exemplares anteriores" : "Exemplares" }}
-        </h3>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Selecionar</th>
-                <th>Número</th>
-                <th>Local</th>
-                <th>Aquisição</th>
-                <th>Situação</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="copy in detail.copies" :key="copy.id">
-                <td>
-                  <input
-                    type="checkbox"
-                    v-model="selectedCopies"
-                    :value="copy.id"
-                    :aria-label="'Selecionar exemplar ' + copy.number"
-                  />
-                </td>
-                <td>#{{ copy.number }}</td>
-                <td>{{ locationLabel(locations, copy.location_id) }}</td>
-                <td>
-                  <input
-                    type="date"
-                    v-model="copy.acquired_on"
-                    :aria-label="'Aquisição do exemplar ' + copy.number"
-                  /><Button
-                    label="Salvar data"
-                    text
-                    size="small"
-                    @click="saveAcquisition(copy)"
-                  />
-                </td>
-                <td>
-                  {{
-                    copy.state === "active"
-                      ? copy.on_loan
-                        ? "Emprestado"
-                        : "Disponível"
-                      : stateLabels[copy.state]
-                  }}
-                </td>
-                <td>
-                  <Button
-                    label="Histórico"
-                    text
-                    size="small"
-                    @click="showHistory(copy.id)"
-                  /><select
-                    v-if="copy.state === 'active'"
-                    aria-label="Dar baixa"
-                    @change="
-                      retire(
-                        copy.id,
-                        ($event.target as HTMLSelectElement).value,
-                      );
-                      ($event.target as HTMLSelectElement).value = '';
-                    "
-                  >
-                    <option value="">Dar baixa…</option>
-                    <option value="sold">Venda</option>
-                    <option value="donated">Doação</option>
-                    <option value="lost">Perda</option></select
-                  ><Button
-                    v-else-if="!detail.is_desired"
-                    label="Reativar"
-                    text
-                    size="small"
-                    @click="retire(copy.id, 'active')"
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div v-if="!detail.is_desired" class="toolbar">
-          <Select
-            v-model="copyLocation"
-            :options="
-              locations.map((l) => ({
-                id: l.id,
-                name: locationLabel(locations, l.id),
-              }))
-            "
-            option-label="name"
-            option-value="id"
-            placeholder="Sem localização"
-            show-clear
-            aria-label="Local de destino"
-          /><Button
-            label="Mover selecionados"
-            :disabled="!selectedCopies.length || busy"
-            @click="moveCopies"
-          /><Button
-            label="Adicionar exemplar"
-            text
-            :disabled="busy"
-            @click="addCopy"
-          />
-        </div>
-      </template>
-      <div v-if="history.length" class="panel">
-        <h3>Histórico do exemplar</h3>
-        <div v-for="loan in history" :key="loan.id" class="loan-row">
-          <span>{{ loan.person_name }} · {{ loan.started_on }}</span
-          ><span>{{
-            loan.state === "returned"
-              ? "Devolvido em " + loan.returned_on
-              : loan.state === "lost"
-                ? "Encerrado por perda"
-                : "Em aberto"
-          }}</span>
-        </div>
-      </div></template
-    ></Dialog
-  >
-  <Dialog
-    v-model:visible="acquireOpen"
-    modal
-    header="Adicionar ao acervo"
-    :style="{ width: '480px' }"
-    :closable="!busy"
-  >
-    <p v-if="error" class="error" role="alert">{{ error }}</p>
-    <p>Um exemplar será criado para este livro, que sairá dos desejados.</p>
-    <p v-if="pendingAcquisition" class="notice">
-      Há uma tentativa aguardando confirmação. Repita para confirmar a mesma
-      aquisição com segurança.
-    </p>
-    <form class="fields" @submit.prevent="acquireWish">
-      <label
-        >Localização<Select
-          v-model="copyLocation"
-          :disabled="!!pendingAcquisition"
-          :options="
-            locations.map((l) => ({
-              id: l.id,
-              name: locationLabel(locations, l.id),
-            }))
-          "
-          option-label="name"
-          option-value="id"
-          placeholder="Sem localização"
-          show-clear
-      /></label>
-      <label
-        >Data de aquisição<InputText
-          type="date"
-          v-model="acquired"
-          :disabled="!!pendingAcquisition"
-        /><small class="muted">Em branco, usamos a data de hoje.</small></label
-      >
-      <Button
-        label="Confirmar aquisição"
-        type="submit"
-        :loading="busy"
-        :disabled="busy"
-      />
-    </form>
-  </Dialog>
-  <Dialog
-    v-model:visible="deleteOpen"
-    modal
-    header="Excluir livro definitivamente"
-    :style="{ width: '480px' }"
-    :closable="!busy"
-  >
-    <p v-if="error" class="error" role="alert">{{ error }}</p>
-    <p>
-      Excluir “{{ detail?.title }}” e seus
-      {{ detail?.copies.length || 0 }} exemplares? Esta ação não pode ser
-      desfeita.
-    </p>
-    <p class="muted">
-      Livros com qualquer histórico de empréstimo não podem ser excluídos.
-    </p>
-    <form class="fields" @submit.prevent="deleteBook">
-      <label
-        >Digite EXCLUIR para confirmar<InputText
-          v-model="deleteConfirmation"
-          autocomplete="off"
-      /></label>
-      <Button
-        label="Confirmar exclusão definitiva"
-        type="submit"
-        severity="danger"
-        :disabled="busy || deleteConfirmation !== 'EXCLUIR'"
-        :loading="busy"
-      />
-    </form>
-  </Dialog>
 </template>

@@ -27,6 +27,10 @@ class CopyIn(Schema):
     acquired_on: date | None = None
 
 
+class BookEditIn(BookIn):
+    cover_public_id: str | None = None
+
+
 class LocationIn(Schema):
     name: str = Field(min_length=1, max_length=150)
     parent_id: int | None = None

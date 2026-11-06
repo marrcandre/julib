@@ -67,7 +67,10 @@ onUnmounted(() => {
       >
       <nav v-if="session" class="desktop-nav" aria-label="Navegação principal">
         <RouterLink to="/">Painel</RouterLink
-        ><RouterLink to="/livros">Livros</RouterLink
+        ><RouterLink
+          to="/livros"
+          :class="{ 'section-active': route.path.startsWith('/livros/') }"
+          >Livros</RouterLink
         ><RouterLink to="/emprestimos">Empréstimos</RouterLink
         ><RouterLink to="/locais">Locais</RouterLink>
       </nav>
@@ -122,7 +125,10 @@ onUnmounted(() => {
       <RouterLink to="/" @click="navigationOpen = false"
         ><i class="pi pi-chart-bar" aria-hidden="true" />Painel</RouterLink
       >
-      <RouterLink to="/livros" @click="navigationOpen = false"
+      <RouterLink
+        to="/livros"
+        :class="{ 'section-active': route.path.startsWith('/livros/') }"
+        @click="navigationOpen = false"
         ><i class="pi pi-book" aria-hidden="true" />Livros</RouterLink
       >
       <RouterLink to="/emprestimos" @click="navigationOpen = false"
@@ -140,7 +146,13 @@ onUnmounted(() => {
   <div v-if="!online" class="offline" role="status">
     Sem conexão. Conecte-se à internet para consultar ou salvar.
   </div>
-  <main class="container" :class="{ 'catalog-main': route.path === '/livros' }">
+  <main
+    class="container"
+    :class="{
+      'catalog-main': route.path === '/livros',
+      'book-detail-main': /^\/livros\/[^/]+$/.test(route.path),
+    }"
+  >
     <p v-if="loading" role="status" class="muted">Carregando sua biblioteca…</p>
     <template v-else
       ><RouterView
@@ -159,7 +171,9 @@ onUnmounted(() => {
         </p>
         <Button
           as="a"
-          href="/accounts/google/login/"
+          :href="
+            '/accounts/google/login/?next=' + encodeURIComponent(route.fullPath)
+          "
           label="Entrar com Google"
           icon="pi pi-google"
           class="primary"

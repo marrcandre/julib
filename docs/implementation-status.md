@@ -262,3 +262,15 @@ Migração 0007 aplicada com proteção de tabelas antes/depois. Contagens prese
 Verificação de produção: prontidão GET/HEAD HTTP200 sem cache, catálogo privado retorna401 sem autenticação e Swagger retorna403 ao visitante em ambas as origens. Apresentação do livro com empréstimo existente informa exclusão bloqueada. QA visual com APIs simuladas sobre o frontend publicado passou no celular/desktop: capas em187px, sem overflow ou erro JS, filtros físicos ocultos nos desejados e exclusão bloqueada quando há histórico. Nenhum livro real foi excluído, adquirido ou reclassificado durante os testes. Servidores locais 8000/5173 restaurados.
 
 O backup diário automático está pausado enquanto Actions estiver desativado. Fazer backup antes de cada publicação manual e conferir releases `manual-*` com retenção operacional de sete dias; releases não expiram automaticamente. Procedimento completo e comandos de retomada em docs/operations.md. Não considerar CI remota aprovada nem backup diário reativado até execução real após resolução do chamado.
+
+## Página própria de detalhes e edição — 06/11/2026
+
+O usuário aprovou proposta e prévia, confirmou URL própria/nova aba e autorizou implementar. Rota privada `/livros/:id`, links reais no catálogo e painel e compatibilidade com URLs antigas `?livro=`. Ficha completa, capa e cartões de exemplares substituem a modal de detalhes; editor próprio na mesma página reúne metadados e capa. Cancelar descarta o rascunho como na prévia; navegação/fechar/atualizar com alterações exige confirmação. Login de sessão encerrada preserva destino do livro.
+
+A seleção de capa fica local até Salvar. PUT compatível aceita cover_public_id opcional, verifica pertencimento/recurso e confirma dados e vínculo numa transação. URL externa diferente limpa o cover_id antigo. Validação falha não aplica edição parcial e retry reutiliza upload já concluído. API/Admin/Swagger e câmera de cadastro preservados; sem novas dependências nem migração.
+
+Catálogo registra busca/filtros/página na query, com posição por navegação da aba e retorno validado para o próprio catálogo. Visualização/densidade mantêm as preferências anteriores. Exemplares têm edição de local/data, histórico com vazio explícito e baixa/reativação; desejados/aquisição idempotente/exclusão protegida preservados.
+
+Validação: 66 testes backend, 11 Vitest, 21 jornadas Playwright, Ruff/mypy/Django/migrações/build/tipos e git diff --check aprovados. Inclui nova aba, recarga, retorno com query/rolagem, capa local/cancelar/salvar/retry, sessão encerrada, edição real de exemplar e bloqueio de exclusão após empréstimo devolvido. QA visual com APIs simuladas em1366/393/320px, temas, histórico e bloqueio de exclusão passou sem overflow/erro JS. Revisão independente questionou confirmação ao Cancelar; comparada com a prévia aprovada, manteve-se a ação explícita imediata e esclareceu-se o spec. Sem achado importante de integridade pendente.
+
+Backup manual pré-publicação cifrado e restauração conferida já concluídos; publicação/evidências remotas serão registradas no adendo final. Actions continua desativado por autorização prévia do usuário.

@@ -27,7 +27,7 @@ for (const width of [393, 1280])
     ).not.toBeVisible();
     await page.getByRole("button", { name: "Salvar", exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    const open = page.getByRole("button", {
+    const open = page.getByRole("link", {
       name: "Abrir " + title,
       exact: true,
     });
@@ -55,6 +55,9 @@ for (const width of [393, 1280])
     ).toContainText("Não foi possível confirmar");
     await page.getByRole("button", { name: "Confirmar aquisição" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page
+      .getByRole("link", { name: "Voltar ao catálogo", exact: true })
+      .click();
     await page.getByLabel("Coleção exibida").selectOption("collection");
     await page.getByLabel("Buscar no acervo").fill(title);
     await expect(open).toBeVisible();
@@ -71,15 +74,29 @@ for (const width of [393, 1280])
       "/api/v1/books?scope=all&q=" + encodeURIComponent(title),
     );
     expect((await acquired.json()).items[0].copies).toHaveLength(1);
+    await page
+      .getByRole("button", { name: "Mais ações do livro", exact: true })
+      .click();
     page.once("dialog", (dialog) => dialog.accept());
     await page
-      .getByRole("button", { name: "Mover para desejados", exact: true })
+      .getByRole("menuitem", { name: "Mover para desejados", exact: true })
       .click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "Nos seus desejados", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Editar livro", exact: true }),
+    ).toBeEnabled();
+    await page
+      .getByRole("link", { name: "Voltar ao catálogo", exact: true })
+      .click();
     await page.getByLabel("Coleção exibida").selectOption("wishlist");
     await open.click();
     await page
-      .getByRole("button", { name: "Excluir definitivamente", exact: true })
+      .getByRole("button", { name: "Mais ações do livro", exact: true })
+      .click();
+    await page
+      .getByRole("menuitem", { name: "Excluir definitivamente", exact: true })
       .click();
     await page.getByLabel("Digite EXCLUIR para confirmar").fill("EXCLUIR");
     await page

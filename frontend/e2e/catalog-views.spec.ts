@@ -154,11 +154,11 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
   await oldRequest;
   await search.fill("recente");
   await expect(
-    page.getByRole("button", { name: "Abrir Resultado recente", exact: true }),
+    page.getByRole("link", { name: "Abrir Resultado recente", exact: true }),
   ).toBeVisible();
   await oldResponse;
   await expect(
-    page.getByRole("button", { name: "Abrir Resultado recente", exact: true }),
+    page.getByRole("link", { name: "Abrir Resultado recente", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Limpar busca" }).click();
   await expect(page.locator(".book-card")).toHaveCount(6);
@@ -238,37 +238,29 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
   await page.reload();
   await expect(page.locator(".book-card--list")).toHaveCount(6);
   await page
-    .getByRole("button", { name: "Abrir Livro de teste 1", exact: true })
+    .getByRole("link", { name: "Abrir Livro de teste 1", exact: true })
     .click();
+  await expect(page).toHaveURL(/\/livros\/1/);
   await expect(
-    page.getByRole("dialog").getByRole("img", { name: "Capa do livro" }),
+    page.getByRole("img", { name: "Capa do livro", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("320", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Trocar capa", exact: true }),
+  ).not.toBeVisible();
+  await page.getByRole("button", { name: "Editar livro", exact: true }).click();
+  await expect(
+    page.getByRole("img", { name: "Capa atual", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("dialog").getByText("320 páginas", { exact: true }),
+    page.getByRole("button", { name: "Trocar capa", exact: true }),
   ).toBeVisible();
-  const uploadBox = await page.locator(".cover-upload").boundingBox();
-  const coverBox = await page
-    .getByRole("dialog")
-    .getByRole("img", { name: "Capa do livro" })
-    .boundingBox();
-  expect(uploadBox!.x + uploadBox!.width).toBeLessThanOrEqual(coverBox!.x);
-  await page.screenshot({
-    path: "../.superpowers/catalog-detail-cover.png",
-    fullPage: false,
-    animations: "disabled",
-  });
-  await page.getByRole("button", { name: "Editar dados", exact: true }).click();
-  const editor = page.getByRole("dialog", {
-    name: "Editar livro",
-    exact: true,
-  });
-  await expect(editor.getByRole("img", { name: "Capa atual" })).toBeVisible();
   await expect(
-    editor.getByRole("spinbutton", { name: "Número de páginas" }),
+    page.getByRole("spinbutton", { name: "Número de páginas" }),
   ).toHaveValue("320");
   await page.screenshot({
     path: "../.superpowers/catalog-editor.png",
-    fullPage: false,
+    fullPage: true,
     animations: "disabled",
   });
 });

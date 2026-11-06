@@ -1,0 +1,371 @@
+main.container.book-detail-main {
+  padding-top: 24px;
+}
+.book-detail-page h1 {
+  font-size: 30px;
+  line-height: 1.2;
+  letter-spacing: -0.8px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.book-detail-page h2 {
+  font-size: 19px;
+  letter-spacing: -0.3px;
+  margin: 0;
+}
+.book-detail-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 26px;
+}
+.book-back {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  min-height: 40px;
+}
+.book-detail-summary {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.book-read-summary {
+  grid-template-areas: "cover overview" "cover facts";
+  row-gap: 20px;
+}
+.book-detail-figure {
+  grid-area: cover;
+  margin: 0;
+  min-width: 0;
+}
+.book-detail-overview {
+  grid-area: overview;
+  min-width: 0;
+}
+.book-detail-authors {
+  font-size: 17px;
+  color: var(--muted);
+  margin: 8px 0 15px;
+}
+.book-detail-overview .tag-pill {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.book-detail-overview .tag-list {
+  margin-top: 14px;
+}
+.book-detail-cover {
+  width: 100%;
+  aspect-ratio: 2/3;
+  max-height: 300px;
+  object-fit: contain;
+  object-position: top;
+  border-radius: 6px;
+  display: block;
+}
+.book-detail-figure figcaption {
+  margin-top: 10px;
+}
+.book-detail-placeholder {
+  background: var(--soft);
+  color: var(--green);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+}
+.book-detail-placeholder i {
+  font-size: 36px;
+}
+.book-detail-facts {
+  grid-area: facts;
+}
+.book-detail-facts dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px 28px;
+  margin: 17px 0 0;
+}
+.book-detail-page dt {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.book-detail-page dd {
+  margin: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.book-detail-section {
+  border-top: 1px solid var(--line);
+  margin-top: 32px;
+  padding-top: 24px;
+}
+.book-detail-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.book-detail-section-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.book-copy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.book-copy-card {
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  padding: 18px;
+  min-width: 0;
+}
+.book-copy-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.book-copy-heading h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.book-copy-heading .tag-pill {
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.book-copy-loaned {
+  color: #80531b;
+  background: #fff1db;
+}
+.dark .book-copy-loaned {
+  color: #ffbd59;
+  background: #423320;
+}
+.book-copy-info {
+  display: grid;
+  gap: 16px;
+  margin: 20px 0;
+}
+.book-copy-info dt {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.book-copy-info dd {
+  padding-left: 21px;
+}
+.book-copy-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 7px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+.book-copy-actions .p-button {
+  font-size: 12px;
+}
+.book-copy-editor,
+.book-copy-history {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  margin-top: 12px;
+}
+.book-copy-history h4 {
+  margin: 0 0 12px;
+}
+.book-copy-history p {
+  margin: 8px 0;
+}
+.book-loan-record {
+  border-bottom: 1px solid var(--line);
+  padding: 12px 0;
+}
+.book-loan-record:last-child {
+  border: 0;
+}
+.book-loan-record dl {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0;
+}
+.book-wish-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: var(--soft);
+  padding: 20px;
+  border-radius: 10px;
+}
+.book-wish-notice p {
+  margin-bottom: 0;
+}
+.book-editor-fields {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.book-cover-editor {
+  min-width: 0;
+}
+.book-cover-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+.book-cover-controls .p-button {
+  width: 100%;
+}
+.book-cover-url {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.book-cover-url label {
+  margin-top: 10px;
+}
+.book-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+.book-detail-page label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 13px;
+  min-width: 0;
+}
+.book-edit-grid input,
+.book-edit-grid .p-inputnumber,
+.book-edit-grid .p-multiselect {
+  width: 100%;
+  min-width: 0;
+}
+.book-edit-wide {
+  grid-column: 1/-1;
+}
+.book-edit-wide.actions {
+  flex-wrap: wrap;
+}
+.book-save-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  margin-top: 26px;
+}
+.book-save-bar p {
+  margin: 0;
+}
+@media (max-width: 800px) {
+  main.container.book-detail-main {
+    padding-top: 16px;
+  }
+  .book-detail-topline {
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+  .book-detail-topline .actions {
+    gap: 0;
+  }
+  .book-detail-topline .p-button {
+    font-size: 12px;
+  }
+  .book-back {
+    font-size: 12px;
+    gap: 6px;
+  }
+  .book-detail-summary {
+    grid-template-columns: 94px minmax(0, 1fr);
+    gap: 18px;
+  }
+  .book-read-summary {
+    grid-template-areas: "cover overview" "facts facts";
+    row-gap: 24px;
+  }
+  .book-detail-page h1 {
+    font-size: 25px;
+  }
+  .book-detail-authors {
+    font-size: 14px;
+    margin: 6px 0 12px;
+  }
+  .book-detail-overview .tag-pill {
+    font-size: 11px;
+  }
+  .book-detail-facts dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 14px;
+  }
+  .book-copy-grid {
+    grid-template-columns: 1fr;
+  }
+  .book-copy-card {
+    padding: 15px;
+  }
+  .book-detail-section-heading {
+    flex-wrap: wrap;
+  }
+  .book-detail-section-heading .p-button {
+    font-size: 12px;
+    padding: 7px;
+  }
+  .book-edit-summary {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .book-cover-editor {
+    display: grid;
+    grid-template-columns: 94px minmax(0, 1fr);
+    gap: 16px;
+  }
+  .book-cover-controls {
+    margin-top: 0;
+  }
+  .book-edit-grid {
+    gap: 16px 12px;
+  }
+  .book-detail-page input {
+    font-size: 16px;
+  }
+  .book-save-bar,
+  .book-wish-notice {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .book-save-bar .actions {
+    align-self: flex-end;
+  }
+}
+@media (max-width: 360px) {
+  .book-detail-topline .primary {
+    padding: 9px;
+    font-size: 11px;
+  }
+  .book-back {
+    font-size: 11px;
+  }
+  .book-edit-grid {
+    grid-template-columns: 1fr;
+  }
+}
