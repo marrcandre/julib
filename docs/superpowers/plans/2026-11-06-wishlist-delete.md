@@ -11,8 +11,10 @@ Regra confirmada pelo usuário: bloquear exclusão quando qualquer exemplar tive
 - [x] Services/API/Admin/query pública e dashboard: transações, ações protegidas e schemas atualizados; testar e gerar tipos.
 - [x] UI: acesso compacto a Acervo/Desejados, destino no formulário sem campos físicos no desejo, adquirir/mover/excluir com confirmação reforçada e motivos de bloqueio. Preservar scanner contínuo, preferências, filtros e busca em 300ms.
 - [x] Testar fluxos reais e simulados desktop/móvel, histórico/retries/concorrência, Admin e privacidade; revisão focada.
-- [ ] CI, PR, publicação com backup prévio, verificação somente leitura do acervo e smoke; registrar evidência.
+- [x] PR e publicação manual autorizada, com backup privado restaurado, verificação somente leitura do acervo e smoke; evidências registradas. CI remota temporariamente dispensada por autorização do usuário.
 
 Estado final desta etapa: implementação e revisão focada concluídas, sem achados importantes. CI/merge/deploy permanecem pendentes porque o GitHub bloqueou Actions antes de iniciar o job por pendência de faturamento da conta. PR #13 preservado, sem alterações de produção. Reexecutar a CI após liberação; não contornar o backup obrigatório.
 
 Atualização autorizada pelo usuário: Actions temporariamente desativado; publicação manual substitui execução remota, com testes locais completos, backup privado cifrado e teste de recuperação antes da migração. Procedimento e retomada registrados em docs/operations.md. Última etapa passa a ser publicação manual verificada enquanto o chamado do GitHub estiver aberto.
+
+Concluído: PR #13 integrado em73ff09d; backup cifrado remoto baixado/restaurado, migração aplicada com contagens preservadas e ambos os projetos publicados na Vercel. Saúde/privacidade/Swagger e QA móvel/desktop verificados. Actions continua desativado até resolução do chamado; rotina manual documentada, sem backup diário automático nessa fase.

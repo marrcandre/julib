@@ -248,3 +248,17 @@ PR #13: https://github.com/marrcandre/julib/pull/13, implementação no commit `
 QA visual isolada com API simulada também passou: primeira capa em 187 px no celular, sem overflow ou erro JavaScript; desejados omitem filtros físicos e o botão de excluir mostra bloqueio quando há histórico. Servidores locais de desenvolvimento restaurados nas portas 8000/5173.
 
 Revisão independente focada concluída sem riscos importantes: isolamento/locks transacionais, preservação de empréstimos e recibos de idempotência conferidos. Plano atualizado com implementação/validação concluídas e CI/publicação explicitamente pendentes.
+
+## Publicação manual autorizada — 06/11/2026
+
+Após abrir chamado no GitHub, o usuário autorizou desativar temporariamente Actions e publicar manualmente. CI/Deploy no Julib e Private daily backup no privado foram desativados via CLI; arquivos preservados para retomada. Essa autorização substituiu o bloqueio operacional anterior, sem alterar plano, orçamento ou forma de pagamento.
+
+PR #13 integrado com squash no commit `73ff09d67b57706d4d0fe943838bc8a2e07e0383`. Nova execução local completa passou: 64 testes backend, 9 Vitest e 17 jornadas Playwright, além de Ruff/mypy/checks Django/migrações/build/tipos. Revisão independente anterior sem achados importantes.
+
+Backup pré-migração: release privado `manual-20261106T120246Z` em marrcandre/julib-backups, 7,598,510 bytes cifrados e 237 capas gerenciadas. SHA-256 `fe53b21086acbe1b063996a79ec31e53e1e74c437b89daf6403e003627ba19a5`. O arquivo foi baixado novamente, hash conferido e descriptografado; dump restaurado em PostgreSQL 17 descartável e contagens conferidas (322 livros, 322 exemplares, 1 pessoa, 1 empréstimo, 10 recibos), com os 237 arquivos de mídia presentes. Banco descartável removido ao terminar; cópia local cifrada preservada fora do repositório público.
+
+Migração 0007 aplicada com proteção de tabelas antes/depois. Contagens preservadas, zero desejados após migração, 28 tabelas com RLS e nenhum grant público/anon/authenticated. Backend `dpl_FJaSrANmL5r5PhxF2qxS7FLTQiAj` e frontend `dpl_DHRxQP3WnXgg9t8Tg31Ay7Wvy1ur` publicados manualmente na Vercel, ambos READY. Frontend: https://julib.vercel.app. Backend: https://julib-api.vercel.app.
+
+Verificação de produção: prontidão GET/HEAD HTTP200 sem cache, catálogo privado retorna401 sem autenticação e Swagger retorna403 ao visitante em ambas as origens. Apresentação do livro com empréstimo existente informa exclusão bloqueada. QA visual com APIs simuladas sobre o frontend publicado passou no celular/desktop: capas em187px, sem overflow ou erro JS, filtros físicos ocultos nos desejados e exclusão bloqueada quando há histórico. Nenhum livro real foi excluído, adquirido ou reclassificado durante os testes. Servidores locais 8000/5173 restaurados.
+
+O backup diário automático está pausado enquanto Actions estiver desativado. Fazer backup antes de cada publicação manual e conferir releases `manual-*` com retenção operacional de sete dias; releases não expiram automaticamente. Procedimento completo e comandos de retomada em docs/operations.md. Não considerar CI remota aprovada nem backup diário reativado até execução real após resolução do chamado.
