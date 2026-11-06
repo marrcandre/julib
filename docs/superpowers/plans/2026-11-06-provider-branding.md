@@ -2,11 +2,11 @@
 
 Decisão final do usuário em06/11/2026: manter GoogleBooks como alternativa, pesquisar outras fontes e priorizá-las. A opção anterior de desativar Google/remediar acervo foi revogada antes de qualquer alteração nos dados reais. Corrigir livro313 e remover créditos opcionais da interface. Não remover loginGoogle nem credenciais OAuth.
 
-Evidência:313.source=openlibrary, capa gerenciada Cloudinary; apresentação confundia origem do cadastro com origem da capa. OpenLibraryCoversAPI trata link como cortesia. GoogleBooks exige crédito do conteúdo da API, incluindo metadados: mantê-lo claramente como Dados bibliográficos quando a capa é própria.
+Evidência:livro 313 com capa gerenciada Cloudinary; leitura final confirmou source vazio; apresentação confundia origem do cadastro com origem da capa. OpenLibraryCoversAPI trata link como cortesia. GoogleBooks exige crédito do conteúdo da API, incluindo metadados: mantê-lo claramente como Dados bibliográficos quando a capa é própria.
 
 - [x] TDD: OpenLibrary preferida em busca e capas; Google como último fallback; BrasilAPI restrita a CBL/MercadoEditorial, sem seleção indireta Google. ISBN continua exato.
 - [x] Separar metadata_attribution de cover_attribution sem migração; remover créditos opcionais, preservar fonte interna. Google deduplicado quando dados/capa usam o mesmo volume.
-- [ ] Verificar70backend/14Vitest,22Playwright, revisão e backup cifrado restaurado. Publicar manualmente com Actions pausado e conferir313 por leitura.
+- [x] Verificados 74 testes backend, 14 Vitest e 22 Playwright, revisão e backup cifrado restaurado. Publicado manualmente com Actions pausado; livro 313 conferido por leitura e cenário de créditos aprovado sobre o frontend publicado.
 
 Ordem: OpenLibrary → BrasilAPI com providers=cbl,mercado-editorial para ISBN → GoogleBooks. Para capas, OpenLibrary → GoogleBooks. Inventário da auditoria anterior (4cadastrosGoogle e21capasGoogle) é somente leitura; NÃO substituir/remover registros/capas ou inventar nova procedência. Capas Google existentes conservam crédito real; Google não é desativado.
 

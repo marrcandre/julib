@@ -287,10 +287,19 @@ Servidores locais restaurados nas portas8000/5173. Actions e backup diário pelo
 
 ## Crédito da capa e prioridade de APIs — 06/11/2026
 
-Problema reproduzido por leitura do livro313: origemOpenLibrary e capa gerenciada no Cloudinary, mas a apresentação creditava a origem bibliográfica como se fosse da imagem. Separados cover_attribution (imagem atual) e metadata_attribution (dadosGoogle), com campos no schema e tipos gerados, sem migração. Créditos opcionais saem da interface; Google obrigatório é rotulado Dados bibliográficos/Capa e deduplicado quando o volume é igual.
+Problema relatado no livro 313: capa gerenciada no Cloudinary ainda acompanhada de crédito de provedor. A leitura final confirmou source vazio; esse campo não foi alterado. A apresentação passa a distinguir a origem bibliográfica da imagem atual. Separados cover_attribution (imagem atual) e metadata_attribution (dadosGoogle), com campos no schema e tipos gerados, sem migração. Créditos opcionais saem da interface; Google obrigatório é rotulado Dados bibliográficos/Capa e deduplicado quando o volume é igual.
 
 O usuário revogou a desativação completa de GoogleBooks antes de qualquer modificação no acervo. Decisão vigente: OpenLibrary primeiro, BrasilAPI com CBL/MercadoEditorial depois para ISBN, Google por último. Capas priorizamOpenLibrary e mantêmGoogle como alternativa. Os4registrosGoogle e21URLs de capasGoogle auditados foram somente lidos e não serão removidos/reclassificados. Fonte interna e identificadores preservados.
 
 Prova:74testesbackend,14Vitest,22Playwright e Ruff/mypy/Django/migrações/build/tipos aprovados. A revisão apontou JSONmalformado daOpenLibrary bloqueando fallback; RED→GREEN com4formas inválidas e handler corrigido. Caso313 calculado com novo código retorna ambos os créditos vazios, preservando capa e origem interna; novoE2E distingue Googlemetadados da capa própria. Testes passaram a usar chaveBooksAPIfictícia, evitando exposição da configuração real em diagnósticos. Nenhum segredo encontrado nos arquivos versionáveis na conferência local.
 
 Backup pré-publicação restaurado e publicação manual em preparação; evidência final no adendo posterior. Actions permanece pausado.
+
+
+### Publicação e conferência final dos créditos
+
+PR #15 integrado em `4b2e19b96f4eacb20b7765d8a0b237183da5b9ee`, GitGuardian aprovado. Backend `dpl_BCNYVXjJqS37c3xvxBDLPK5fJsMs` e frontend `dpl_J1FSmCCTpaBR5D4HyFChjjUJodTB` publicados e READY. Sem migração ou reescrita do acervo. Nova chave Books API configurada privadamente no backend de produção e validada com HTTP 200, sem registrar seu valor.
+
+Backup privado `manual-20261106T164742Z`: 7.620.104 bytes cifrados, SHA-256 `a550485f83dd05509417c9dc55a8ebb60bf29ad961f0590ceffa609fc463c57d`, 238 mídias gerenciadas. Arquivo remoto baixado, hash conferido, descriptografado e restaurado em PostgreSQL descartável antes da publicação.
+
+Além dos 74 testes backend, 14 Vitest e 22 Playwright prévios, o cenário de créditos passou sobre o frontend publicado, usando APIs simuladas. Leitura real confirmou livro 313 com capa Cloudinary e ambos os créditos vazios; procedência interna preservada. Contagens mantidas: 322 livros, 322 exemplares, 1 pessoa, 1 empréstimo e 10 registros de cadastro. Ambas as origens responderam prontidão 200, livros privados 401 e Swagger 403 sem autenticação. Servidores locais nas portas 8000/5173 disponíveis. Actions e backup diário continuam pausados; publicação manual com backup permanece vigente.
