@@ -6,8 +6,10 @@ Architecture: bounded page_size (1–100; legacy default 24) and clamped page in
 - [x] RED/GREEN API tests: variable size, bounds, partial/empty/end clamping, stable ordered slices.
 - [x] RED/GREEN pure functions: page windows, range, containing-page recalculation, preference validation/isolation, URL roundtrip.
 - [x] Implement rows/list controls and pagination with native links, current-page semantics, keyboard support, mobile layout and result range. Remove hardcoded frontend page size. Preserve query/order and browser history.
-- [ ] Browser proof: page jumps/back/forward/detail return, resize/density/card/list sizing, persistence, filters/deletion clamping, mobile bounds; review, local gates and backup/manual release.
+- [x] Browser proof: page jumps/back/forward/detail return, resize/density/card/list sizing, persistence, filters/deletion clamping, mobile bounds; review, local gates and backup/manual release.
 
 Additional requests recorded for next iteration (not part of this implementation): save/cancel at top as well as bottom or top-only; toast at top right or centered; cover click opens cover editing. Cover click is feasible and should use an accessible button, same edit/upload flow and unsaved preview, with no implicit save. Existing UI remains until that follow-up.
 
 Review found no important defects. Validation: 79 backend, 21 Vitest, 27 Playwright; Ruff/mypy/Django/schema/types/build passed. Backup manual-20261106T181915Z downloaded and restored, 248 managed media. Additional requests remain explicitly in docs/backlog.md.
+
+Release: PR17 source90af72072852ac006a2c00e5238786c1d3059638, final frontend contrast patch PR18 sourced628489058ded0494d91becfdf82416708f3c640. Global header nav color leaked into page links; measured light contrast1.41 RED, scoped var(--ink) correction GREEN and reviewed. Three further browser journeys passed on production frontend with mocked APIs, including contrast, mobile, size preferences and reference-book resize. Real catalog eight page sizes/end clamps checked within transaction-scoped read-only block; writing default remained off afterwards.
