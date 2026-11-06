@@ -240,3 +240,9 @@ Regra confirmada pelo usuário: bloquear exclusão quando houver qualquer histó
 A migração 0007 mantém todos os livros existentes no acervo, com default false também no banco. Referências técnicas de cadastro/importação passam a SET_NULL; recibos e resultados concluídos permanecem e bloqueiam recriação por retry. Fingerprints anteriores ao campo de destino são compatíveis. Aquisição, reclassificação, empréstimo e exclusão usam locks transacionais por biblioteca; empréstimos históricos continuam protegidos. Reversão do esquema faz preflight para não descartar desejados ou recibos.
 
 Validação local: 64 testes backend, 9 Vitest e 17 jornadas Playwright; duas jornadas adicionais focadas em telas de 393/1280 px passaram, incluindo perda de resposta e retry da aquisição sem duplicar exemplar. Ruff, mypy, checks Django/migrações, build/tipos e git diff --check aprovados. Nenhum livro real foi excluído ou movido. Publicação e revisão final registradas no adendo a seguir quando concluídas.
+
+### Publicação pendente por bloqueio externo do GitHub
+
+PR #13: https://github.com/marrcandre/julib/pull/13, implementação no commit `600006d`. A CI https://github.com/marrcandre/julib/actions/runs/42212959255 foi recusada antes de iniciar o job: “The job was not started because your account is locked due to a billing issue.” Não é falha de testes; os checks locais acima passaram. GitGuardian não encontrou segredos. Não houve merge, migração nem deploy em produção. O usuário foi informado para verificar a conta, sem contratação de plano. Após liberação, reexecutar a CI do PR, integrar somente com sucesso e aguardar backup privado/migração/deploy do workflow normal.
+
+QA visual isolada com API simulada também passou: primeira capa em 187 px no celular, sem overflow ou erro JavaScript; desejados omitem filtros físicos e o botão de excluir mostra bloqueio quando há histórico. Servidores locais de desenvolvimento restaurados nas portas 8000/5173.
