@@ -618,3 +618,7 @@ Arquivos de referência:
 - Repositórios Julib público e Julib-backups privado criados.
 - Projeto Supabase Julib criado na organização IFC após aceite explícito, com cotação mensal zero.
 - Contas autorizadas recebidas e configuradas somente no arquivo privado, sem publicá-las no levantamento.
+
+### Prioridade de evolução — 06/11/2026
+
+O usuário decidiu consolidar primeiro o uso da aplicação por Marco e Juliana, antes da abertura para outras pessoas. A sequência recomendada para essa consolidação é melhorar detalhes/edição dos livros e, depois, painel/empréstimos. Múltiplas bibliotecas e convites ficam para uma etapa posterior. O desenho das novas telas e eventuais campos adicionais ainda serão discutidos; essa escolha não aprova automaticamente um layout ou mudança de dados.

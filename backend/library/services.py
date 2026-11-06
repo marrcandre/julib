@@ -79,6 +79,24 @@ def create_book(library: Library, data: dict[str, Any], book_id: int | None = No
     return book
 
 
+def edit_book(library: Library, book_id: int, data: dict[str, Any]) -> Book:
+    from .media import verify_upload
+
+    owned(Book, library, book_id)
+    data = data.copy()
+    public_id = data.pop("cover_public_id", None)
+    # Provider reads happen before acquiring a database lock. The verified attachment
+    # and every bibliographic change are then committed together or not at all.
+    verified = verify_upload(library, public_id) if public_id else None
+    with transaction.atomic():
+        book = owned(Book, library, book_id, lock=True)
+        if verified:
+            data.update(verified)
+        elif data.get("cover_url", "") != book.cover_url:
+            data["cover_id"] = ""
+        return create_book(library, data, book_id)
+
+
 @transaction.atomic
 def add_copy(
     library: Library, book_id: int, location_id: int | None = None, acquired_on: date | None = None

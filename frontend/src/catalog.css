@@ -56,7 +56,8 @@
   color: var(--text);
   font-size: 14px;
 }
-.drawer-navigation a.router-link-exact-active {
+.drawer-navigation a.router-link-exact-active,
+.drawer-navigation a.section-active {
   color: var(--green);
   background: var(--soft);
   border: 0;

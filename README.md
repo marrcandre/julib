@@ -91,3 +91,11 @@ Na página **Livros**, o seletor **Acervo / Desejados** separa os livros possuí
 Nos detalhes de um desejado, **Adicionar ao acervo** pede localização e data de aquisição e cria um exemplar da mesma edição. Para corrigir um cadastro do acervo, **Mover para desejados** remove os exemplares ativos sem histórico após confirmação; exemplares baixados e seus históricos permanecem preservados. Se um exemplar ativo já teve empréstimo, registre sua baixa apropriada antes de mover o livro.
 
 **Excluir definitivamente**, nos detalhes, exige digitar `EXCLUIR` e remove a edição e seus exemplares. Qualquer empréstimo anterior, inclusive devolvido, bloqueia a exclusão. Repetir um cadastro ou lote de importação já concluído não recria um livro excluído. Arquivos de capa não são apagados automaticamente do Cloudinary, para preservar referências compartilhadas; backups seguem a retenção de sete dias.
+
+### Detalhes e edição do livro
+
+Cada livro tem página própria em `/livros/ID`. Os livros no catálogo são links: podem ser abertos em outra aba, favoritados ou recarregados. O acesso continua privado, com login Google e validação da biblioteca. Links antigos com `?livro=ID` redirecionam para a página nova.
+
+A consulta mostra a ficha completa, capa e exemplares em cartões. **Editar livro** permite alterar dados e capa juntos; selecionar um arquivo só cria uma prévia local. **Salvar alterações** envia a imagem e confirma o vínculo com os metadados na mesma transação. Falha de validação mantém o rascunho para correção e não aplica parcialmente a edição. **Cancelar** descarta explicitamente o rascunho; navegar ou fechar a aba com alterações pede confirmação.
+
+Localização e data de aquisição são editadas no exemplar, separadamente da edição bibliográfica. Histórico informa inclusive quando não há empréstimos. Baixa, reativação, aquisição de desejado e exclusão protegida continuam disponíveis. **Mais ações** reúne mover para desejados e excluir. Voltar ao catálogo preserva busca, filtros, página, visualização e posição na navegação da mesma aba.

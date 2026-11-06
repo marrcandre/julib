@@ -48,9 +48,11 @@ test("update feedback stays compact in a corner and disappears automatically", a
     }),
   );
   await page.goto("/livros");
-  await page.getByRole("button", { name: "Abrir Livro", exact: true }).click();
-  await page.getByRole("button", { name: "Editar dados", exact: true }).click();
-  await page.getByRole("button", { name: "Salvar", exact: true }).click();
+  await page.getByRole("link", { name: "Abrir Livro", exact: true }).click();
+  await page.getByRole("button", { name: "Editar livro", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Salvar alterações", exact: true })
+    .click();
   const toast = page.locator(".p-toast-message");
   await expect(toast).toContainText("Dados atualizados.");
   const box = (await toast.boundingBox())!;
@@ -59,9 +61,11 @@ test("update feedback stays compact in a corner and disappears automatically", a
   expect(box.height).toBeLessThan(90);
   await expect(toast).toHaveCount(0, { timeout: 6000 });
   await page.setViewportSize({ width: 393, height: 852 });
-  await page.getByRole("button", { name: "Abrir Livro", exact: true }).click();
-  await page.getByRole("button", { name: "Editar dados", exact: true }).click();
-  await page.getByRole("button", { name: "Salvar", exact: true }).click();
+
+  await page.getByRole("button", { name: "Editar livro", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Salvar alterações", exact: true })
+    .click();
   await expect(toast).toContainText("Dados atualizados.");
   const mobile = (await toast.boundingBox())!;
   expect(mobile.x).toBeGreaterThanOrEqual(10);

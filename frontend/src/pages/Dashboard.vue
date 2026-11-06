@@ -104,7 +104,7 @@ onMounted(async () => {
     </div>
     <div v-else class="book-grid recent-covers">
       <div v-for="item in data.recent" :key="item.number">
-        <RouterLink :to="'/livros?livro=' + item.book.id"
+        <RouterLink :to="'/livros/' + item.book.id"
           ><BookCard :book="item.book" variant="covers" /></RouterLink
         ><SourceAttribution
           :name="item.book.attribution_name"

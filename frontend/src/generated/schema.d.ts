@@ -683,6 +683,59 @@ export interface components {
             /** Tag Ids */
             tag_ids?: number[];
         };
+        /** BookEditIn */
+        BookEditIn: {
+            /** Page Count */
+            page_count?: number | null;
+            /** Title */
+            title: string;
+            /** Authors */
+            authors: string[];
+            /**
+             * Isbn
+             * @default
+             */
+            isbn: string;
+            /**
+             * Publisher
+             * @default
+             */
+            publisher: string;
+            /**
+             * Edition
+             * @default
+             */
+            edition: string;
+            /**
+             * Year
+             * @default
+             */
+            year: string;
+            /**
+             * Language
+             * @default
+             */
+            language: string;
+            /**
+             * Cover Url
+             * @default
+             */
+            cover_url: string;
+            /**
+             * Source
+             * @default
+             */
+            source: string;
+            /**
+             * Source Id
+             * @default
+             */
+            source_id: string;
+            /** Tag Ids */
+            tag_ids?: number[];
+            /** Cover Public Id */
+            cover_public_id?: string | null;
+        };
         /** CopyIn */
         CopyIn: {
             /** Book Id */
@@ -1132,7 +1185,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["BookIn"];
+                "application/json": components["schemas"]["BookEditIn"];
             };
         };
         responses: {

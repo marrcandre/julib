@@ -117,7 +117,8 @@ nav a {
   font-size: 14px;
   font-weight: 500;
 }
-nav a.router-link-exact-active {
+nav a.router-link-exact-active,
+nav a.section-active {
   border-color: #ffbd59;
   color: #fffaf4;
 }
