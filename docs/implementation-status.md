@@ -226,3 +226,9 @@ PR #11 publicado: CI 42077866683, CI integrado 42078368422 e Deploy 42078669659 
 Confirmações de livros já usavam Toast com vida de 3,5 segundos, mas apareciam centralizadas horizontalmente e com apresentação maior. Ajustado para canto inferior direito, largura máxima 360 px e área segura móvel, tipografia/ícone/espaçamento compactos. Nova confirmação substitui a anterior, evitando acúmulo. Cópia bem-sucedida do PIX também passa a Toast; falha de cópia permanece junto da chave para orientar a ação manual. Avisos de progresso e recuperação continuam persistentes, pois não são confirmações transitórias.
 
 Teste de navegador reproduziu o posicionamento anterior e passou com posição/tamanho/expiração de Dados atualizados no desktop e celular e expiração da confirmação PIX. 9 Vitest e tipos/build aprovados; revisão focada sem achados importantes. Nenhuma mudança de API ou banco.
+
+## Publicação das confirmações temporárias — 06/11/2026
+
+PR #12 integrado: CI 42080469241, CI da main 42080876738 e Deploy 42081189863 aprovados. Teste sobre a interface pública confirmou posição compacta no canto, desaparecimento automático após edição no desktop/celular e confirmação temporária do PIX, com API interceptada e sem gravar na coleção. Nenhuma migração foi necessária.
+
+Usuário solicitou em seguida exclusão definitiva e livros desejados. Proposta em docs/superpowers/specs/2026-11-06-wishlist-deletion-proposal.md; regra para histórico de empréstimos foi perguntada e ainda aguarda resposta. A nova funcionalidade não foi implementada nesta etapa.
