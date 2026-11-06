@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import SourceAttribution from "../components/SourceAttribution.vue";
+import BookCredits from "../components/BookCredits.vue";
 import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import Button from "primevue/button";
@@ -61,10 +61,7 @@ onMounted(load);
   <div v-else-if="!books.length" class="empty">Nenhum livro encontrado.</div>
   <div class="book-grid">
     <div v-for="book in books" :key="book.id">
-      <BookCard :book="book" /><SourceAttribution
-        :name="book.attribution_name"
-        :url="book.attribution_url"
-      />
+      <BookCard :book="book" /><BookCredits :item="book" />
     </div>
   </div>
   <div class="pagination">

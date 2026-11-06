@@ -101,6 +101,8 @@ class CopyOut(Schema):
 
 
 class PublicBookOut(Schema):
+    metadata_attribution_name: str = ""
+    metadata_attribution_url: str = ""
     page_count: int | None = None
     attribution_name: str = ""
     attribution_url: str = ""
@@ -174,6 +176,8 @@ class PersonOut(Schema):
 
 
 class LoanOut(Schema):
+    metadata_attribution_name: str = ""
+    metadata_attribution_url: str = ""
     cover_url: str = ""
     attribution_name: str = ""
     attribution_url: str = ""

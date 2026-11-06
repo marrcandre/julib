@@ -48,7 +48,7 @@ def test_brazilian_isbn_fallback_normalizes_and_matches(monkeypatch, query, isbn
     assert books[0]["page_count"] == 656
     assert calls[0][1]["q"] == "isbn:" + isbn
     assert calls[-1][0] == "https://brasilapi.com.br/api/isbn/v1/" + isbn
-    assert calls[-1][1]["providers"] == "cbl"
+    assert calls[-1][1]["providers"] == "cbl,mercado-editorial"
 
 
 def test_isbn_search_rejects_wrong_editions_and_preserves_text_search(monkeypatch):
@@ -82,7 +82,7 @@ def test_isbn_search_rejects_wrong_editions_and_preserves_text_search(monkeypatc
     assert search_books("9788570550156") == []
     calls.clear()
     assert search_books("Outra edição")[0]["title"] == "Outra edição"
-    assert len(calls) == 1
+    assert len(calls) == 2
 
 
 def test_missing_isbn_is_not_found_and_network_failure_is_honest(monkeypatch):
@@ -111,6 +111,6 @@ def test_brasilapi_attribution_and_google_cover_provenance():
     from library.presentation import cover_attribution
 
     book = Book(title="Livro", source="brasilapi", source_id="9788570550156")
-    assert cover_attribution(book)["attribution_name"] == "BrasilAPI (CBL)"
+    assert cover_attribution(book)["attribution_name"] == ""
     book.cover_url = "https://books.google.com/books/content?id=test&img=1"
     assert cover_attribution(book)["attribution_name"] == "Google Books"

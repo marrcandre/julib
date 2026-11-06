@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("Brazilian ISBN results show provenance and preserve edition data", async ({
+test("Brazilian ISBN results omit optional branding and preserve edition data", async ({
   page,
 }) => {
   let query = "";
@@ -48,12 +48,12 @@ test("Brazilian ISBN results show provenance and preserve edition data", async (
       .click();
     await expect(
       dialog.getByRole("link", { name: "Fonte: BrasilAPI (CBL)" }),
-    ).toBeVisible();
+    ).not.toBeVisible();
     await dialog.getByRole("button", { name: new RegExp(isbn) }).click();
     await expect(dialog.getByLabel("ISBN", { exact: true })).toHaveValue(isbn);
     await expect(
       dialog.getByRole("link", { name: "Fonte: BrasilAPI (CBL)" }),
-    ).toBeVisible();
+    ).not.toBeVisible();
     if (isbn === "9786583581112")
       await expect(
         dialog.getByRole("spinbutton", { name: "Número de páginas" }),

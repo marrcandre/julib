@@ -5,7 +5,13 @@ const props = withDefaults(
   defineProps<{
     book: Omit<
       Book,
-      "copies" | "source" | "source_id" | "is_desired" | "can_delete"
+      | "copies"
+      | "source"
+      | "source_id"
+      | "is_desired"
+      | "can_delete"
+      | "metadata_attribution_name"
+      | "metadata_attribution_url"
     > & { copies?: Copy[]; is_desired?: boolean };
     variant?: "cards" | "covers" | "list";
   }>(),

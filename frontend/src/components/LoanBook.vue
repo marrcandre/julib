@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import type { Loan } from "../api";
-import SourceAttribution from "./SourceAttribution.vue";
+import BookCredits from "./BookCredits.vue";
 const props = defineProps<{ loan: Loan }>();
 const failed = ref(false);
 watch(
@@ -30,10 +30,7 @@ watch(
     <div class="loan-book-info">
       <b>{{ loan.title }}</b>
       <slot />
-      <SourceAttribution
-        :name="loan.attribution_name"
-        :url="loan.attribution_url"
-      />
+      <BookCredits :item="loan" />
     </div>
   </div>
 </template>
