@@ -1,32 +1,56 @@
+import {
+  situationOptions,
+  defaultSituations,
+  validOrder,
+  type Situation,
+  type CatalogOrder,
+} from "./catalog-options";
 import type { LocationQuery, LocationQueryRaw } from "vue-router";
 export type CatalogState = {
   q: string;
   tag: number | null;
   location: number | null;
-  available: boolean | null;
+  statuses: Situation[];
+  order: CatalogOrder;
   missing: boolean;
   page: number;
-  scope: "collection" | "wishlist";
 };
 const one = (v: LocationQuery[string]) => (Array.isArray(v) ? v[0] : v);
 const id = (v: LocationQuery[string]) => {
   const n = Number(one(v));
   return Number.isSafeInteger(n) && n > 0 ? n : null;
 };
-export function readCatalogQuery(query: LocationQuery): CatalogState {
+export function readCatalogQuery(
+  query: LocationQuery,
+  fallback: CatalogOrder = "newest",
+): CatalogState {
   return {
     q: one(query.q) || "",
     tag: id(query.tag),
     location: id(query.local),
-    available:
-      one(query.disponivel) === "true"
-        ? true
-        : one(query.disponivel) === "false"
-          ? false
-          : null,
+    statuses:
+      query.situacao !== undefined
+        ? one(query.situacao) === "todos"
+          ? []
+          : (() => {
+              const values = (one(query.situacao) || "").split(",");
+              const selected = situationOptions
+                .filter((o) => values.includes(o.value))
+                .map((o) => o.value);
+              return selected.length ? selected : [...defaultSituations];
+            })()
+        : one(query.lista) === "desejados"
+          ? ["wishlist"]
+          : one(query.disponivel) === "true"
+            ? ["available"]
+            : one(query.disponivel) === "false"
+              ? ["loaned", "lost"]
+              : [...defaultSituations],
+    order: validOrder(one(query.ordem))
+      ? (one(query.ordem) as CatalogOrder)
+      : fallback,
     missing: one(query.sem_local) === "true",
     page: id(query.pagina) || 1,
-    scope: one(query.lista) === "desejados" ? "wishlist" : "collection",
   };
 }
 export function catalogQuery(s: CatalogState): LocationQueryRaw {
@@ -34,10 +58,10 @@ export function catalogQuery(s: CatalogState): LocationQueryRaw {
     q: s.q || undefined,
     tag: s.tag || undefined,
     local: s.location || undefined,
-    disponivel: s.available === null ? undefined : String(s.available),
+    situacao: s.statuses.length ? s.statuses.join(",") : "todos",
+    ordem: s.order,
     sem_local: s.missing ? "true" : undefined,
     pagina: s.page > 1 ? s.page : undefined,
-    lista: s.scope === "wishlist" ? "desejados" : undefined,
   };
 }
 export function safeCatalogReturn(value: LocationQuery[string]): string {

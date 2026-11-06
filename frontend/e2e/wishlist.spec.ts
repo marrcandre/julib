@@ -11,7 +11,7 @@ for (const width of [393, 1280])
       JSON.parse(readFileSync("../.superpowers/e2e-session.json", "utf-8")),
     ]);
     await page.goto("/livros");
-    await page.getByLabel("Coleção exibida").selectOption("wishlist");
+    await page.goto("/livros?situacao=wishlist");
     await page
       .getByRole("button", { name: "Adicionar livro", exact: true })
       .click();
@@ -58,8 +58,8 @@ for (const width of [393, 1280])
     await page
       .getByRole("link", { name: "Voltar ao catálogo", exact: true })
       .click();
-    await page.getByLabel("Coleção exibida").selectOption("collection");
-    await page.getByLabel("Buscar no acervo").fill(title);
+    await page.goto("/livros?situacao=available,loaned");
+    await page.getByLabel("Buscar livros").fill(title);
     await expect(open).toBeVisible();
     await page.screenshot({
       path: `../.superpowers/wishlist-catalog-${width}.png`,
@@ -90,7 +90,7 @@ for (const width of [393, 1280])
     await page
       .getByRole("link", { name: "Voltar ao catálogo", exact: true })
       .click();
-    await page.getByLabel("Coleção exibida").selectOption("wishlist");
+    await page.goto("/livros?situacao=wishlist");
     await open.click();
     await page
       .getByRole("button", { name: "Mais ações do livro", exact: true })

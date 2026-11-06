@@ -5,6 +5,13 @@ import Button from "primevue/button";
 import Dialog from "primevue/dialog";
 import Menu from "primevue/menu";
 import Select from "primevue/select";
+import {
+  situationOptions,
+  defaultSituations,
+  orderOptions,
+  type Situation,
+  type CatalogOrder,
+} from "../catalog-options";
 import InputText from "primevue/inputtext";
 import { locationLabel, type Tag, type Location } from "../api";
 
@@ -12,11 +19,11 @@ export type CatalogView = "covers" | "cards" | "list";
 export type CatalogFilters = {
   tag: number | null;
   location: number | null;
-  available: boolean | null;
+  statuses: Situation[];
   missingLocation: boolean;
 };
 const props = defineProps<{
-  scope: "collection" | "wishlist";
+  order: CatalogOrder;
   query: string;
   total: number;
   tags: Tag[];
@@ -27,7 +34,7 @@ const props = defineProps<{
   densitySaved: boolean;
 }>();
 const emit = defineEmits<{
-  "update:scope": [value: "collection" | "wishlist"];
+  "update:order": [value: CatalogOrder];
   "update:query": [value: string];
   "update:view": [value: CatalogView];
   "update:columns": [value: number];
@@ -48,11 +55,12 @@ const addMenu = ref<InstanceType<typeof Menu>>(),
   moreMenu = ref<InstanceType<typeof Menu>>();
 const filterOpen = ref(false),
   viewOpen = ref(false),
+  orderOpen = ref(false),
   searchContainer = ref<HTMLDivElement>();
 const emptyFilters = (): CatalogFilters => ({
   tag: null,
   location: null,
-  available: null,
+  statuses: [...defaultSituations],
   missingLocation: false,
 });
 const draft = ref(emptyFilters());
@@ -106,9 +114,16 @@ const chips = computed(() =>
       active: props.filters.location !== null,
     },
     {
-      key: "available" as const,
-      label: props.filters.available ? "Disponíveis" : "Indisponíveis",
-      active: props.filters.available !== null,
+      key: "statuses" as const,
+      label: props.filters.statuses.length
+        ? situationOptions
+            .filter((o) => props.filters.statuses.includes(o.value))
+            .map((o) => o.label)
+            .join(" / ")
+        : "Todas as situações",
+      active:
+        JSON.stringify(props.filters.statuses) !==
+        JSON.stringify(defaultSituations),
     },
     {
       key: "missingLocation" as const,
@@ -128,7 +143,12 @@ function applyFilters() {
 function removeFilter(key: keyof CatalogFilters) {
   emit("filters", {
     ...props.filters,
-    [key]: key === "missingLocation" ? false : null,
+    [key]:
+      key === "missingLocation"
+        ? false
+        : key === "statuses"
+          ? [...defaultSituations]
+          : null,
   });
 }
 function clearSearch() {
@@ -141,23 +161,7 @@ function columnsChanged(event: Event) {
 </script>
 <template>
   <div class="catalog-heading">
-    <h1 class="catalog-scope-heading">
-      <select
-        :value="scope"
-        aria-label="Coleção exibida"
-        @change="
-          emit(
-            'update:scope',
-            ($event.target as HTMLSelectElement).value as
-              | 'collection'
-              | 'wishlist',
-          )
-        "
-      >
-        <option value="collection">Acervo</option>
-        <option value="wishlist">Desejados</option>
-      </select>
-    </h1>
+    <h1 class="catalog-scope-heading">Livros</h1>
     <span
       class="catalog-count"
       role="status"
@@ -195,9 +199,7 @@ function columnsChanged(event: Event) {
         :model-value="query"
         @update:model-value="emit('update:query', $event || '')"
         placeholder="Título, autor ou ISBN"
-        :aria-label="
-          scope === 'wishlist' ? 'Buscar nos desejados' : 'Buscar no acervo'
-        "
+        aria-label="Buscar livros"
       />
       <button
         v-if="query"
@@ -225,6 +227,17 @@ function columnsChanged(event: Event) {
       ><span v-if="chips.length" class="catalog-filter-count">{{
         chips.length
       }}</span></Button
+    >
+    <Button
+      aria-label="Ordenar livros"
+      :title="orderOptions.find((o) => o.value === order)?.label"
+      outlined
+      class="catalog-tool"
+      @click="orderOpen = true"
+      ><i class="pi pi-sort-alt" aria-hidden="true" /><span
+        class="catalog-tool-label"
+        >Ordenar</span
+      ></Button
     >
     <Button
       aria-label="Visualização dos livros"
@@ -279,7 +292,7 @@ function columnsChanged(event: Event) {
           show-clear
           aria-label="Filtrar por tag"
       /></label>
-      <label v-if="scope === 'collection'"
+      <label
         >Localização<Select
           v-model="draft.location"
           :options="
@@ -294,20 +307,22 @@ function columnsChanged(event: Event) {
           show-clear
           aria-label="Filtrar por local"
       /></label>
-      <label v-if="scope === 'collection'"
-        >Disponibilidade<Select
-          v-model="draft.available"
-          :options="[
-            { name: 'Disponíveis', value: true },
-            { name: 'Indisponíveis', value: false },
-          ]"
-          option-label="name"
-          option-value="value"
-          placeholder="Todos os livros"
-          show-clear
-          aria-label="Disponibilidade"
-      /></label>
-      <label v-if="scope === 'collection'" class="catalog-checkbox"
+      <fieldset class="catalog-situations">
+        <legend>Situação</legend>
+        <label
+          v-for="option in situationOptions"
+          :key="option.value"
+          class="catalog-checkbox"
+        >
+          <input
+            type="checkbox"
+            v-model="draft.statuses"
+            :value="option.value"
+          />{{ option.label }}
+        </label>
+        <small class="muted">Sem seleção, mostrar todas as situações.</small>
+      </fieldset>
+      <label class="catalog-checkbox"
         ><input type="checkbox" v-model="draft.missingLocation" />Sem
         localização</label
       >
@@ -319,6 +334,30 @@ function columnsChanged(event: Event) {
         /><Button type="submit" label="Aplicar filtros" class="primary" />
       </div>
     </form>
+  </Dialog>
+  <Dialog
+    v-model:visible="orderOpen"
+    modal
+    header="Ordenação"
+    :position="mobile ? 'bottom' : 'topright'"
+    class="catalog-view-dialog"
+  >
+    <label class="fields"
+      >Ordenar livros<Select
+        :model-value="order"
+        :options="[...orderOptions]"
+        option-label="label"
+        option-value="value"
+        aria-label="Ordenação dos livros"
+        @update:model-value="
+          emit('update:order', $event);
+          orderOpen = false;
+        "
+    /></label>
+    <p class="muted">
+      Aquisição considera o exemplar adquirido mais recentemente. Livros sem
+      essa informação ficam no final.
+    </p>
   </Dialog>
   <Dialog
     v-model:visible="viewOpen"
