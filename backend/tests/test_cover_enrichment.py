@@ -1,3 +1,5 @@
+from io import StringIO
+
 import httpx
 import pytest
 from django.core.management import call_command
@@ -109,3 +111,262 @@ def test_cover_redirect_cannot_fetch_an_untrusted_destination():
     with httpx.Client(transport=httpx.MockTransport(handler)) as client:
         assert usable(client, GOOGLE_COVER) == ""
     assert hosts == ["books.google.com"]
+
+
+def test_bulk_enrichment_defaults_to_preview_without_saving(monkeypatch):
+    from library import providers
+
+    lib = Library.objects.create(name="Casa")
+    book = Book.objects.create(
+        library=lib,
+        title="Livro",
+        authors=["Autora"],
+        isbn=ISBN,
+        source="goodreads",
+        source_id="g-123",
+    )
+    monkeypatch.setattr(
+        providers,
+        "enrich_book",
+        lambda data: {
+            **data,
+            "page_count": 280,
+            "cover_url": GOOGLE_COVER,
+            "provenance": {
+                "page_count": {"source": "google", "source_id": "g-123"},
+                "cover_url": {
+                    "source": "openlibrary",
+                    "source_id": "ol-123",
+                    "url": GOOGLE_COVER,
+                },
+            },
+        },
+    )
+    output = StringIO()
+
+    call_command("enrich_books", library=lib.pk, delay=0, stdout=output)
+
+    book.refresh_from_db()
+    assert book.page_count is None
+    assert book.cover_url == ""
+    assert book.provenance == {}
+    assert "Prévia" in output.getvalue()
+    assert "páginas, capa" in output.getvalue()
+
+
+def test_bulk_enrichment_apply_fills_only_blank_fields_and_merges_provenance(monkeypatch):
+    from library import providers
+
+    lib = Library.objects.create(name="Casa")
+    book = Book.objects.create(
+        library=lib,
+        title="Título manual",
+        authors=["Autora manual"],
+        isbn=ISBN,
+        publisher="Editora manual",
+        page_count=400,
+        cover_url="https://res.cloudinary.com/julib/manual.jpg",
+        cover_id="julib/manual",
+        source="goodreads",
+        source_id="g-123",
+        provenance={"publisher": {"source": "manual"}},
+    )
+    other = Book.objects.create(
+        library=Library.objects.create(name="Outra"),
+        title="Outro livro",
+        authors=["Autor"],
+        isbn="9780306406157",
+    )
+    calls = []
+
+    def enrich(data):
+        calls.append(data["isbn"])
+        return {
+            **data,
+            "publisher": "Editora API",
+            "year": "2001",
+            "page_count": 999,
+            "cover_url": GOOGLE_COVER,
+            "provenance": {
+                "publisher": {"source": "google"},
+                "year": {"source": "google", "source_id": "g"},
+                "page_count": {"source": "google", "source_id": "g"},
+                "cover_url": {"source": "google", "source_id": "g", "url": GOOGLE_COVER},
+            },
+        }
+
+    monkeypatch.setattr(providers, "enrich_book", enrich)
+
+    call_command("enrich_books", library=lib.pk, delay=0, apply=True, stdout=StringIO())
+
+    book.refresh_from_db()
+    other.refresh_from_db()
+    assert (book.title, book.authors, book.publisher, book.page_count) == (
+        "Título manual",
+        ["Autora manual"],
+        "Editora manual",
+        400,
+    )
+    assert book.year == "2001"
+    assert book.cover_url == "https://res.cloudinary.com/julib/manual.jpg"
+    assert book.cover_id == "julib/manual"
+    assert book.source == "goodreads" and book.source_id == "g-123"
+    assert book.provenance == {
+        "publisher": {"source": "manual"},
+        "year": {"source": "google", "source_id": "g"},
+    }
+    assert calls == [ISBN]
+    assert other.year == "" and other.page_count is None
+
+
+def test_bulk_enrichment_rechecks_fields_after_provider_lookup(monkeypatch):
+    from library import providers
+
+    lib = Library.objects.create(name="Casa")
+    book = Book.objects.create(
+        library=lib,
+        title="Livro",
+        authors=["Autora"],
+        isbn=ISBN,
+        source="goodreads",
+        source_id="g-123",
+    )
+
+    def concurrent_edit(data):
+        Book.objects.filter(pk=book.pk).update(page_count=310)
+        return {**data, "page_count": 280}
+
+    monkeypatch.setattr(providers, "enrich_book", concurrent_edit)
+
+    call_command("enrich_books", library=lib.pk, delay=0, apply=True, stdout=StringIO())
+
+    book.refresh_from_db()
+    assert book.page_count == 310
+
+
+def test_bulk_enrichment_does_not_refill_a_field_that_was_not_missing_at_start(monkeypatch):
+    from library import providers
+
+    lib = Library.objects.create(name="Casa")
+    book = Book.objects.create(
+        library=lib,
+        title="Livro",
+        authors=["Autora"],
+        isbn=ISBN,
+        publisher="Editora cadastrada",
+    )
+
+    def concurrent_edit(data):
+        Book.objects.filter(pk=book.pk).update(publisher="")
+        return {**data, "publisher": "Editora cadastrada", "page_count": 280}
+
+    monkeypatch.setattr(providers, "enrich_book", concurrent_edit)
+
+    call_command("enrich_books", library=lib.pk, delay=0, apply=True, stdout=StringIO())
+
+    book.refresh_from_db()
+    assert book.publisher == ""
+    assert book.page_count == 280
+
+
+def test_bulk_enrichment_skips_books_without_a_valid_isbn(monkeypatch):
+    from library import providers
+
+    lib = Library.objects.create(name="Casa")
+    no_isbn = Book.objects.create(library=lib, title="Sem ISBN", authors=["Autora"])
+    bad_isbn = Book.objects.create(
+        library=lib, title="ISBN inválido", authors=["Autor"], isbn="9780000000000"
+    )
+    calls = []
+    monkeypatch.setattr(providers, "enrich_book", lambda data: calls.append(data) or data)
+    output = StringIO()
+
+    call_command("enrich_books", library=lib.pk, delay=0, apply=True, stdout=output)
+
+    no_isbn.refresh_from_db()
+    bad_isbn.refresh_from_db()
+    assert calls == []
+    assert no_isbn.provenance == {} and bad_isbn.provenance == {}
+    assert "ISBN inválido ou ausente" in output.getvalue()
+
+
+def test_bulk_enrichment_leaves_book_unchanged_when_sources_return_no_new_fields(monkeypatch):
+    from library import providers
+
+    lib = Library.objects.create(name="Casa")
+    book = Book.objects.create(
+        library=lib,
+        title="Livro",
+        authors=["Autora"],
+        isbn=ISBN,
+        source="goodreads",
+        source_id="g-123",
+    )
+    monkeypatch.setattr(providers, "enrich_book", lambda data: data)
+
+    call_command("enrich_books", library=lib.pk, delay=0, apply=True, stdout=StringIO())
+
+    book.refresh_from_db()
+    assert book.page_count is None
+    assert book.cover_url == ""
+    assert book.provenance == {}
+
+
+def test_bulk_enrichment_is_resumable_after_fields_are_filled(monkeypatch):
+    from library import providers
+
+    lib = Library.objects.create(name="Casa")
+    book = Book.objects.create(
+        library=lib,
+        title="Livro",
+        authors=["Autora"],
+        isbn=ISBN,
+        publisher="Editora",
+        edition="1ª edição",
+        year="2000",
+        language="pt",
+        cover_url=GOOGLE_COVER,
+    )
+    calls = []
+
+    def enrich(data):
+        calls.append(data["isbn"])
+        return {**data, "page_count": 280}
+
+    monkeypatch.setattr(providers, "enrich_book", enrich)
+    call_command("enrich_books", library=lib.pk, delay=0, apply=True, stdout=StringIO())
+    call_command("enrich_books", library=lib.pk, delay=0, apply=True, stdout=StringIO())
+
+    book.refresh_from_db()
+    assert book.page_count == 280
+    assert calls == [ISBN]
+
+
+def test_bulk_enrichment_limit_counts_valid_isbn_books_not_skipped_records(monkeypatch):
+    from library import providers
+
+    lib = Library.objects.create(name="Casa")
+    Book.objects.create(library=lib, title="Sem ISBN", authors=["Autora"])
+    valid = Book.objects.create(
+        library=lib,
+        title="Livro com ISBN",
+        authors=["Autora"],
+        isbn=ISBN,
+        publisher="Editora",
+        edition="1ª edição",
+        year="2000",
+        language="pt",
+        cover_url=GOOGLE_COVER,
+    )
+    calls = []
+    monkeypatch.setattr(
+        providers,
+        "enrich_book",
+        lambda data: calls.append(data["isbn"]) or {**data, "page_count": 280},
+    )
+
+    call_command("enrich_books", library=lib.pk, limit=1, delay=0, stdout=StringIO())
+
+    valid.refresh_from_db()
+    assert calls == [ISBN]
+    assert valid.page_count is None

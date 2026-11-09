@@ -106,6 +106,10 @@ Registre tamanho, hora da última cópia e resultado do teste. Ative notificaç�
 
 Configure GOOGLE_BOOKS_API_KEY apenas no backend, com chave restrita à Books API (sem habilitar faturamento). Execute `uv run --project backend python backend/manage.py enrich_covers --library ID`, com ambiente do banco correto. O comando é retomável: só processa capas ausentes, verifica imagem e limita frequência. Não muda a identidade Goodreads nem outras bibliotecas. Sem correspondência segura, o livro continua sem capa para revisão. URLs externas permanecem nas fontes, com atribuição na interface.
 
+## Reprocessar campos ausentes dos livros
+
+Use `uv run --project backend python backend/manage.py enrich_books --library ID` para consultar livros com campos ausentes. O padrão é somente prévia e informa os campos que poderiam ser preenchidos. Para gravar, acrescente `--apply`; faça antes e valide uma cópia de segurança criptografada recente. O comando consulta somente ISBNs válidos, limita-se à biblioteca informada e só grava cada campo se continuar vazio depois da consulta. Mantém capas existentes (incluindo Cloudinary), demais dados, origem original do cadastro, exemplares e empréstimos. Livros sem ISBN válido ou sem correspondência exata são ignorados. A execução pode ser repetida; `--limit` limita o lote e `--delay` controla o intervalo entre consultas.
+
 ## Monitoramento UptimeRobot e prontidão do banco
 
 Monitor HTTP(S): `https://julib.vercel.app/api/v1/health/ready`, intervalo de cinco minutos. GET e HEAD executam a mesma consulta real e somente leitura no PostgreSQL, retornando 200 quando o banco pode ser consultado e 503 genérico quando indisponível. Nenhuma credencial ou informação da biblioteca é devolvida; não precisa configurar autenticação no monitor. Cache-Control é no-store, private.
