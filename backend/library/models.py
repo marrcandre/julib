@@ -87,6 +87,7 @@ class Tag(Owned):
 
 
 class Book(Owned):
+    provenance = models.JSONField(default=dict, db_default={}, blank=True)
     is_desired = models.BooleanField(default=False, db_default=False)
     title = models.CharField(max_length=300)
     authors = models.JSONField(default=list)

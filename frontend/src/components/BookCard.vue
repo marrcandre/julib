@@ -5,6 +5,7 @@ const props = withDefaults(
   defineProps<{
     book: Omit<
       Book,
+      | "provenance"
       | "copies"
       | "source"
       | "source_id"

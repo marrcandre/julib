@@ -130,6 +130,8 @@ watch(catalogView, (view) => {
 });
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 let loadVersion = 0;
+let selectionVersion = 0;
+const enriching = ref(false);
 const pendingRegistration = ref<Record<string, unknown> | null>(null);
 const operationKey = ref(crypto.randomUUID());
 const router = useRouter();
@@ -183,7 +185,11 @@ watch(message, (value) => {
   if (!value) return;
   toast.removeAllGroups();
   toast.add({
-    severity: value.startsWith("Nenhum") ? "info" : "success",
+    severity: value.startsWith("Não foi possível complementar")
+      ? "warn"
+      : value.startsWith("Nenhum")
+        ? "info"
+        : "success",
     summary: value,
     life: 3500,
   });
@@ -245,11 +251,15 @@ const blank = () => ({
   page_count: null as number | null,
   language: "",
   cover_url: "",
+  provenance: {} as Book["provenance"],
+  metadata_attribution_name: "",
+  metadata_attribution_url: "",
+  attribution_name: "",
+  attribution_url: "",
   source: "",
   source_id: "",
   tag_ids: [] as number[],
 });
-const formAttribution = ref({ name: "", url: "" });
 const form = ref(blank()),
   newTag = ref(""),
   shareUrl = ref("");
@@ -405,11 +415,12 @@ async function refresh() {
   await run(load);
 }
 function newBook() {
+  ++selectionVersion;
+  enriching.value = false;
   pendingRegistration.value = null;
   operationKey.value = crypto.randomUUID();
   registrationTarget.value = scope.value;
   form.value = blank();
-  formAttribution.value = { name: "", url: "" };
   candidates.value = [];
   formOpen.value = true;
 }
@@ -428,16 +439,7 @@ async function find() {
     searching.value = false;
   }
 }
-function useCandidate(candidate: Partial<Book>) {
-  formAttribution.value =
-    candidate.source === "google"
-      ? {
-          name: "Google Books",
-          url:
-            "https://books.google.com/books?id=" +
-            encodeURIComponent(candidate.source_id || ""),
-        }
-      : { name: "", url: "" };
+async function useCandidate(candidate: Partial<Book>) {
   form.value = {
     ...blank(),
     ...candidate,
@@ -447,8 +449,42 @@ function useCandidate(candidate: Partial<Book>) {
     tag_ids: [],
   };
   candidates.value = [];
+  const key = operationKey.value;
+  const snapshot = JSON.stringify(form.value);
+  const version = ++selectionVersion;
+  enriching.value = true;
+  try {
+    const enriched = await post<Partial<Book>>("/search/enrich", {
+      ...form.value,
+      authors: (candidate.authors || []).filter(Boolean),
+    });
+    if (
+      formOpen.value &&
+      key === operationKey.value &&
+      version === selectionVersion &&
+      JSON.stringify(form.value) === snapshot
+    ) {
+      form.value = {
+        ...form.value,
+        ...enriched,
+        authors: (enriched.authors || candidate.authors || []).join("; "),
+        provenance: enriched.provenance || form.value.provenance,
+      };
+    }
+  } catch {
+    if (
+      version === selectionVersion &&
+      formOpen.value &&
+      key === operationKey.value
+    )
+      message.value =
+        "Não foi possível complementar os dados. Confira o cadastro antes de salvar.";
+  } finally {
+    if (version === selectionVersion) enriching.value = false;
+  }
 }
 async function save() {
+  if (enriching.value) return;
   await run(async () => {
     const payload = {
       ...form.value,
@@ -698,10 +734,24 @@ onUnmounted(() => {
           "
         >
           <BookCard :book="book" :variant="catalogView" /></RouterLink
-        ><BookCredits :item="book" />
+        ><BookCredits :item="book" compact />
       </div>
     </div>
   </section>
+  <div
+    v-if="
+      books.some(
+        (book) => book.metadata_attribution_url || book.attribution_url,
+      )
+    "
+    class="catalog-google-credit"
+  >
+    <SourceAttribution
+      name="Google Books"
+      url="https://books.google.com/"
+      compact
+    />
+  </div>
   <CatalogPagination
     :page="page"
     :page-size="pageSize"
@@ -904,11 +954,10 @@ onUnmounted(() => {
         />
         <figcaption class="muted">Capa atual</figcaption>
       </figure>
-      <SourceAttribution
-        kind="metadata"
-        :name="formAttribution.name"
-        :url="formAttribution.url"
-      />
+      <p v-if="enriching" role="status" class="muted">
+        Complementando dados e procurando capa…
+      </p>
+      <BookCredits :item="form" />
       <label>Título *<InputText v-model="form.title" required /></label
       ><label
         >Autores * (separe por ponto e vírgula)<InputText
@@ -984,7 +1033,8 @@ onUnmounted(() => {
         type="submit"
         :label="camera ? 'Salvar e continuar' : 'Salvar'"
         class="primary"
-        :loading="busy"
+        :loading="busy || enriching"
+        :disabled="enriching"
       /></form
   ></Dialog>
 </template>

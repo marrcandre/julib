@@ -12,6 +12,7 @@ import Dialog from "primevue/dialog";
 import Select from "primevue/select";
 import InputText from "primevue/inputtext";
 import { useToast } from "primevue/usetoast";
+import BookSources from "../components/BookSources.vue";
 import BookEditor from "../components/BookEditor.vue";
 import SourceAttribution from "../components/SourceAttribution.vue";
 import {
@@ -437,6 +438,7 @@ const facts = computed(() =>
           />
         </section>
       </div>
+      <BookSources :book="book" />
       <section v-if="book.is_desired" class="book-detail-section">
         <div class="book-wish-notice">
           <div>

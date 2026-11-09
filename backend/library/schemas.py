@@ -6,7 +6,15 @@ from ninja import Schema
 from pydantic import Field
 
 
+class ProvenanceEntry(Schema):
+    alternatives: list[str] = Field(default_factory=list, max_length=4)
+    source: str = Field(max_length=40)
+    source_id: str = Field(default="", max_length=300)
+    url: str = Field(default="", max_length=1000)
+
+
 class BookIn(Schema):
+    provenance: dict[str, ProvenanceEntry] = Field(default_factory=dict, max_length=12)
     page_count: int | None = Field(default=None, ge=1, le=2147483647)
     title: str = Field(min_length=1, max_length=300)
     authors: list[str] = Field(min_length=1)
@@ -120,6 +128,7 @@ class PublicBookOut(Schema):
 
 
 class BookOut(PublicBookOut):
+    provenance: dict[str, ProvenanceEntry] = Field(default_factory=dict)
     is_desired: bool
     can_delete: bool
     copies: list[CopyOut]

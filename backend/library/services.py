@@ -51,6 +51,19 @@ def owned(model: Any, library: Library, pk: int, *, lock: bool = False) -> Any:
 @transaction.atomic
 def create_book(library: Library, data: dict[str, Any], book_id: int | None = None) -> Book:
     data = data.copy()
+    if data.get("provenance") is None:
+        data.pop("provenance", None)
+    if not set(data.get("provenance", {})) <= {
+        "title",
+        "authors",
+        "publisher",
+        "year",
+        "language",
+        "page_count",
+        "edition",
+        "cover_url",
+    }:
+        raise ValidationError("Origem de dados inválida.")
     tags = data.pop("tag_ids", None)
     if (
         not data.get("title", "").strip()
@@ -89,11 +102,26 @@ def edit_book(library: Library, book_id: int, data: dict[str, Any]) -> Book:
     # and every bibliographic change are then committed together or not at all.
     verified = verify_upload(library, public_id) if public_id else None
     with transaction.atomic():
+        import copy
+
         book = owned(Book, library, book_id, lock=True)
+        origins = copy.deepcopy(book.provenance)
+        for field in ("title", "authors", "publisher", "year", "language", "page_count", "edition"):
+            if field in data and data[field] != getattr(book, field):
+                origins.pop(field, None)
+        if not data.get("source"):
+            data["source"], data["source_id"] = book.source, book.source_id
         if verified:
             data.update(verified)
+            origins["cover_url"] = {"source": "manual", "source_id": "", "url": data["cover_url"]}
         elif data.get("cover_url", "") != book.cover_url:
             data["cover_id"] = ""
+            origins["cover_url"] = {
+                "source": "manual",
+                "source_id": "",
+                "url": data.get("cover_url", ""),
+            }
+        data["provenance"] = origins
         return create_book(library, data, book_id)
 
 
@@ -156,6 +184,8 @@ def register_copy(library: Library, data: dict[str, Any]) -> dict[str, int | Non
 
     Library.objects.select_for_update().get(pk=library.pk)
     canonical = data.copy()
+    if isinstance(canonical.get("book"), dict) and not canonical["book"].get("provenance"):
+        canonical["book"] = {k: v for k, v in canonical["book"].items() if k != "provenance"}
     target = canonical.pop("target", "collection")
     if target not in {"collection", "wishlist"}:
         raise ValidationError("Destino inválido.")

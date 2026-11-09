@@ -1,12 +1,19 @@
 <script setup lang="ts">
 withDefaults(
-  defineProps<{ name?: string; url?: string; kind?: "cover" | "metadata" }>(),
+  defineProps<{
+    name?: string;
+    url?: string;
+    kind?: "cover" | "metadata";
+    compact?: boolean;
+  }>(),
   { kind: "cover" },
 );
 </script>
 <template>
   <p v-if="name === 'Google Books' && url" class="source-attribution">
-    <span>{{ kind === "metadata" ? "Dados bibliográficos:" : "Capa:" }}</span>
+    <span v-if="!compact">{{
+      kind === "metadata" ? "Dados bibliográficos:" : "Capa:"
+    }}</span>
     <a
       :href="url"
       :aria-label="

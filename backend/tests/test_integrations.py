@@ -49,6 +49,6 @@ def test_provider_timeout_is_honest(monkeypatch):
     def timeout(*args, **kwargs):
         raise httpx.ReadTimeout("slow")
 
-    monkeypatch.setattr(httpx, "get", timeout)
+    monkeypatch.setattr("library.providers.bounded_get", timeout)
     with pytest.raises(ValidationError):
         search_books("O Hobbit")
