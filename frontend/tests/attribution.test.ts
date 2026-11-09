@@ -41,3 +41,22 @@ it("credits a Google image independently when metadata has another origin", () =
     "Fonte da capa: Google Books",
   );
 });
+
+it("catalog credits keep only compact deduplicated links without repeated labels", () => {
+  const w = mount(BookCredits, {
+    props: {
+      compact: true,
+      item: {
+        metadata_attribution_name: "Google Books",
+        metadata_attribution_url: "https://books.google.com/books?id=1",
+        attribution_url: "https://books.google.com/books?id=1",
+      },
+    },
+  });
+  expect(w.findAll("a")).toHaveLength(1);
+  expect(w.text()).toBe("↗");
+  expect(w.find("img").exists()).toBe(false);
+  expect(w.find("a").attributes("aria-label")).toBe(
+    "Ver fonte no Google Books",
+  );
+});

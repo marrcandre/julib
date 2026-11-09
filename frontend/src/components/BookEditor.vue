@@ -24,6 +24,7 @@ const form = ref({
   language: props.book.language,
   page_count: props.book.page_count ?? null,
   cover_url: props.book.cover_url,
+  provenance: props.book.provenance || {},
   source: props.book.source,
   source_id: props.book.source_id,
   tag_ids: props.book.tags.map((t) => t.id),

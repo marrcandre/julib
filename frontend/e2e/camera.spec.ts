@@ -12,7 +12,12 @@ test("camera reads ISBN automatically without saving or overwriting selected dat
   const writes: string[] = [];
   await page.route("**/api/v1/**", (route) => {
     const url = new URL(route.request().url());
-    if (route.request().method() !== "GET") writes.push(url.pathname);
+    // Enrichment accepts a candidate payload but performs no database writes.
+    if (
+      route.request().method() !== "GET" &&
+      !url.pathname.endsWith("/search/enrich")
+    )
+      writes.push(url.pathname);
     let json: unknown = [];
     if (url.pathname.endsWith("/session"))
       json = {

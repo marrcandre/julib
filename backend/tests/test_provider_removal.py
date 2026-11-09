@@ -9,30 +9,9 @@ from library.presentation import cover_attribution, metadata_attribution
 from library.providers import search_books
 
 
-def test_search_and_cover_prefer_independent_sources(monkeypatch):
+def test_separate_legacy_cover_lookup_keeps_safe_sources(monkeypatch):
     monkeypatch.setenv("GOOGLE_BOOKS_API_KEY", "test-key")
     calls = []
-
-    def get(url, **kwargs):
-        calls.append(url)
-        assert "google" not in url
-        return httpx.Response(
-            200,
-            json={
-                "docs": [
-                    {
-                        "key": "/works/OL1W",
-                        "title": "Livro",
-                        "author_name": ["Autor"],
-                        "isbn": ["9780261102217"],
-                    }
-                ]
-            },
-            request=httpx.Request("GET", url),
-        )
-
-    monkeypatch.setattr(httpx, "get", get)
-    assert search_books("9780261102217")[0]["source"] == "openlibrary"
 
     def handler(request):
         calls.append(str(request.url))
@@ -71,7 +50,7 @@ def test_optional_metadata_origin_does_not_label_a_user_cover():
     assert metadata_attribution(google)["metadata_attribution_name"] == "Google Books"
 
 
-def test_google_is_last_metadata_and_cover_fallback(monkeypatch):
+def test_google_is_first_metadata_but_legacy_cover_fallback_is_preserved(monkeypatch):
     calls = []
 
     def get(url, **kwargs):
@@ -79,7 +58,7 @@ def test_google_is_last_metadata_and_cover_fallback(monkeypatch):
         if "openlibrary" in url:
             return httpx.Response(200, json={"docs": []}, request=httpx.Request("GET", url))
         if "brasilapi" in url:
-            assert kwargs["params"]["providers"] == "cbl,mercado-editorial"
+            assert kwargs["params"]["providers"] in {"cbl", "mercado-editorial"}
             return httpx.Response(404, json={}, request=httpx.Request("GET", url))
         return httpx.Response(
             200,
@@ -100,13 +79,9 @@ def test_google_is_last_metadata_and_cover_fallback(monkeypatch):
             request=httpx.Request("GET", url),
         )
 
-    monkeypatch.setattr(httpx, "get", get)
+    monkeypatch.setattr("library.providers.bounded_get", get)
     assert search_books("9780261102217")[0]["source"] == "google"
-    assert ["openlibrary" in calls[0], "brasilapi" in calls[1], "googleapis" in calls[2]] == [
-        True,
-        True,
-        True,
-    ]
+    assert "googleapis" in calls[0]
     hosts = []
 
     def handler(request):
@@ -154,6 +129,8 @@ def test_google_metadata_remains_distinct_from_uploaded_cover():
 @pytest.mark.parametrize("payload", [None, [], {"docs": None}, {"docs": [None]}])
 def test_malformed_openlibrary_response_does_not_block_fallback(monkeypatch, payload):
     def get(url, **kwargs):
+        if "googleapis" in url:
+            return httpx.Response(503, request=httpx.Request("GET", url))
         if "openlibrary" in url:
             return httpx.Response(
                 200,
@@ -168,5 +145,5 @@ def test_malformed_openlibrary_response_does_not_block_fallback(monkeypatch, pay
             request=httpx.Request("GET", url),
         )
 
-    monkeypatch.setattr(httpx, "get", get)
+    monkeypatch.setattr("library.providers.bounded_get", get)
     assert search_books("9780261102217")[0]["source"] == "brasilapi"

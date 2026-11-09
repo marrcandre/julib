@@ -44,8 +44,7 @@ def test_optional_pages_roundtrip_validation_and_public_catalog(client, member):
 
 def test_pages_from_google_and_goodreads(monkeypatch):
     monkeypatch.setattr(
-        httpx,
-        "get",
+        "library.providers.bounded_get",
         lambda *a, **kw: httpx.Response(
             200,
             request=httpx.Request("GET", "https://example.com"),

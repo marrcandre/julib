@@ -352,6 +352,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/search/enrich": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enrich Search */
+        post: operations["library_api_enrich_search"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/sign": {
         parameters: {
             query?: never;
@@ -596,6 +613,10 @@ export interface components {
             tags: components["schemas"]["TagOut"][];
             /** Available */
             available: boolean;
+            /** Provenance */
+            provenance?: {
+                [key: string]: components["schemas"]["ProvenanceEntry"];
+            };
             /** Is Desired */
             is_desired: boolean;
             /** Can Delete */
@@ -635,6 +656,23 @@ export interface components {
             /** On Loan */
             on_loan: boolean;
         };
+        /** ProvenanceEntry */
+        ProvenanceEntry: {
+            /** Alternatives */
+            alternatives?: string[];
+            /** Source */
+            source: string;
+            /**
+             * Source Id
+             * @default
+             */
+            source_id: string;
+            /**
+             * Url
+             * @default
+             */
+            url: string;
+        };
         /** TagOut */
         TagOut: {
             /** Id */
@@ -644,6 +682,10 @@ export interface components {
         };
         /** BookIn */
         BookIn: {
+            /** Provenance */
+            provenance?: {
+                [key: string]: components["schemas"]["ProvenanceEntry"];
+            };
             /** Page Count */
             page_count?: number | null;
             /** Title */
@@ -695,6 +737,10 @@ export interface components {
         };
         /** BookEditIn */
         BookEditIn: {
+            /** Provenance */
+            provenance?: {
+                [key: string]: components["schemas"]["ProvenanceEntry"];
+            };
             /** Page Count */
             page_count?: number | null;
             /** Title */
@@ -1639,6 +1685,28 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    library_api_enrich_search: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookIn"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {

@@ -17,7 +17,7 @@ from . import catalog, circulation, imports, media, providers, services, sharing
 from . import schemas as s
 from .auth import AllowedSession, require_library, technical
 from .models import Book, Copy, ImportSession, Loan, Location, Person, ShareLink, Tag, User
-from .presentation import book_data, loan_data
+from .presentation import book_data, candidate_credits, loan_data
 from .readiness import database_ready
 
 api = NinjaAPI(
@@ -355,7 +355,13 @@ def dashboard(request: HttpRequest) -> dict[str, Any]:
 @api.get("/search")
 def search(request: HttpRequest, q: str) -> list[dict[str, Any]]:
     require_library(request)
-    return providers.search_books(q)
+    return [candidate_credits(result) for result in providers.search_books(q)]
+
+
+@api.post("/search/enrich")
+def enrich_search(request: HttpRequest, payload: s.BookIn) -> dict[str, Any]:
+    require_library(request)
+    return candidate_credits(providers.enrich_book(payload.model_dump()))
 
 
 @api.post("/media/sign")
@@ -370,7 +376,11 @@ def attach_cover(request: HttpRequest, pk: int, payload: s.MediaIn) -> dict[str,
     data = media.verify_upload(lib, payload.public_id)
     book.cover_id = data["cover_id"]
     book.cover_url = data["cover_url"]
-    book.save(update_fields=["cover_id", "cover_url"])
+    book.provenance = {
+        **book.provenance,
+        "cover_url": {"source": "manual", "source_id": "", "url": data["cover_url"]},
+    }
+    book.save(update_fields=["cover_id", "cover_url", "provenance"])
     return data
 
 

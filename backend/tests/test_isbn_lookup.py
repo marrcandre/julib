@@ -39,7 +39,7 @@ def test_brazilian_isbn_fallback_normalizes_and_matches(monkeypatch, query, isbn
             },
         )
 
-    monkeypatch.setattr(httpx, "get", get)
+    monkeypatch.setattr("library.providers.bounded_get", get)
     books = search_books(query)
     assert len(books) == 1
     assert books[0]["isbn"] == isbn
@@ -47,8 +47,11 @@ def test_brazilian_isbn_fallback_normalizes_and_matches(monkeypatch, query, isbn
     assert books[0]["source"] == "brasilapi"
     assert books[0]["page_count"] == 656
     assert calls[0][1]["q"] == "isbn:" + isbn
-    assert calls[-1][0] == "https://brasilapi.com.br/api/isbn/v1/" + isbn
-    assert calls[-1][1]["providers"] == "cbl,mercado-editorial"
+    assert any(
+        url == "https://brasilapi.com.br/api/isbn/v1/" + isbn and params.get("providers") == "cbl"
+        for url, params in calls
+    )
+    assert any(params.get("providers") == "mercado-editorial" for _, params in calls)
 
 
 def test_isbn_search_rejects_wrong_editions_and_preserves_text_search(monkeypatch):
@@ -78,11 +81,11 @@ def test_isbn_search_rejects_wrong_editions_and_preserves_text_search(monkeypatc
             return response(url, {"docs": []})
         return response(url, {"isbn": "9780261102217", "title": "Errado", "authors": ["Autor"]})
 
-    monkeypatch.setattr(httpx, "get", get)
+    monkeypatch.setattr("library.providers.bounded_get", get)
     assert search_books("9788570550156") == []
     calls.clear()
     assert search_books("Outra edição")[0]["title"] == "Outra edição"
-    assert len(calls) == 2
+    assert len(calls) == 1
 
 
 def test_missing_isbn_is_not_found_and_network_failure_is_honest(monkeypatch):
@@ -95,13 +98,13 @@ def test_missing_isbn_is_not_found_and_network_failure_is_honest(monkeypatch):
             return response(url, {"docs": []})
         return response(url, {}, 404)
 
-    monkeypatch.setattr(httpx, "get", get)
+    monkeypatch.setattr("library.providers.bounded_get", get)
     assert search_books("9788570550156") == []
 
     def fail(url, **kwargs):
         raise httpx.ReadTimeout("unavailable")
 
-    monkeypatch.setattr(httpx, "get", fail)
+    monkeypatch.setattr("library.providers.bounded_get", fail)
     with pytest.raises(ValidationError):
         search_books("9788570550156")
 

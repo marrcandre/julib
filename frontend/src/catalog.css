@@ -604,3 +604,9 @@ main.container.catalog-main {
     min-width: 18px;
   }
 }
+
+.catalog-google-credit {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
