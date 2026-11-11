@@ -110,7 +110,7 @@ test("book has a private standalone URL, local cover draft and atomic edit with 
   await expect(
     page.getByText("Nenhum empréstimo registrado para este exemplar."),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Editar livro", exact: true }).click();
+  await page.getByRole("button", { name: "Editar livro sem capa" }).click();
   const file = {
     name: "capa.png",
     mimeType: "image/png",
@@ -133,21 +133,26 @@ test("book has a private standalone URL, local cover draft and atomic edit with 
   await expect(
     page.getByRole("heading", { name: "Editar livro", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Cancelar", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Cancelar", exact: true })
+    .first()
+    .click();
   await expect(
     page.getByRole("heading", { name: "1984", exact: true }),
   ).toBeVisible();
   expect(uploads).toBe(0);
-  await page.getByRole("button", { name: "Editar livro", exact: true }).click();
+  await page.getByRole("button", { name: "Editar livro sem capa" }).click();
   await page.getByLabel("Título *", { exact: true }).fill("1984 revisado");
   await page.locator("input[type=file]").setInputFiles(file);
   await page
     .getByRole("button", { name: "Salvar alterações", exact: true })
+    .first()
     .click();
   await expect(page.getByRole("alert")).toContainText("Confira o ISBN.");
   expect(uploads).toBe(1);
   await page
     .getByRole("button", { name: "Salvar alterações", exact: true })
+    .first()
     .click();
   await expect(
     page.getByRole("heading", { name: "1984 revisado", exact: true }),
@@ -253,7 +258,9 @@ test("catalog links open in another tab and return with filters, page and scroll
     .getByRole("link", { name: "Voltar ao catálogo", exact: true })
     .click();
   await expect(page.getByLabel("Buscar livros")).toHaveValue("Livro");
-  await expect(page.locator(".catalog-pagination [aria-current=page]")).toHaveText("2");
+  await expect(
+    page.locator(".catalog-pagination [aria-current=page]"),
+  ).toHaveText("2");
   await expect(
     page.getByRole("button", { name: "Remover filtro Literatura" }),
   ).toBeVisible();
@@ -289,11 +296,15 @@ test("book and copy editing preserve returned loan history on the real API", asy
   });
   const location = await located.json();
   await page.goto("/livros/" + book_id);
-  await page.getByRole("button", { name: "Editar livro", exact: true }).click();
+  await page.getByRole("button", { name: "Editar livro sem capa" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Editar livro", exact: true }),
+  ).toBeVisible();
   await page.getByLabel("Editora", { exact: true }).fill("Editora de teste");
   await page.getByRole("spinbutton", { name: "Número de páginas" }).fill("321");
   await page
     .getByRole("button", { name: "Salvar alterações", exact: true })
+    .first()
     .click();
   await expect(
     page.getByText("Editora de teste", { exact: true }),

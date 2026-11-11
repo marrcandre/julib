@@ -46,12 +46,15 @@ def test_brazilian_isbn_fallback_normalizes_and_matches(monkeypatch, query, isbn
     assert books[0]["title"] == "Título brasileiro"
     assert books[0]["source"] == "brasilapi"
     assert books[0]["page_count"] == 656
-    assert calls[0][1]["q"] == "isbn:" + isbn
     assert any(
         url == "https://brasilapi.com.br/api/isbn/v1/" + isbn and params.get("providers") == "cbl"
         for url, params in calls
     )
     assert any(params.get("providers") == "mercado-editorial" for _, params in calls)
+    assert calls[0][0].startswith("https://brasilapi.com.br/")
+    assert next(i for i, (url, _) in enumerate(calls) if "googleapis" in url) > next(
+        i for i, (url, _) in enumerate(calls) if url.startswith("https://openlibrary.org/api/books")
+    )
 
 
 def test_isbn_search_rejects_wrong_editions_and_preserves_text_search(monkeypatch):
@@ -85,7 +88,8 @@ def test_isbn_search_rejects_wrong_editions_and_preserves_text_search(monkeypatc
     assert search_books("9788570550156") == []
     calls.clear()
     assert search_books("Outra edição")[0]["title"] == "Outra edição"
-    assert len(calls) == 1
+    assert len(calls) == 2
+    assert "openlibrary" in calls[0] and "googleapis" in calls[1]
 
 
 def test_missing_isbn_is_not_found_and_network_failure_is_honest(monkeypatch):

@@ -121,7 +121,7 @@ for (const width of [393, 1280])
       0,
     );
     await expect(page.locator(".book-credit-compact a")).toHaveCount(1);
-    await expect(page.locator(".catalog-google-credit img")).toHaveCount(1);
+    await expect(page.locator(".catalog-google-credit img")).toHaveCount(0);
     await expect(
       page.getByText("Dados bibliográficos:", { exact: true }),
     ).toHaveCount(0);

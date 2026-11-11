@@ -738,7 +738,7 @@ onUnmounted(() => {
       </div>
     </div>
   </section>
-  <div
+  <!-- <div
     v-if="
       books.some(
         (book) => book.metadata_attribution_url || book.attribution_url,
@@ -751,7 +751,7 @@ onUnmounted(() => {
       url="https://books.google.com/"
       compact
     />
-  </div>
+  </div> -->
   <CatalogPagination
     :page="page"
     :page-size="pageSize"

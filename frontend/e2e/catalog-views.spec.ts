@@ -248,7 +248,12 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
   await expect(
     page.getByRole("button", { name: "Trocar capa", exact: true }),
   ).not.toBeVisible();
-  await page.getByRole("button", { name: "Editar livro", exact: true }).click();
+  await page.getByRole("button", { name: "Editar livro pela capa" }).click();
+  await expect(
+    page
+      .getByRole("button", { name: "Salvar alterações", exact: true })
+      .first(),
+  ).toBeVisible();
   await expect(
     page.getByRole("img", { name: "Capa atual", exact: true }),
   ).toBeVisible();

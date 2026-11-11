@@ -388,17 +388,28 @@ const facts = computed(() =>
     <template v-else-if="book">
       <div class="book-detail-summary book-read-summary">
         <figure class="book-detail-figure">
-          <img
-            v-if="book.cover_url && !coverFailed"
-            class="book-detail-cover"
-            :src="book.cover_url"
-            alt="Capa do livro"
-            referrerpolicy="no-referrer"
-            @error="coverFailed = true"
-          />
-          <div v-else class="book-detail-cover book-detail-placeholder">
-            <i class="pi pi-book" aria-hidden="true" /><span>Sem capa</span>
-          </div>
+          <button
+            type="button"
+            class="book-cover-edit-trigger"
+            :aria-label="
+              book.cover_url && !coverFailed
+                ? 'Editar livro pela capa'
+                : 'Editar livro sem capa'
+            "
+            @click="startEdit"
+          >
+            <img
+              v-if="book.cover_url && !coverFailed"
+              class="book-detail-cover"
+              :src="book.cover_url"
+              alt="Capa do livro"
+              referrerpolicy="no-referrer"
+              @error="coverFailed = true"
+            />
+            <div v-else class="book-detail-cover book-detail-placeholder">
+              <i class="pi pi-book" aria-hidden="true" /><span>Sem capa</span>
+            </div>
+          </button>
           <figcaption
             v-if="book.attribution_url !== book.metadata_attribution_url"
           >

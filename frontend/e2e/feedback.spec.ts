@@ -52,12 +52,13 @@ test("update feedback stays compact in a corner and disappears automatically", a
   await page.getByRole("button", { name: "Editar livro", exact: true }).click();
   await page
     .getByRole("button", { name: "Salvar alterações", exact: true })
+    .first()
     .click();
   const toast = page.locator(".p-toast-message");
   await expect(toast).toContainText("Dados atualizados.");
   const box = (await toast.boundingBox())!;
   expect(box.x).toBeGreaterThan(850);
-  expect(box.y).toBeGreaterThan(700);
+  expect(box.y).toBeLessThan(100);
   expect(box.height).toBeLessThan(90);
   await expect(toast).toHaveCount(0, { timeout: 6000 });
   await page.setViewportSize({ width: 393, height: 852 });
@@ -65,12 +66,13 @@ test("update feedback stays compact in a corner and disappears automatically", a
   await page.getByRole("button", { name: "Editar livro", exact: true }).click();
   await page
     .getByRole("button", { name: "Salvar alterações", exact: true })
+    .first()
     .click();
   await expect(toast).toContainText("Dados atualizados.");
   const mobile = (await toast.boundingBox())!;
   expect(mobile.x).toBeGreaterThanOrEqual(10);
   expect(mobile.x + mobile.width).toBeLessThanOrEqual(383);
-  expect(mobile.y).toBeGreaterThan(700);
+  expect(mobile.y).toBeLessThan(100);
   await page.screenshot({
     path: "../.superpowers/feedback-mobile.png",
     animations: "disabled",
