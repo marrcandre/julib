@@ -372,12 +372,11 @@ def enrich_book(base: dict[str, Any], lookup: Lookup | None = None) -> dict[str,
     if not own_cover:
         result["cover_url"] = ""
         origins.pop("cover_url", None)
-    google_results = google(lookup, "isbn:" + isbn, isbn)
     sources = [
-        lambda: google_results[0] if google_results else {},
         lambda: brazil(lookup, isbn, "cbl"),
         lambda: brazil(lookup, isbn, "mercado-editorial"),
         lambda: openlibrary(lookup, isbn),
+        lambda: next(iter(google(lookup, "isbn:" + isbn, isbn)), {}),
     ]
     for get in sources:
         extra = get()
@@ -402,9 +401,6 @@ def search_books(query: str) -> list[dict[str, Any]]:
         if result.get("title"):
             return [result]
     else:
-        results = google(lookup, query, "")
-        if results:
-            return results
         response = lookup.json("https://openlibrary.org/search.json", {"q": query, "limit": 12})
         results = []
         for item in objects(response.get("docs")):
@@ -426,6 +422,9 @@ def search_books(query: str) -> list[dict[str, Any]]:
                     str(item.get("key") or ""),
                 )
             )
+        if results:
+            return results
+        results = google(lookup, query, "")
         if results:
             return results
     if lookup.failures:

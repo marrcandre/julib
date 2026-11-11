@@ -346,7 +346,7 @@ main.container.catalog-main {
 .p-toast.app-feedback-toast {
   width: min(360px, calc(100vw - 32px));
   right: 16px !important;
-  bottom: max(16px, env(safe-area-inset-bottom)) !important;
+  top: max(16px, env(safe-area-inset-top)) !important;
 }
 .p-toast.app-feedback-toast .p-toast-message {
   margin-bottom: 0;
@@ -370,6 +370,28 @@ main.container.catalog-main {
   width: 28px;
   height: 28px;
   flex-shrink: 0;
+}
+
+.book-editor-top-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.book-cover-edit-trigger {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.book-cover-edit-trigger:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
 }
 
 .catalog-main .catalog-item .source-attribution {

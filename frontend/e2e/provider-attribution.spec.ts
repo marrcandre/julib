@@ -55,7 +55,10 @@ test("uploaded cover has no optional badge and Google data credit stays with bib
   await expect(page.locator(".source-attribution")).toHaveCount(0);
   await page.getByRole("button", { name: "Editar livro", exact: true }).click();
   await expect(page.locator(".source-attribution")).toHaveCount(0);
-  await page.getByRole("button", { name: "Cancelar", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Cancelar", exact: true })
+    .first()
+    .click();
   book.source = "google";
   book.source_id = "metadata";
   book.metadata_attribution_name = "Google Books";

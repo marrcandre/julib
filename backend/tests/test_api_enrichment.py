@@ -53,11 +53,14 @@ def test_incomplete_google_result_gets_exact_edition_fields_and_cover(monkeypatc
 
     monkeypatch.setattr("library.providers.bounded_get", get)
     result = search_books(ISBN)[0]
-    assert "googleapis" in calls[0]
+    assert "brasilapi" in calls[0]
+    assert calls.index(next(url for url in calls if "googleapis" in url)) > calls.index(
+        next(url for url in calls if "openlibrary" in url and url.endswith("/api/books"))
+    )
     assert result["publisher"] == "Companhia" and result["page_count"] == 416
     assert result["cover_url"].startswith("https://covers.openlibrary.org/")
     assert result["provenance"]["page_count"]["source"] == "openlibrary"
-    assert result["provenance"]["title"]["source"] == "google"
+    assert result["provenance"]["title"]["source"] == "cbl"
 
 
 def test_cbl_without_cover_does_not_hide_mercado_cover(monkeypatch):

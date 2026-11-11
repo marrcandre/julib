@@ -136,6 +136,23 @@ onUnmounted(clearFile);
 <template>
   <form class="book-editor" @submit.prevent="save">
     <p v-if="error" class="error" role="alert">{{ error }}</p>
+    <div class="book-editor-top-actions">
+      <Button
+        label="Cancelar"
+        type="button"
+        outlined
+        :disabled="busy"
+        @click="emit('cancel')"
+      />
+      <Button
+        label="Salvar alterações"
+        type="submit"
+        icon="pi pi-check"
+        class="primary"
+        :disabled="busy"
+        :loading="busy"
+      />
+    </div>
     <fieldset :disabled="busy" class="book-editor-fields">
       <div class="book-detail-summary book-edit-summary">
         <div class="book-cover-editor">
