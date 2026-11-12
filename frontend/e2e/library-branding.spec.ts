@@ -37,6 +37,7 @@ for (const width of [320, 800, 1280]) {
     );
     await page.locator(".account summary").click();
     await expect(page.locator(".account-menu")).toContainText("Julib v0.2.0");
+    await expect(page.locator(".copyright")).toContainText("v0.2.0");
     await expect(page.getByRole("radio", { name: "Claro" })).toBeVisible();
     await expect(page.getByRole("radio", { name: "Escuro" })).toBeVisible();
     await expect(page.getByRole("radio")).toHaveCount(2);

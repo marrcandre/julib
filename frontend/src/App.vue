@@ -250,7 +250,7 @@ onUnmounted(() => {
         ><a href="mailto:marcoandre@gmail.com">Contato</a
         ><RouterLink to="/sobre#apoie">Apoie este projeto</RouterLink>
       </div>
-      <div class="copyright">Marco André Mendes</div>
+      <div class="copyright">Marco André Mendes <span>v{{ appVersion }}</span></div>
     </div>
   </footer>
 </template>
