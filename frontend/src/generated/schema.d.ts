@@ -72,6 +72,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/library/name": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Library Name */
+        put: operations["library_api_update_library_name"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/logout": {
         parameters: {
             query?: never;
@@ -318,23 +335,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/dashboard": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Dashboard */
-        get: operations["library_api_dashboard"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/search": {
         parameters: {
             query?: never;
@@ -566,6 +566,16 @@ export interface components {
             catalog_view: "covers" | "cards" | "list";
             /** Cover Columns */
             cover_columns: number;
+        };
+        /** LibraryNameOut */
+        LibraryNameOut: {
+            /** Name */
+            name: string;
+        };
+        /** LibraryNameIn */
+        LibraryNameIn: {
+            /** Name */
+            name: string;
         };
         /** BookOut */
         BookOut: {
@@ -1158,6 +1168,30 @@ export interface operations {
             };
         };
     };
+    library_api_update_library_name: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryNameIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryNameOut"];
+                };
+            };
+        };
+    };
     library_api_logout_view: {
         parameters: {
             query?: never;
@@ -1654,24 +1688,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LoanOut"];
                 };
-            };
-        };
-    };
-    library_api_dashboard: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };

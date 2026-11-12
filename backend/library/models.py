@@ -20,7 +20,7 @@ class User(AbstractUser):
 
 
 class Library(models.Model):
-    name = models.CharField(max_length=150)
+    name = models.CharField(max_length=150, blank=True)
     next_number = models.PositiveIntegerField(default=1)
 
     def __str__(self) -> str:

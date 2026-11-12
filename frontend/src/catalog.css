@@ -9,7 +9,7 @@
 .app-header .brand {
   font-size: 24px;
   min-width: 0;
-  max-width: 340px;
+  max-width: min(480px, 38vw);
   flex-shrink: 1;
 }
 .brand-name {
@@ -17,6 +17,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.brand-name.brand-loading {
+  width: min(180px, 24vw);
+  min-height: 1em;
 }
 .app-header .brand i,
 .app-header .header-actions,
@@ -51,11 +55,6 @@
 }
 .app-header .mobile-nav-trigger {
   display: none;
-}
-.app-header .theme-toggle {
-  border-color: transparent;
-  width: 40px;
-  height: 40px;
 }
 .app-header .avatar {
   width: 34px;
@@ -472,10 +471,6 @@ main.container.catalog-main {
   }
   .app-header .desktop-nav {
     display: none;
-  }
-  .app-header .theme-toggle {
-    width: 36px;
-    height: 40px;
   }
   main.container.catalog-main {
     padding-top: 16px;

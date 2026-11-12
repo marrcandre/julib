@@ -83,7 +83,7 @@ ALLOWED_EMAILS = [
     s.strip().lower() for s in os.environ.get("ALLOWED_EMAILS", "").split(",") if s.strip()
 ]
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "").lower()
-LOGIN_REDIRECT_URL = "/"
+LOGIN_REDIRECT_URL = "/livros"
 LOGOUT_REDIRECT_URL = "/"
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = not DEBUG

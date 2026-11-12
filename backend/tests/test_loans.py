@@ -54,7 +54,7 @@ def test_foreign_person_and_invalid_dates(setup_loan):
         lend(lib, copy.pk, person.pk, date.today())
 
 
-def test_loan_cover_is_in_list_and_dashboard(client, member, setup_loan):
+def test_loan_cover_is_in_list(client, member, setup_loan):
     from library.models import Membership
 
     lib, copy, person = setup_loan
@@ -62,10 +62,7 @@ def test_loan_cover_is_in_list_and_dashboard(client, member, setup_loan):
     copy.book.cover_url = "https://example.com/cover.jpg"
     copy.book.save(update_fields=["cover_url"])
     lend(lib, copy.pk, person.pk, date.today())
-    for loan in [
-        client.get("/api/v1/loans").json()[0],
-        client.get("/api/v1/dashboard").json()["attention"][0],
-    ]:
+    for loan in client.get("/api/v1/loans").json():
         assert loan["cover_url"] == copy.book.cover_url
         assert loan["attribution_name"] == ""
         assert loan["attribution_url"] == ""

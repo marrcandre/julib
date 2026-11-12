@@ -28,19 +28,17 @@ test("browser submits the Google confirmation with a trusted origin", async ({ p
   await expect(page).toHaveURL(/^https:\/\/accounts\.google\.com\//);
 });
 
-test("theme toggle persists across the app and styled Google login", async ({ page }) => {
+test("saved theme is applied on Google login without a separate control", async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await page.emulateMedia({ colorScheme: "light" });
-  await page.goto("/");
-  await page.getByRole("button", { name: "Ativar tema escuro" }).click();
+  await page.addInitScript(() => localStorage.setItem("julib-theme", "dark"));
   await page.goto("/accounts/google/login/");
   await expect(page.locator("html")).toHaveClass(/dark/);
+  await expect(page.locator(".theme-toggle")).toHaveCount(0);
   await expect(page.locator(".auth-card")).toBeVisible();
   expect(await page.locator(".auth-card").evaluate(el => getComputedStyle(el).borderRadius)).toBe("20px");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByRole("button", { name: "Ativar tema claro" }).click();
-  await page.goto("/");
-  await expect(page.locator("html")).not.toHaveClass(/dark/);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("julib-theme"))).toBe("dark");
 });
 
 test("header shows the Google photo and falls back to initials on image failure", async ({ page }) => {

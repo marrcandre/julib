@@ -5,12 +5,13 @@ from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth import logout
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.db.models import Q, Subquery
+from django.db.models import Q
 from django.http import HttpRequest, HttpResponseForbidden
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from ninja import File, NinjaAPI, Query, Status
+from ninja.errors import HttpError
 from ninja.files import UploadedFile
 
 from . import catalog, circulation, imports, media, providers, services, sharing
@@ -97,6 +98,16 @@ def catalog_preferences(request: HttpRequest, payload: s.CatalogPreferencesIn) -
     user.cover_columns = payload.cover_columns
     user.save(update_fields=["catalog_view", "cover_columns"])
     return payload.model_dump()
+
+
+@api.put("/library/name", response=s.LibraryNameOut)
+def update_library_name(request: HttpRequest, payload: s.LibraryNameIn) -> dict[str, str]:
+    if not technical(request.user):
+        raise HttpError(403, "Acesso restrito ao administrador técnico.")
+    library = require_library(request)
+    library.name = payload.name.strip()
+    library.save(update_fields=["name"])
+    return {"name": library.name}
 
 
 @api.post("/logout")
@@ -318,38 +329,6 @@ def new_loan(request: HttpRequest, payload: s.LoanIn) -> dict[str, Any]:
 @api.post("/loans/{pk}/return", response=s.LoanOut)
 def return_book(request: HttpRequest, pk: int, payload: s.ReturnIn) -> dict[str, Any]:
     return loan_data(circulation.return_loan(require_library(request), pk, payload.returned_on))
-
-
-@api.get("/dashboard")
-def dashboard(request: HttpRequest) -> dict[str, Any]:
-    lib = require_library(request)
-    active = Copy.objects.filter(library=lib, state="active", book__is_desired=False)
-    open_loans = Loan.objects.filter(library=lib, state="open").select_related(
-        "copy__book", "person"
-    )
-    return {
-        "books": active.values("book_id").distinct().count(),
-        "copies": active.count(),
-        "loans": open_loans.count(),
-        "overdue": open_loans.filter(due_on__lt=timezone.localdate()).count(),
-        "recent": [
-            {
-                "number": c.number,
-                "acquired_on": c.acquired_on.isoformat(),
-                "book": book_data(c.book),
-            }
-            for c in active.filter(
-                pk__in=Subquery(
-                    active.order_by("book_id", "-acquired_on", "-pk")
-                    .distinct("book_id")
-                    .values("pk")
-                )
-            )
-            .select_related("book")
-            .order_by("-acquired_on", "-pk")[:5]
-        ],
-        "attention": [loan_data(loan) for loan in open_loans.order_by("due_on")[:5]],
-    }
 
 
 @api.get("/search")

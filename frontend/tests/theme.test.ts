@@ -1,12 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { resolveTheme, applyTheme } from "../src/theme";
+import { initialTheme, applyTheme } from "../src/theme";
 describe("theme", () => {
   beforeEach(() => localStorage.clear());
-  it("uses system, with dark fallback", () => {
-    expect(resolveTheme("system", undefined)).toBe("dark");
-    expect(resolveTheme("system", false)).toBe("light");
-    expect(resolveTheme("system", true)).toBe("dark");
-    expect(resolveTheme("light", true)).toBe("light");
+  it("resolves the operating system preference to a concrete initial theme", () => {
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
+    expect(initialTheme()).toBe("light");
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false }));
+    expect(initialTheme()).toBe("dark");
+    vi.unstubAllGlobals();
+  });
+  it("restores only saved light or dark preferences", () => {
+    localStorage.setItem("julib-theme", "light");
+    expect(initialTheme()).toBe("light");
+    localStorage.setItem("julib-theme", "system");
+    expect(initialTheme()).toBe("dark");
   });
   it("persists manual preference", () => {
     applyTheme("dark");

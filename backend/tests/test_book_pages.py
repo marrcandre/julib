@@ -1,5 +1,3 @@
-from datetime import date
-
 import httpx
 import pytest
 
@@ -61,20 +59,6 @@ def test_pages_from_google_and_goodreads(monkeypatch):
     assert [row.data["page_count"] for row in rows] == [321, None, None]
     process_rows(lib, session.pk, [{"id": rows[0].pk, "action": "import"}])
     assert lib.book_set.get().page_count == 321
-
-
-def test_recent_acquisitions_have_five_distinct_books_in_date_order(client, member):
-    lib = Library.objects.create(name="Casa")
-    Membership.objects.create(user=member, library=lib)
-    books = [
-        services.create_book(lib, {"title": f"Livro {i}", "authors": ["Autor"]}) for i in range(7)
-    ]
-    for i, book in enumerate(books):
-        services.add_copy(lib, book.pk, acquired_on=date(2026, 1, i + 1))
-    services.add_copy(lib, books[0].pk, acquired_on=date(2026, 2, 1))
-    services.add_copy(lib, books[0].pk, acquired_on=date(2026, 3, 1))
-    recent = client.get("/api/v1/dashboard").json()["recent"]
-    assert [row["book"]["id"] for row in recent] == [books[i].pk for i in [0, 6, 5, 4, 3]]
 
 
 def test_fill_existing_goodreads_pages_only_changes_empty_exact_matches():

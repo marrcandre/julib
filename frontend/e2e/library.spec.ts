@@ -8,7 +8,11 @@ test("catalog, location and loan roundtrip on real API", async ({
     JSON.parse(readFileSync("../.superpowers/e2e-session.json", "utf-8")),
   ]);
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Olá, e2e." })).toBeVisible();
+  await expect(page).toHaveURL(/\/livros(?:\?.*)?$/);
+  await expect(
+    page.getByRole("button", { name: "Adicionar livro" }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Painel" })).toHaveCount(0);
   await page.getByRole("link", { name: "Locais", exact: true }).click();
   await page.getByRole("button", { name: "Novo local" }).click();
   await page.getByLabel("Nome *").fill("Estante E2E " + Date.now());
@@ -52,7 +56,7 @@ test("catalog, location and loan roundtrip on real API", async ({
   await expect(row).not.toBeVisible();
   await page.goto("/");
   await expect(
-    page.getByText("Exemplares no acervo", { exact: true }),
+    page.getByRole("button", { name: "Adicionar livro" }),
   ).toBeVisible();
   await page.screenshot({
     path: "../.superpowers/julib-desktop.png",

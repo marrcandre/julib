@@ -154,6 +154,14 @@ class CatalogPreferencesIn(Schema):
     cover_columns: int = Field(ge=3, le=10)
 
 
+class LibraryNameIn(Schema):
+    name: str = Field(max_length=150)
+
+
+class LibraryNameOut(Schema):
+    name: str
+
+
 class SessionOut(Schema):
     user_id: int
     catalog_view: Literal["covers", "cards", "list"] = "covers"

@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("loan covers appear in dashboard and loans with safe missing-image fallback", async ({
+test("loan covers appear in loans with safe missing-image fallback", async ({
   page,
 }) => {
   const base = {
@@ -47,8 +47,10 @@ test("loan covers appear in dashboard and loans with safe missing-image fallback
   await page.route("**/missing-cover.png", (route) =>
     route.fulfill({ status: 404 }),
   );
+  const requestedPaths: string[] = [];
   await page.route("**/api/v1/**", (route) => {
     const path = new URL(route.request().url()).pathname;
+    requestedPaths.push(path);
     const json = path.endsWith("/session")
       ? {
           user_id: 1,
@@ -59,83 +61,41 @@ test("loan covers appear in dashboard and loans with safe missing-image fallback
           csrf: "test",
           avatar_url: "",
         }
-      : path.endsWith("/dashboard")
-        ? {
-            books: 3,
-            copies: 3,
-            loans: 3,
-            overdue: 0,
-            recent: Array.from({ length: 5 }, (_, i) => ({
-              number: i + 1,
-              acquired_on: "2026-11-01",
-              book: {
-                id: i + 1,
-                title: `Aquisição ${i + 1}`,
-                authors: ["Autor"],
-                isbn: "",
-                publisher: "",
-                edition: "",
-                year: "",
-                language: "",
-                cover_url: "/loan-cover.svg",
-                tags: [],
-                available: true,
-                attribution_name: "",
-                attribution_url: "",
-              },
-            })),
-            attention: loans,
-          }
-        : path.endsWith("/loans")
-          ? loans
-          : [];
+      : path.endsWith("/loans")
+        ? loans
+        : [];
     return route.fulfill({ json });
   });
   for (const width of [1280, 393]) {
     await page.setViewportSize({ width, height: 900 });
-    for (const path of ["/", "/emprestimos"]) {
-      await page.goto(path);
-      if (path === "/") {
-        await expect(
-          page.locator(".recent-covers .book-card--covers"),
-        ).toHaveCount(5);
-        await expect(page.locator(".recent-covers .cover-status")).toHaveCount(
-          0,
-        );
-        expect(
-          await page
-            .locator(".recent-covers")
-            .evaluate(
-              (el) =>
-                getComputedStyle(el).gridTemplateColumns.split(" ").length,
-            ),
-        ).toBe(5);
-      }
-      await expect(
-        page.getByRole("img", { name: "Capa de Livro com capa", exact: true }),
-      ).toBeVisible();
-      await expect(
-        page.getByRole("img", { name: "Sem capa: Sem imagem", exact: true }),
-      ).toBeVisible();
-      await expect(
-        page.getByRole("img", {
-          name: "Sem capa: Imagem indisponível",
-          exact: true,
-        }),
-      ).toBeVisible();
-      await expect(
-        page.getByRole("link", { name: "Fonte: Open Library" }),
-      ).not.toBeVisible();
-      expect(
-        await page.evaluate(
-          () => document.documentElement.scrollWidth <= innerWidth,
-        ),
-      ).toBe(true);
-      await page.screenshot({
-        path: `../.superpowers/loans-${width}-${path === "/" ? "dashboard" : "page"}.png`,
-        fullPage: true,
-        animations: "disabled",
-      });
-    }
+    await page.goto("/emprestimos");
+    await expect(
+      page.getByRole("img", { name: "Capa de Livro com capa", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("img", { name: "Sem capa: Sem imagem", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("img", {
+        name: "Sem capa: Imagem indisponível",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Fonte: Open Library" }),
+    ).not.toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    expect(requestedPaths.some((path) => path.endsWith("/dashboard"))).toBe(
+      false,
+    );
+    await page.screenshot({
+      path: `../.superpowers/loans-${width}-page.png`,
+      fullPage: true,
+      animations: "disabled",
+    });
   }
 });

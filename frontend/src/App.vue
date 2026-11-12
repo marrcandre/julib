@@ -6,6 +6,7 @@ import Drawer from "primevue/drawer";
 import Toast from "primevue/toast";
 import { api, post, setCsrf, type Session } from "./api";
 import { applyTheme, initialTheme, type ThemePreference } from "./theme";
+const appVersion = __APP_VERSION__;
 const session = ref<Session | null>(null),
   avatarFailed = ref(false),
   navigationOpen = ref(false),
@@ -18,13 +19,12 @@ provide("session", session);
 const publicLibrary = ref<string | null>(null);
 provide("public-library", publicLibrary);
 const publicCollection = computed(() => route.path.startsWith("/colecao/"));
-const libraryName = computed(
-  () =>
-    (publicCollection.value
-      ? publicLibrary.value
-      : session.value?.library
-    )?.trim() || "Julib",
-);
+const libraryName = computed(() => {
+  const current = publicCollection.value
+    ? publicLibrary.value
+    : session.value?.library;
+  return current?.trim() || (loading.value ? "" : "Julib");
+});
 watch(
   () => route.params.token,
   () => {
@@ -38,6 +38,22 @@ watch(
   },
 );
 watch(theme, applyTheme, { immediate: true });
+const pageTitle = computed(() => {
+  if (route.path.startsWith("/livros")) return "Livros";
+  if (route.path.startsWith("/emprestimos")) return "Empréstimos";
+  if (route.path.startsWith("/locais")) return "Locais";
+  if (route.path.startsWith("/importar")) return "Importar livros";
+  if (route.path.startsWith("/configuracoes")) return "Configurações";
+  if (route.path.startsWith("/colecao/")) return "Coleção";
+  return "Sobre";
+});
+watch(
+  [pageTitle, libraryName, loading],
+  ([page, name, isLoading]) => {
+    if (!isLoading) document.title = `${page} | ${name || "Julib"}`;
+  },
+  { immediate: true },
+);
 const syncOnline = () => (online.value = navigator.onLine);
 async function signOut() {
   try {
@@ -80,16 +96,17 @@ onUnmounted(() => {
       />
       <RouterLink
         class="brand"
-        :to="publicCollection ? route.path : '/'"
-        :aria-label="libraryName + ' — início'"
+        :to="publicCollection ? route.path : '/livros'"
+        :aria-label="(libraryName || 'Biblioteca') + ' — início'"
         :title="libraryName"
-        ><i class="pi pi-book" aria-hidden="true" /><span class="brand-name">{{
-          libraryName
-        }}</span></RouterLink
+        ><i class="pi pi-book" aria-hidden="true" /><span
+          class="brand-name"
+          :class="{ 'brand-loading': loading && !libraryName }"
+          >{{ libraryName }}</span
+        ></RouterLink
       >
       <nav v-if="session" class="desktop-nav" aria-label="Navegação principal">
-        <RouterLink to="/">Painel</RouterLink
-        ><RouterLink
+        <RouterLink
           to="/livros"
           :class="{ 'section-active': route.path.startsWith('/livros/') }"
           >Livros</RouterLink
@@ -97,20 +114,6 @@ onUnmounted(() => {
         ><RouterLink to="/locais">Locais</RouterLink>
       </nav>
       <div class="header-actions">
-        <button
-          class="theme-toggle"
-          type="button"
-          :aria-label="
-            theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'
-          "
-          :title="theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'"
-          @click="theme = theme === 'dark' ? 'light' : 'dark'"
-        >
-          <i
-            :class="theme === 'dark' ? 'pi pi-sun' : 'pi pi-moon'"
-            aria-hidden="true"
-          />
-        </button>
         <details v-if="session" class="account">
           <summary :aria-label="'Conta de ' + session.name">
             <img
@@ -127,11 +130,33 @@ onUnmounted(() => {
           </summary>
           <div class="account-menu">
             <b>{{ session.name }}</b
-            ><small>{{ session.email }}</small
+            ><small>{{ session.email }}</small>
+            <fieldset class="theme-options">
+              <legend>Tema</legend>
+              <label
+                ><input
+                  v-model="theme"
+                  type="radio"
+                  name="theme"
+                  value="light"
+                />Claro</label
+              >
+              <label
+                ><input
+                  v-model="theme"
+                  type="radio"
+                  name="theme"
+                  value="dark"
+                />Escuro</label
+              >
+            </fieldset>
+            <RouterLink v-if="session.technical" to="/configuracoes"
+              >Configurações</RouterLink
             ><RouterLink to="/sobre">Sobre</RouterLink
             ><a v-if="session.technical" href="/admin/">Admin</a
             ><a v-if="session.technical" href="/api/v1/docs">Swagger</a
             ><button @click="signOut">Sair</button>
+            <small class="app-version">Julib v{{ appVersion }}</small>
           </div>
         </details>
       </div>
@@ -144,9 +169,6 @@ onUnmounted(() => {
     class="app-navigation-drawer"
   >
     <nav class="drawer-navigation" aria-label="Navegação principal">
-      <RouterLink to="/" @click="navigationOpen = false"
-        ><i class="pi pi-chart-bar" aria-hidden="true" />Painel</RouterLink
-      >
       <RouterLink
         to="/livros"
         :class="{ 'section-active': route.path.startsWith('/livros/') }"
@@ -161,6 +183,12 @@ onUnmounted(() => {
       >
       <RouterLink to="/locais" @click="navigationOpen = false"
         ><i class="pi pi-map-marker" aria-hidden="true" />Locais</RouterLink
+      >
+      <RouterLink
+        v-if="session?.technical"
+        to="/configuracoes"
+        @click="navigationOpen = false"
+        ><i class="pi pi-cog" aria-hidden="true" />Configurações</RouterLink
       >
     </nav>
   </Drawer>
@@ -222,7 +250,7 @@ onUnmounted(() => {
         ><a href="mailto:marcoandre@gmail.com">Contato</a
         ><RouterLink to="/sobre#apoie">Apoie este projeto</RouterLink>
       </div>
-      <div class="copyright">Marco André Mendes <span>v0.1.0</span></div>
+      <div class="copyright">Marco André Mendes</div>
     </div>
   </footer>
 </template>

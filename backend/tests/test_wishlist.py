@@ -32,7 +32,6 @@ def test_wish_acquire_and_legacy_retry(client, member):
     assert client.get("/api/v1/books").json()["total"] == 0
     assert client.get("/api/v1/books?scope=wishlist").json()["total"] == 1
     assert public_books(renew_link(lib))["total"] == 0
-    assert client.get("/api/v1/dashboard").json()["copies"] == 0
     acquire = intent(existing_book_id=book.pk)
     acquired = services.register_copy(lib, acquire)
     assert services.register_copy(lib, {**acquire, "target": "collection"}) == acquired

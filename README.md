@@ -86,7 +86,9 @@ Em Visualização, o slider ajusta de 3 a 10 livros por linha. Essa densidade fi
 
 ### Desejados e exclusão de livros
 
-Na página **Livros**, o seletor **Acervo / Desejados** separa os livros possuídos dos que você quer adquirir. Ao cadastrar por câmera, busca ou manualmente, escolha o destino em **Salvar em**. Desejados guardam capa, ISBN, páginas e tags, sem criar exemplar, contar no painel ou aparecer no link público.
+Na página **Livros**, o seletor **Acervo / Desejados** separa os livros possuídos dos que você quer adquirir. Ao cadastrar por câmera, busca ou manualmente, escolha o destino em **Salvar em**. Desejados guardam capa, ISBN, páginas e tags, sem criar exemplar ou aparecer no link público.
+
+Após entrar, a página principal é **Livros**. A identificação da biblioteca e o título da aba usam o nome configurado pelo administrador técnico; o menu da conta reúne as opções **Claro** e **Escuro**.
 
 Nos detalhes de um desejado, **Adicionar ao acervo** pede localização e data de aquisição e cria um exemplar da mesma edição. Para corrigir um cadastro do acervo, **Mover para desejados** remove os exemplares ativos sem histórico após confirmação; exemplares baixados e seus históricos permanecem preservados. Se um exemplar ativo já teve empréstimo, registre sua baixa apropriada antes de mover o livro.
 

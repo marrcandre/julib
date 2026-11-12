@@ -24,13 +24,37 @@ for (const width of [320, 800, 1280]) {
       });
     });
     await page.goto("/locais");
+    await expect(page.getByRole("link", { name: "Painel" })).toHaveCount(0);
+    if (width > 800)
+      await expect(page.getByRole("link", { name: "Livros" })).toBeVisible();
     const brand = page.locator(".brand");
     await expect(brand).toHaveText(name);
     await expect(brand).toHaveAttribute("title", name);
+    await expect(page).toHaveTitle(`Locais | ${name}`);
     await expect(page.locator("footer")).toContainText("Powered by Julib");
     await expect(page.locator("footer")).not.toContainText(
       "Sua biblioteca, bem organizada",
     );
+    await page.locator(".account summary").click();
+    await expect(page.locator(".account-menu")).toContainText("Julib v0.2.0");
+    await expect(page.getByRole("radio", { name: "Claro" })).toBeVisible();
+    await expect(page.getByRole("radio", { name: "Escuro" })).toBeVisible();
+    await expect(page.getByRole("radio")).toHaveCount(2);
+    await page.getByRole("radio", { name: "Claro" }).check();
+    await expect(page.locator("html")).not.toHaveClass(/dark/);
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem("julib-theme")))
+      .toBe("light");
+    await page.getByRole("radio", { name: "Claro" }).focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByRole("radio", { name: "Escuro" })).toBeChecked();
+    await expect(page.locator("html")).toHaveClass(/dark/);
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem("julib-theme")))
+      .toBe("dark");
+    await page.reload();
+    await expect(page.locator("html")).toHaveClass(/dark/);
+    await page.locator(".account summary").click();
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -43,10 +67,17 @@ for (const width of [320, 800, 1280]) {
     if (width <= 800) {
       await page.getByRole("button", { name: "Abrir navegação" }).click();
       await expect(page.getByRole("dialog")).toContainText(name);
+      await expect(
+        page.getByRole("dialog").getByRole("link", { name: "Painel" }),
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole("dialog").getByRole("link", { name: "Livros" }),
+      ).toBeVisible();
       await page.keyboard.press("Escape");
     }
     await page.goto("/colecao/amigos");
     await expect(brand).toHaveText("Biblioteca dos amigos");
+    await expect(page).toHaveTitle("Coleção | Biblioteca dos amigos");
     await page
       .locator("footer")
       .getByRole("link", { name: "Sobre", exact: true })
@@ -77,6 +108,7 @@ test("signed-out identity and invalid public link use Julib", async ({
         }),
   );
   await page.goto("/");
+  await expect(page).toHaveURL(/\/livros$/);
   await expect(page.locator(".brand")).toHaveText("Julib");
   await page.goto("/colecao/amigos");
   await expect(page.locator(".brand")).toHaveText("Biblioteca dos amigos");

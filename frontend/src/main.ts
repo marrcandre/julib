@@ -5,7 +5,6 @@ import ToastService from "primevue/toastservice";
 import Aura from "@primeuix/themes/aura";
 import { definePreset } from "@primeuix/themes";
 import App from "./App.vue";
-const Dashboard = () => import("./pages/Dashboard.vue");
 const Books = () => import("./pages/Books.vue");
 const BookDetails = () => import("./pages/BookDetails.vue");
 const Loans = () => import("./pages/Loans.vue");
@@ -13,6 +12,7 @@ const Locations = () => import("./pages/Locations.vue");
 const ImportBooks = () => import("./pages/ImportBooks.vue");
 const About = () => import("./pages/About.vue");
 const PublicCatalog = () => import("./pages/PublicCatalog.vue");
+const Settings = () => import("./pages/Settings.vue");
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
@@ -30,13 +30,14 @@ const router = createRouter({
     return { top: 0, left: 0 };
   },
   routes: [
-    { path: "/", component: Dashboard },
+    { path: "/", redirect: "/livros" },
     { path: "/livros", component: Books },
     { path: "/livros/:id", component: BookDetails },
     { path: "/emprestimos", component: Loans },
     { path: "/locais", component: Locations },
     { path: "/importar", component: ImportBooks },
     { path: "/sobre", component: About },
+    { path: "/configuracoes", component: Settings },
     { path: "/colecao/:token", component: PublicCatalog },
   ],
 });
