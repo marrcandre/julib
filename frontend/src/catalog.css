@@ -8,6 +8,31 @@
 }
 .app-header .brand {
   font-size: 24px;
+  min-width: 0;
+  max-width: 340px;
+  flex-shrink: 1;
+}
+.brand-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-header .brand i,
+.app-header .header-actions,
+.app-header .desktop-nav {
+  flex-shrink: 0;
+}
+.app-navigation-drawer .p-drawer-title {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.footer-inner .footer-powered {
+  margin: 0 0 16px;
+  font-size: 12px;
+}
+.footer-powered a {
+  font-weight: 600;
 }
 .app-header .brand i {
   font-size: 23px;
@@ -380,7 +405,9 @@ main.container.catalog-main {
 }
 
 .book-cover-edit-trigger {
+  position: relative;
   display: block;
+  width: 100%;
   padding: 0;
   border: 0;
   border-radius: 12px;
@@ -389,8 +416,9 @@ main.container.catalog-main {
   cursor: pointer;
 }
 
+.book-cover-edit-trigger:hover,
 .book-cover-edit-trigger:focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--green);
   outline-offset: 4px;
 }
 

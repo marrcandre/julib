@@ -10,8 +10,9 @@ for (const width of [393, 1280])
       isbn: "9788535914849",
       source: "google",
       source_id: "google-volume",
-      publisher: "",
-      year: "",
+      publisher: "Companhia",
+      year: "2009",
+      edition: "1ª edição",
       language: "pt",
       page_count: null,
       cover_url: "",
@@ -107,7 +108,9 @@ for (const width of [393, 1280])
     await page
       .getByRole("button", { name: "Buscar dados", exact: true })
       .click();
-    await page.getByRole("button", { name: /1984.*George Orwell/ }).click();
+    const edition = page.getByRole("button", { name: /1984.*George Orwell/ });
+    await expect(edition).toContainText("Companhia · 2009 · pt · 1ª edição");
+    await edition.click();
     await expect(
       page.getByRole("spinbutton", { name: "Número de páginas" }),
     ).toHaveValue("416");

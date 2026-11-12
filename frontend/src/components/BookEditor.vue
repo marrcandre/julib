@@ -6,6 +6,7 @@ import InputNumber from "primevue/inputnumber";
 import MultiSelect from "primevue/multiselect";
 import { api, post, type Book, type Tag } from "../api";
 import SourceAttribution from "./SourceAttribution.vue";
+import BookEditActions from "./BookEditActions.vue";
 const props = defineProps<{ book: Book; tags: Tag[] }>();
 const emit = defineEmits<{
   saved: [book: Book];
@@ -134,38 +135,33 @@ async function save() {
 onUnmounted(clearFile);
 </script>
 <template>
-  <form class="book-editor" @submit.prevent="save">
+  <form id="book-edit-form" class="book-editor" @submit.prevent="save">
     <p v-if="error" class="error" role="alert">{{ error }}</p>
-    <div class="book-editor-top-actions">
-      <Button
-        label="Cancelar"
-        type="button"
-        outlined
-        :disabled="busy"
-        @click="emit('cancel')"
-      />
-      <Button
-        label="Salvar alterações"
-        type="submit"
-        icon="pi pi-check"
-        class="primary"
-        :disabled="busy"
-        :loading="busy"
-      />
-    </div>
     <fieldset :disabled="busy" class="book-editor-fields">
       <div class="book-detail-summary book-edit-summary">
         <div class="book-cover-editor">
-          <img
-            v-if="preview"
-            class="book-detail-cover"
-            :src="preview"
-            :alt="file ? 'Prévia da capa selecionada' : 'Capa atual'"
-            referrerpolicy="no-referrer"
-          />
-          <div v-else class="book-detail-cover book-detail-placeholder">
-            <i class="pi pi-book" aria-hidden="true" /><span>Sem capa</span>
-          </div>
+          <button
+            type="button"
+            class="book-cover-picker"
+            aria-label="Trocar capa"
+            title="Trocar capa"
+            :disabled="busy"
+            @click="fileInput?.click()"
+          >
+            <img
+              v-if="preview"
+              class="book-detail-cover"
+              :src="preview"
+              :alt="file ? 'Prévia da capa selecionada' : 'Capa atual'"
+              referrerpolicy="no-referrer"
+            />
+            <div v-else class="book-detail-cover book-detail-placeholder">
+              <i class="pi pi-book" aria-hidden="true" /><span>Sem capa</span>
+            </div>
+            <span class="book-cover-pencil" aria-hidden="true">
+              <i class="pi pi-pencil" />
+            </span>
+          </button>
           <div class="book-cover-controls">
             <Button
               type="button"
@@ -279,22 +275,7 @@ onUnmounted(clearFile);
     />
     <div class="book-save-bar">
       <p class="muted">Dados e capa serão salvos juntos.</p>
-      <div class="actions">
-        <Button
-          label="Cancelar"
-          type="button"
-          outlined
-          :disabled="busy"
-          @click="emit('cancel')"
-        /><Button
-          label="Salvar alterações"
-          type="submit"
-          icon="pi pi-check"
-          class="primary"
-          :disabled="busy"
-          :loading="busy"
-        />
-      </div>
+      <BookEditActions :busy="busy" @cancel="emit('cancel')" />
     </div>
   </form>
 </template>

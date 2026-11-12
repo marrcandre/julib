@@ -256,3 +256,192 @@ def test_enrichment_endpoint_only_reads_external_data(client, member, monkeypatc
     )
     assert response.status_code == 200 and response.json()["publisher"] == "Editora"
     assert Book.objects.count() == 0
+
+
+def test_title_search_uses_edition_fields_and_keeps_google_results(monkeypatch):
+    from library.providers import Lookup
+
+    other = "9780261102217"
+    calls = []
+
+    def json_data(self, url, params):
+        calls.append(url)
+        if url.endswith("search.json"):
+            assert "editions" in params["fields"]
+            return {
+                "docs": [
+                    {
+                        "key": "/works/OL1W",
+                        "title": "Obra",
+                        "author_name": ["Autor"],
+                        "isbn": [other],
+                        "publisher": ["Errada"],
+                        "first_publish_year": 1900,
+                        "editions": {"docs": [{"key": "/books/OL1M"}]},
+                    }
+                ]
+            }
+        if url.endswith("/books/OL1M.json"):
+            return {
+                "key": "/books/OL1M",
+                "title": "Edição brasileira",
+                "isbn_13": [ISBN],
+                "publishers": ["Editora correta"],
+                "publish_date": "2009",
+                "number_of_pages": 416,
+                "edition_name": "1ª edição",
+                "languages": [{"key": "/languages/por"}],
+            }
+        if "googleapis" in url:
+            return {
+                "items": [
+                    {
+                        "id": "different",
+                        "volumeInfo": {
+                            "title": "Outra edição",
+                            "industryIdentifiers": [{"identifier": other}],
+                        },
+                    },
+                    {
+                        "id": "duplicate",
+                        "volumeInfo": {
+                            "title": "Duplicata",
+                            "industryIdentifiers": [{"identifier": ISBN}],
+                        },
+                    },
+                ]
+            }
+        return {}
+
+    monkeypatch.setattr(Lookup, "json", json_data)
+    results = search_books("Obra")
+    assert {x["isbn"] for x in results} == {ISBN, other}
+    assert len(results) == 2
+    chosen = next(x for x in results if x["isbn"] == ISBN)
+    assert (chosen["publisher"], chosen["year"], chosen["page_count"]) == (
+        "Editora correta",
+        "2009",
+        416,
+    )
+    assert chosen["language"] == "pt" and chosen["edition"] == "1ª edição"
+    assert chosen["provenance"]["edition"]["source_id"] == "/books/OL1M"
+    assert any("googleapis" in url for url in calls)
+
+
+def test_exact_isbn_enrichment_gets_language_and_edition_without_overwriting(monkeypatch):
+    from library.providers import Lookup, enrich_book
+
+    def json_data(self, url, params):
+        if params.get("jscmd") == "details":
+            return {
+                f"ISBN:{ISBN}": {
+                    "details": {
+                        "title": "Livro",
+                        "isbn_13": [ISBN],
+                        "key": "/books/OL1M",
+                        "languages": [{"key": "/languages/por"}],
+                        "edition_name": "2ª edição",
+                        "number_of_pages": 416,
+                    }
+                }
+            }
+        return {}
+
+    monkeypatch.setattr(Lookup, "json", json_data)
+    result = enrich_book({"isbn": ISBN, "title": "Meu título", "page_count": 500})
+    assert result["title"] == "Meu título" and result["page_count"] == 500
+    assert result["language"] == "pt" and result["edition"] == "2ª edição"
+    assert result["provenance"]["language"]["source"] == "openlibrary"
+
+
+def test_title_search_without_edition_keeps_manual_candidate_without_aggregate_metadata(
+    monkeypatch,
+):
+    from library.providers import Lookup
+
+    monkeypatch.setattr(
+        Lookup,
+        "json",
+        lambda self, url, params: (
+            {
+                "docs": [
+                    {
+                        "key": "/works/OL1W",
+                        "title": "Obra",
+                        "author_name": ["Autor"],
+                        "isbn": [ISBN],
+                        "number_of_pages_median": 400,
+                        "first_publish_year": 1900,
+                    }
+                ]
+            }
+            if url.endswith("search.json")
+            else {}
+        ),
+    )
+    result = search_books("Obra")[0]
+    assert result["isbn"] == "" and result["year"] == ""
+    assert not result.get("page_count")
+
+
+def test_completion_requires_edition_and_malformed_details_are_ignored(monkeypatch):
+    from library.providers import Lookup, complete, enrich_book
+
+    base = {
+        "isbn": ISBN,
+        "title": "Livro",
+        "authors": ["Autor"],
+        "publisher": "Editora",
+        "year": "2009",
+        "language": "pt",
+        "page_count": 100,
+        "cover_url": "https://res.cloudinary.com/own.jpg",
+    }
+    assert not complete(base)
+    monkeypatch.setattr(
+        Lookup,
+        "json",
+        lambda self, url, params: (
+            {
+                f"ISBN:{ISBN}": {
+                    "details": {
+                        "title": "Errado",
+                        "isbn_13": ["9780261102217"],
+                        "edition_name": "Errada",
+                    }
+                }
+            }
+            if params.get("jscmd") == "details"
+            else {}
+        ),
+    )
+    assert not enrich_book(base).get("edition")
+
+
+def test_malformed_edition_author_does_not_hide_other_search_results(monkeypatch):
+    from library.providers import Lookup
+
+    def json_data(self, url, params):
+        if url.endswith("search.json"):
+            return {
+                "docs": [
+                    {
+                        "key": "/works/OL1W",
+                        "title": "Obra",
+                        "author_key": ["OL1A"],
+                        "author_name": ["Autor"],
+                        "editions": {"docs": [{"key": "/books/OL1M"}]},
+                    }
+                ]
+            }
+        if url.endswith("/books/OL1M.json"):
+            return {
+                "key": "/books/OL1M",
+                "title": "Livro",
+                "isbn_13": [ISBN],
+                "authors": [{"key": []}],
+            }
+        return {}
+
+    monkeypatch.setattr(Lookup, "json", json_data)
+    assert search_books("Livro")[0]["isbn"] == ISBN

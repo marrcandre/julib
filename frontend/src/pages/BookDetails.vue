@@ -14,6 +14,7 @@ import InputText from "primevue/inputtext";
 import { useToast } from "primevue/usetoast";
 import BookSources from "../components/BookSources.vue";
 import BookEditor from "../components/BookEditor.vue";
+import BookEditActions from "../components/BookEditActions.vue";
 import SourceAttribution from "../components/SourceAttribution.vue";
 import {
   api,
@@ -352,8 +353,13 @@ const facts = computed(() =>
         catálogo</RouterLink
       >
       <div v-if="book && !loading" class="actions">
-        <span v-if="editing" class="tag-pill">Editando livro</span
-        ><template v-else
+        <BookEditActions
+          v-if="editing"
+          :busy="busy"
+          form-id="book-edit-form"
+          @cancel="cancelEdit"
+        />
+        <template v-else
           ><Button
             label="Editar livro"
             icon="pi pi-pencil"
@@ -391,6 +397,7 @@ const facts = computed(() =>
           <button
             type="button"
             class="book-cover-edit-trigger"
+            title="Editar livro"
             :aria-label="
               book.cover_url && !coverFailed
                 ? 'Editar livro pela capa'
@@ -409,6 +416,9 @@ const facts = computed(() =>
             <div v-else class="book-detail-cover book-detail-placeholder">
               <i class="pi pi-book" aria-hidden="true" /><span>Sem capa</span>
             </div>
+            <span class="book-cover-pencil" aria-hidden="true">
+              <i class="pi pi-pencil" />
+            </span>
           </button>
           <figcaption
             v-if="book.attribution_url !== book.metadata_attribution_url"

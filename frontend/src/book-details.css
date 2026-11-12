@@ -20,6 +20,9 @@ main.container.book-detail-main {
   gap: 12px;
   margin-bottom: 26px;
 }
+.book-detail-topline .p-button {
+  min-height: 40px;
+}
 .book-back {
   display: inline-flex;
   gap: 8px;
@@ -224,6 +227,40 @@ main.container.book-detail-main {
 .book-cover-editor {
   min-width: 0;
 }
+.book-cover-picker {
+  position: relative;
+  align-self: start;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.book-cover-picker:hover:not(:disabled),
+.book-cover-picker:focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 4px;
+}
+.book-cover-picker:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+.book-cover-pencil {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #fff;
+  color: #163c30;
+  box-shadow: 0 1px 6px #0004;
+}
 .book-cover-controls {
   display: flex;
   flex-direction: column;
@@ -265,6 +302,14 @@ main.container.book-detail-main {
 .book-edit-wide.actions {
   flex-wrap: wrap;
 }
+.book-edit-actions {
+  gap: 10px;
+}
+.book-edit-actions .p-button {
+  min-height: 40px;
+  font-size: 14px;
+  padding: 10px 12px;
+}
 .book-save-bar {
   display: flex;
   justify-content: space-between;
@@ -285,10 +330,12 @@ main.container.book-detail-main {
     gap: 6px;
     margin-bottom: 20px;
   }
-  .book-detail-topline .actions {
-    gap: 0;
+  .book-detail-topline .actions,
+  .book-edit-actions {
+    gap: 4px;
   }
-  .book-detail-topline .p-button {
+  .book-detail-topline .p-button,
+  .book-edit-actions .p-button {
     font-size: 12px;
   }
   .book-back {
@@ -357,8 +404,19 @@ main.container.book-detail-main {
     align-self: flex-end;
   }
 }
+@media (max-width: 600px) {
+  .book-detail-topline {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 40px 40px;
+  }
+  .book-detail-topline > .actions {
+    justify-self: end;
+  }
+}
 @media (max-width: 360px) {
-  .book-detail-topline .primary {
+  .book-detail-topline .primary,
+  .book-edit-actions .primary {
     padding: 9px;
     font-size: 11px;
   }

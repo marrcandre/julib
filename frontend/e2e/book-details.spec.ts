@@ -110,7 +110,16 @@ test("book has a private standalone URL, local cover draft and atomic edit with 
   await expect(
     page.getByText("Nenhum empréstimo registrado para este exemplar."),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Editar livro sem capa" }).click();
+  const emptyCover = page.getByRole("button", {
+    name: "Editar livro sem capa",
+  });
+  await expect(emptyCover.locator(".book-cover-pencil")).toBeVisible();
+  await expect(emptyCover).toHaveAttribute("title", "Editar livro");
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const initialCover = await emptyCover.boundingBox();
+  await emptyCover.click();
+  const editingCover = await page.locator(".book-cover-picker").boundingBox();
+  expect(editingCover).toEqual(initialCover);
   const file = {
     name: "capa.png",
     mimeType: "image/png",
@@ -120,10 +129,42 @@ test("book has a private standalone URL, local cover draft and atomic edit with 
     ),
   };
   await page.getByLabel("Título *", { exact: true }).fill("1984 revisado");
-  await page.locator("input[type=file]").setInputFiles(file);
+  const coverTrigger = page
+    .getByRole("button", { name: "Trocar capa", exact: true })
+    .filter({ has: page.locator(".book-detail-placeholder") });
+  const chooserPromise = page.waitForEvent("filechooser");
+  await coverTrigger.click();
+  await (await chooserPromise).setFiles(file);
   await expect(
     page.getByRole("img", { name: "Prévia da capa selecionada" }),
   ).toBeVisible();
+  const previewTrigger = page
+    .getByRole("button", { name: "Trocar capa", exact: true })
+    .filter({
+      has: page.getByRole("img", { name: "Prévia da capa selecionada" }),
+    });
+  await previewTrigger.focus();
+  const keyboardChooser = page.waitForEvent("filechooser");
+  await page.keyboard.press("Enter");
+  await (await keyboardChooser).setFiles(file);
+  await page.setViewportSize({ width: 320, height: 852 });
+  await expect(previewTrigger.locator(".book-cover-pencil")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Trocar capa", exact: true }),
+  ).toHaveCount(2);
+  await previewTrigger.focus();
+  const spaceChooser = page.waitForEvent("filechooser");
+  await page.keyboard.press("Space");
+  await (await spaceChooser).setFiles(file);
+  await page.screenshot({
+    path: "/tmp/julib-cover-mobile.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.screenshot({
+    path: "/tmp/julib-cover-desktop.png",
+    fullPage: true,
+  });
   expect(uploads).toBe(0);
   expect(writes).toBe(0);
   page.once("dialog", (dialog) => dialog.dismiss());
@@ -170,6 +211,28 @@ test("book has a private standalone URL, local cover draft and atomic edit with 
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  const detailCover = page.getByRole("button", {
+    name: "Editar livro pela capa",
+  });
+  await expect(detailCover.locator(".book-cover-pencil")).toBeVisible();
+  await detailCover.focus();
+  await expect(detailCover).toHaveCSS("outline-style", "solid");
+  await page.screenshot({
+    path: "/tmp/julib-detail-cover-mobile.png",
+    fullPage: true,
+  });
+  const mobileCover = await detailCover.boundingBox();
+  await page.keyboard.press("Enter");
+  expect(await page.locator(".book-cover-picker").boundingBox()).toEqual(
+    mobileCover,
+  );
+  await expect(
+    page.getByRole("heading", { name: "Editar livro", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Cancelar", exact: true })
+    .first()
+    .click();
   await page.goto("/livros/9999");
   await expect(page.getByRole("alert")).toContainText(
     "Livro não encontrado ou sem acesso",

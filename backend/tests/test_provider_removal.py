@@ -83,7 +83,7 @@ def test_google_is_last_resort_metadata_but_legacy_cover_fallback_is_preserved(m
     assert search_books("9780261102217")[0]["source"] == "google"
     assert "brasilapi" in calls[0]
     assert "openlibrary" in calls[2]
-    assert "googleapis" in calls[3]
+    assert "googleapis" in calls[-1]
     hosts = []
 
     def handler(request):

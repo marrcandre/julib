@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, provide, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, provide, watch } from "vue";
 import { useRoute } from "vue-router";
 import Button from "primevue/button";
 import Drawer from "primevue/drawer";
@@ -15,6 +15,22 @@ const session = ref<Session | null>(null),
 const theme = ref<ThemePreference>(initialTheme()),
   route = useRoute();
 provide("session", session);
+const publicLibrary = ref<string | null>(null);
+provide("public-library", publicLibrary);
+const publicCollection = computed(() => route.path.startsWith("/colecao/"));
+const libraryName = computed(
+  () =>
+    (publicCollection.value
+      ? publicLibrary.value
+      : session.value?.library
+    )?.trim() || "Julib",
+);
+watch(
+  () => route.params.token,
+  () => {
+    publicLibrary.value = null;
+  },
+);
 watch(
   () => route.path,
   () => {
@@ -62,8 +78,14 @@ onUnmounted(() => {
         text
         @click="navigationOpen = true"
       />
-      <RouterLink class="brand" to="/" aria-label="Julib início"
-        ><i class="pi pi-book" /> Julib</RouterLink
+      <RouterLink
+        class="brand"
+        :to="publicCollection ? route.path : '/'"
+        :aria-label="libraryName + ' — início'"
+        :title="libraryName"
+        ><i class="pi pi-book" aria-hidden="true" /><span class="brand-name">{{
+          libraryName
+        }}</span></RouterLink
       >
       <nav v-if="session" class="desktop-nav" aria-label="Navegação principal">
         <RouterLink to="/">Painel</RouterLink
@@ -117,7 +139,7 @@ onUnmounted(() => {
   </header>
   <Drawer
     v-model:visible="navigationOpen"
-    header="Julib"
+    :header="libraryName"
     position="left"
     class="app-navigation-drawer"
   >
@@ -187,15 +209,9 @@ onUnmounted(() => {
   </main>
   <footer class="app-footer">
     <div class="container footer-inner">
-      <div>
-        <b
-          ><RouterLink to="/sobre#homenagem">Julib</RouterLink> — Sua
-          biblioteca, bem organizada</b
-        >
-        <p class="muted">
-          Um lugar para cada livro. Mais histórias para compartilhar.
-        </p>
-      </div>
+      <p class="footer-powered">
+        Powered by <RouterLink to="/sobre">Julib</RouterLink>
+      </p>
       <div class="footer-links">
         <RouterLink to="/sobre">Sobre</RouterLink
         ><a

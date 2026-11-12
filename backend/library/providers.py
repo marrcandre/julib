@@ -173,6 +173,57 @@ def strings(value: Any) -> list[str]:
     )
 
 
+def edition_data(data: dict[str, Any]) -> dict[str, Any]:
+    """Read a single edition, never aggregate work-level bibliographic fields."""
+    identifiers = [
+        normalized_identifier(value)
+        for value in strings(data.get("isbn_13")) + strings(data.get("isbn_10"))
+    ]
+    languages = []
+    codes = {
+        "por": "pt",
+        "eng": "en",
+        "spa": "es",
+        "fre": "fr",
+        "fra": "fr",
+        "ger": "de",
+        "deu": "de",
+        "ita": "it",
+        "jpn": "ja",
+    }
+    for item in objects(data.get("languages")):
+        key = item.get("key")
+        if isinstance(key, str) and re.fullmatch(r"/languages/[a-z]{3}", key):
+            code = key.rsplit("/", 1)[-1]
+            languages.append(codes.get(code, code))
+    date = re.search(r"\b\d{4}\b", str(data.get("publish_date") or ""))
+    covers = data.get("covers")
+    cover_id = (
+        next((c for c in covers if type(c) is int and c > 0), None)
+        if isinstance(covers, list)
+        else None
+    )
+    return candidate(
+        {
+            "title": data.get("title") if isinstance(data.get("title"), str) else "",
+            "authors": ["Autoria desconhecida"],
+            "isbn": next((value for value in identifiers if value), ""),
+            "publisher": "; ".join(strings(data.get("publishers"))),
+            "year": date.group() if date else "",
+            "page_count": optional_page_count(data.get("number_of_pages")),
+            "language": "; ".join(dict.fromkeys(languages)),
+            "edition": data.get("edition_name")
+            if isinstance(data.get("edition_name"), str)
+            else "",
+            "cover_url": f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg?default=false"
+            if cover_id
+            else "",
+        },
+        "openlibrary",
+        str(data.get("key") or ""),
+    )
+
+
 def candidate(
     data: dict[str, Any], source: str, identifier: str, origin: str | None = None
 ) -> dict[str, Any]:
@@ -263,12 +314,27 @@ def openlibrary(lookup: Lookup, isbn: str) -> dict[str, Any]:
         {"bibkeys": f"ISBN:{isbn}", "format": "json", "jscmd": "data"},
     )
     data = response.get(f"ISBN:{isbn}")
-    if not isinstance(data, dict) or not data.get("title"):
-        return {}
+    if not isinstance(data, dict):
+        data = {}
+    detail_response = lookup.json(
+        "https://openlibrary.org/api/books",
+        {"bibkeys": f"ISBN:{isbn}", "format": "json", "jscmd": "details"},
+    )
+    entry = detail_response.get(f"ISBN:{isbn}")
+    detail = entry.get("details", {}) if isinstance(entry, dict) else {}
+    if not isinstance(detail, dict):
+        detail = {}
+    identifiers = {
+        normalized_identifier(value)
+        for value in strings(detail.get("isbn_13")) + strings(detail.get("isbn_10"))
+    }
+    extra = edition_data(detail) if isbn in identifiers else {}
+    if not data.get("title"):
+        return extra if extra.get("title") else {}
     cover = data.get("cover") or {}
     publishers = objects(data.get("publishers"))
     date = re.search(r"\b\d{4}\b", str(data.get("publish_date") or ""))
-    return candidate(
+    result = candidate(
         {
             "title": data["title"],
             "authors": [
@@ -296,6 +362,15 @@ def openlibrary(lookup: Lookup, isbn: str) -> dict[str, Any]:
         str(data.get("key") or f"ISBN:{isbn}"),
     )
 
+    for field in FIELDS:
+        if not result.get(field) and extra.get(field):
+            result[field] = extra[field]
+            result["provenance"][field] = extra["provenance"][field]
+    if not result.get("cover_url") and extra.get("cover_url"):
+        result["cover_url"] = extra["cover_url"]
+        result["provenance"]["cover_url"] = extra["provenance"]["cover_url"]
+    return result
+
 
 def missing(value: Any) -> bool:
     return not value or value == ["Autoria desconhecida"]
@@ -311,6 +386,7 @@ def complete(data: dict[str, Any]) -> bool:
             "year",
             "language",
             "page_count",
+            "edition",
             "cover_url",
         )
     )
@@ -401,32 +477,90 @@ def search_books(query: str) -> list[dict[str, Any]]:
         if result.get("title"):
             return [result]
     else:
-        response = lookup.json("https://openlibrary.org/search.json", {"q": query, "limit": 12})
+        response = lookup.json(
+            "https://openlibrary.org/search.json",
+            {
+                "q": query,
+                "limit": 12,
+                "lang": "pt",
+                "fields": "key,title,author_name,author_key,cover_i,editions,editions.key",
+            },
+        )
+        # Reserve Google's discovery request before fetching edition details.
+        google_results = google(lookup, query, "")
         results = []
+        detail_requests = 0
         for item in objects(response.get("docs")):
-            if not isinstance(item, dict) or not item.get("title"):
+            if not isinstance(item.get("title"), str) or not item["title"]:
                 continue
-            cover_id = item.get("cover_i")
-            results.append(
-                candidate(
-                    {
-                        "title": item["title"],
-                        "authors": strings(item.get("author_name")) or ["Autoria desconhecida"],
-                        "isbn": "",
-                        "year": "",
-                        "cover_url": f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg?default=false"
-                        if isinstance(cover_id, int)
-                        else "",
-                    },
-                    "openlibrary",
-                    str(item.get("key") or ""),
+            editions = item.get("editions")
+            found = False
+            for entry in objects(editions.get("docs") if isinstance(editions, dict) else None):
+                key = entry.get("key")
+                if (
+                    detail_requests >= 4
+                    or not isinstance(key, str)
+                    or not re.fullmatch(r"/books/OL[0-9]+M", key)
+                ):
+                    continue
+                detail_requests += 1
+                detail = lookup.json("https://openlibrary.org" + key + ".json", {})
+                if (
+                    detail.get("key") != key
+                    or not isinstance(detail.get("title"), str)
+                    or not detail["title"]
+                ):
+                    continue
+                result = edition_data(detail)
+                # Work authors are only a fallback; an edition may credit different authors.
+                author_keys = [
+                    author["key"]
+                    for author in objects(detail.get("authors"))
+                    if isinstance(author.get("key"), str)
+                    and re.fullmatch(r"/authors/OL[0-9]+A", author["key"])
+                ]
+                work_authors = item.get("author_key")
+                if (
+                    author_keys
+                    and isinstance(work_authors, list)
+                    and set(author_keys)
+                    != {f"/authors/{k}" for k in work_authors if isinstance(k, str)}
+                ):
+                    result["authors"] = ["Autoria desconhecida"]
+                else:
+                    result["authors"] = strings(item.get("author_name")) or ["Autoria desconhecida"]
+                result["provenance"]["authors"] = {
+                    "source": "openlibrary",
+                    "source_id": str(item.get("key") or ""),
+                }
+                results.append(result)
+                found = True
+            if not found:
+                cover_id = item.get("cover_i")
+                results.append(
+                    candidate(
+                        {
+                            "title": item["title"],
+                            "authors": strings(item.get("author_name")) or ["Autoria desconhecida"],
+                            "isbn": "",
+                            "year": "",
+                            "cover_url": f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg?default=false"
+                            if type(cover_id) is int and cover_id > 0
+                            else "",
+                        },
+                        "openlibrary",
+                        str(item.get("key") or ""),
+                    )
                 )
-            )
-        if results:
-            return results
-        results = google(lookup, query, "")
-        if results:
-            return results
+        unique = []
+        seen = set()
+        for result in results + google_results:
+            identity = result.get("isbn") or (result["source"], result["source_id"])
+            if identity not in seen:
+                unique.append(result)
+                seen.add(identity)
+        if unique:
+            return unique[:24]
     if lookup.failures:
         raise ValidationError(
             "A busca externa está indisponível. Tente novamente ou cadastre manualmente."
