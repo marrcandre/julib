@@ -63,7 +63,9 @@ test("mobile layout and theme preference", async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await page.goto("/sobre");
   await expect(
-    page.getByRole("heading", { name: "Uma biblioteca cheia de histórias." }),
+    page.getByRole("heading", {
+      name: "Julib — Sua biblioteca, bem organizada",
+    }),
   ).toBeVisible();
   await page.screenshot({
     path: "../.superpowers/julib-mobile.png",

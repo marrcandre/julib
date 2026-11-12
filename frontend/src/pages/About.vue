@@ -54,7 +54,10 @@ onMounted(async () => {
 <template>
   <article class="readable">
     <div class="eyebrow">SOBRE O PROJETO</div>
-    <h1>Uma biblioteca cheia de histórias.</h1>
+    <h1>Julib — Sua biblioteca, bem organizada</h1>
+    <p class="muted">
+      Um lugar para cada livro. Mais histórias para compartilhar.
+    </p>
     <p>
       Julib é uma aplicação gratuita e de código aberto para organizar
       bibliotecas pessoais: livros, exemplares, locais e empréstimos, juntos em

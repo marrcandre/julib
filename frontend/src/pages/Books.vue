@@ -914,7 +914,19 @@ onUnmounted(() => {
             <span
               ><b>{{ candidate.title }}</b
               ><br />{{ candidate.authors?.join(", ") }} ·
-              {{ candidate.isbn }}</span
+              {{ candidate.isbn || "Sem ISBN — confira os dados manualmente" }}
+              <small class="muted" style="display: block">
+                {{
+                  [
+                    candidate.publisher,
+                    candidate.year,
+                    candidate.language,
+                    candidate.edition,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                }}
+              </small></span
             ><i class="pi pi-plus" />
           </button>
           <a

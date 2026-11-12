@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import BookCredits from "../components/BookCredits.vue";
-import { ref, onMounted } from "vue";
+import { ref, inject, watch, onUnmounted, type Ref } from "vue";
 import { useRoute } from "vue-router";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
@@ -13,7 +13,10 @@ const route = useRoute(),
   page = ref(1),
   total = ref(0),
   error = ref("");
+const publicLibrary = inject<Ref<string | null>>("public-library");
+let version = 0;
 async function load() {
+  const current = ++version;
   error.value = "";
   try {
     const data = await api<{ name: string; items: Book[]; total: number }>(
@@ -24,15 +27,34 @@ async function load() {
         "&page=" +
         page.value,
     );
+    if (current !== version) return;
     name.value = data.name;
+    if (publicLibrary) publicLibrary.value = data.name;
     books.value = data.items;
     total.value = data.total;
   } catch (e) {
+    if (current !== version) return;
+    if (publicLibrary) publicLibrary.value = null;
     books.value = [];
     error.value = (e as Error).message;
   }
 }
-onMounted(load);
+watch(
+  () => route.params.token,
+  () => {
+    name.value = "Coleção";
+    books.value = [];
+    page.value = 1;
+    q.value = "";
+    if (publicLibrary) publicLibrary.value = null;
+    void load();
+  },
+  { immediate: true },
+);
+onUnmounted(() => {
+  ++version;
+  if (publicLibrary) publicLibrary.value = null;
+});
 </script>
 <template>
   <div class="page-heading">
