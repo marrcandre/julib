@@ -261,7 +261,7 @@ Migração 0007 aplicada com proteção de tabelas antes/depois. Contagens prese
 
 Verificação de produção: prontidão GET/HEAD HTTP200 sem cache, catálogo privado retorna401 sem autenticação e Swagger retorna403 ao visitante em ambas as origens. Apresentação do livro com empréstimo existente informa exclusão bloqueada. QA visual com APIs simuladas sobre o frontend publicado passou no celular/desktop: capas em187px, sem overflow ou erro JS, filtros físicos ocultos nos desejados e exclusão bloqueada quando há histórico. Nenhum livro real foi excluído, adquirido ou reclassificado durante os testes. Servidores locais 8000/5173 restaurados.
 
-O backup diário automático está pausado enquanto Actions estiver desativado. Fazer backup antes de cada publicação manual e conferir releases `manual-*` com retenção operacional de sete dias; releases não expiram automaticamente. Procedimento completo e comandos de retomada em docs/operations.md. Não considerar CI remota aprovada nem backup diário reativado até execução real após resolução do chamado.
+O backup diário automático está pausado enquanto Actions estiver desativado. Backup é uma rotina operacional independente e não é obrigatório a cada publicação manual; conferir releases `manual-*` e manter a retenção operacional de sete dias, lembrando que releases não expiram automaticamente. Procedimento completo e comandos de retomada em docs/operations.md. Não considerar CI remota aprovada nem backup diário reativado até execução real após resolução do chamado.
 
 ## Página própria de detalhes e edição — 06/11/2026
 

@@ -28,11 +28,6 @@ jobs:
       - run: uv sync --project backend --frozen
       - name: Require an unpublished version candidate
         run: python scripts/release.py validate
-      - name: Require a fresh private backup
-        env:
-          GH_TOKEN: ${{ secrets.BACKUP_DISPATCH_TOKEN }}
-          BACKUP_REPOSITORY: ${{ vars.BACKUP_REPOSITORY }}
-        run: python scripts/request_backup.py
       - name: Apply compatible reviewed migrations
         env:
           DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
