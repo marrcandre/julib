@@ -31,6 +31,38 @@ it("shows public tags and availability without copy details", () => {
   expect(wrapper.find(".status").exists()).toBe(false);
 });
 
+it("shows a cover placeholder until the lazy image loads", async () => {
+  const wrapper = mount(BookCard, {
+    props: {
+      variant: "covers",
+      imagePriority: "high",
+      book: {
+        id: 2,
+        title: "Capa de teste",
+        authors: [],
+        isbn: "",
+        publisher: "",
+        edition: "",
+        year: "",
+        language: "",
+        cover_url:
+          "https://res.cloudinary.com/exemplo/image/upload/v123/capa.jpg",
+        tags: [],
+        available: true,
+        attribution_name: "",
+        attribution_url: "",
+      },
+    },
+  });
+  const image = wrapper.get("img");
+  expect(image.attributes("fetchpriority")).toBe("high");
+  expect(image.attributes("loading")).toBe("eager");
+  expect(image.attributes("src")).toContain("f_auto,q_auto,w_300,c_limit");
+  expect(wrapper.find(".cover-placeholder--loading").exists()).toBe(true);
+  await image.trigger("load");
+  expect(wrapper.find(".cover-placeholder--loading").exists()).toBe(false);
+});
+
 it("accepts only valid book ISBN barcodes", async () => {
   const { isbnFromBarcode } = await import("../src/isbn");
   expect(isbnFromBarcode("9780261102217")).toBe("9780261102217");

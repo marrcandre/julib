@@ -43,6 +43,7 @@ import InputText from "primevue/inputtext";
 import InputNumber from "primevue/inputnumber";
 import Select from "primevue/select";
 import MultiSelect from "primevue/multiselect";
+import ProgressSpinner from "primevue/progressspinner";
 import BookCard from "../components/BookCard.vue";
 import {
   api,
@@ -66,6 +67,10 @@ const rows = ref(savedPagination.rows),
   listSize = ref(savedPagination.listSize);
 const resultsRoot = ref<HTMLElement>();
 let catalogReady = false;
+let disposed = false;
+const catalogLoaded = ref(false);
+const catalogUpdating = ref(false);
+const catalogError = ref("");
 const updateGridMedia = () => {
   gridMobile.value = gridMedia.matches;
 };
@@ -307,13 +312,13 @@ function pageHref(target: number) {
   }).fullPath;
 }
 async function selectPage(target: number) {
-  if (busy.value || target === page.value) return;
+  if (catalogUpdating.value || target === page.value) return;
   page.value = target;
   selectedCopies.value = [];
   await router.push(pageHref(target));
   await refresh();
   await nextTick();
-  resultsRoot.value?.scrollIntoView({ block: "start" });
+  window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
 }
 function catalogState() {
   return {
@@ -370,13 +375,15 @@ watch(
     void refresh().then(async () => {
       if (changedPage) {
         await nextTick();
-        resultsRoot.value?.scrollIntoView({ block: "start" });
+        window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
       }
     });
   },
 );
 async function load() {
   const version = ++loadVersion;
+  catalogError.value = "";
+  catalogUpdating.value = true;
   const path = catalogUrl.value;
   if (route.path === "/livros" && route.fullPath !== path)
     void router.replace(path);
@@ -395,9 +402,10 @@ async function load() {
     const data = await api<{ items: Book[]; total: number; page?: number }>(
       "/books?" + params,
     );
-    if (version !== loadVersion || searchValue !== q.value) return;
+    if (disposed || version !== loadVersion || searchValue !== q.value) return;
     books.value = data.items;
     total.value = data.total;
+    catalogLoaded.value = true;
     const clamped =
       data.page ||
       Math.min(page.value, Math.max(1, Math.ceil(data.total / pageSize.value)));
@@ -406,13 +414,17 @@ async function load() {
       void router.replace(catalogUrl.value);
     }
   } catch (cause) {
-    if (version !== loadVersion || searchValue !== q.value) return;
-    throw cause;
+    if (disposed || version !== loadVersion || searchValue !== q.value) return;
+    catalogError.value =
+      (cause as Error).message || "Não foi possível carregar o catálogo.";
+  } finally {
+    if (!disposed && version === loadVersion) catalogUpdating.value = false;
+    if (!disposed && version === loadVersion) catalogLoaded.value = true;
   }
 }
 async function refresh() {
   clearTimeout(searchTimer);
-  await run(load);
+  await load();
 }
 function newBook() {
   ++selectionVersion;
@@ -645,8 +657,8 @@ watch(q, (value) => {
   if (!value) searchNow();
   else searchTimer = setTimeout(searchNow, 300);
 });
-onMounted(() =>
-  run(async () => {
+onMounted(() => {
+  void (async () => {
     if (route.query.livro) {
       await router.replace({
         path: "/livros/" + String(route.query.livro),
@@ -654,20 +666,31 @@ onMounted(() =>
       });
       return;
     }
-    [locations.value, tags.value] = await Promise.all([
-      api<Location[]>("/locations"),
-      api<Tag[]>("/tags"),
-    ]);
     catalogReady = true;
-    await load();
+    void load();
+    void api<Location[]>("/locations")
+      .then((data) => {
+        if (!disposed) locations.value = data;
+      })
+      .catch((cause) => {
+        if (!disposed) error.value = (cause as Error).message;
+      });
+    void api<Tag[]>("/tags")
+      .then((data) => {
+        if (!disposed) tags.value = data;
+      })
+      .catch((cause) => {
+        if (!disposed) error.value = (cause as Error).message;
+      });
     await nextTick();
     requestAnimationFrame(() =>
       window.scrollTo({ top: catalogPosition(catalogUrl.value) }),
     );
     if (startNew) newBook();
-  }),
-);
+  })();
+});
 onUnmounted(() => {
+  disposed = true;
   clearTimeout(searchTimer);
   ++loadVersion;
   stopCamera();
@@ -695,26 +718,59 @@ onUnmounted(() => {
     @share="openShare"
   />
   <p v-if="error" class="error" role="alert">{{ error }}</p>
+  <div v-if="catalogError" class="catalog-load-error" role="alert">
+    <span>{{ catalogError }}</span>
+    <Button
+      label="Tentar novamente"
+      icon="pi pi-refresh"
+      text
+      @click="refresh"
+    />
+  </div>
   <section
     ref="resultsRoot"
     class="catalog-results"
     aria-label="Resultados dos livros"
+    :aria-busy="catalogUpdating"
   >
-    <div v-if="!books.length" class="empty">
+    <div
+      v-if="!catalogLoaded"
+      class="catalog-loading"
+      role="status"
+      aria-live="polite"
+    >
+      <ProgressSpinner aria-label="Carregando livros" />
+      <span>Carregando livros...</span>
+    </div>
+    <div
+      v-else-if="catalogUpdating"
+      class="catalog-updating"
+      role="status"
+      aria-live="polite"
+    >
+      <ProgressSpinner aria-label="Atualizando catálogo" />
+      <span>Atualizando catálogo...</span>
+    </div>
+    <div
+      v-if="catalogLoaded && !catalogError && !books.length && !catalogUpdating"
+      class="empty"
+    >
       <i class="pi pi-book" />Nenhum livro encontrado. Cadastre um livro ou
       altere os filtros.
     </div>
     <div
-      v-else
-      :class="
+      v-if="books.length"
+      :inert="catalogUpdating"
+      :class="[
         catalogView === 'list'
           ? 'catalog-list'
-          : ['book-grid', { 'catalog-covers': catalogView === 'covers' }]
-      "
+          : ['book-grid', { 'catalog-covers': catalogView === 'covers' }],
+        { 'catalog-results--updating': catalogUpdating },
+      ]"
       :style="{ '--cover-columns': coverColumns }"
     >
       <div
-        v-for="book in books"
+        v-for="(book, index) in books"
         :key="book.id"
         :data-book-id="book.id"
         class="catalog-item"
@@ -733,7 +789,23 @@ onUnmounted(() => {
             color: inherit;
           "
         >
-          <BookCard :book="book" :variant="catalogView" /></RouterLink
+          <BookCard
+            :book="book"
+            :variant="catalogView"
+            :image-priority="
+              index === 0
+                ? 'high'
+                : index <
+                    (catalogView === 'covers'
+                      ? coverColumns
+                      : catalogView === 'list'
+                        ? 4
+                        : gridMobile
+                          ? 3
+                          : 5)
+                  ? 'eager'
+                  : 'lazy'
+            " /></RouterLink
         ><BookCredits :item="book" compact />
       </div>
     </div>
@@ -757,7 +829,7 @@ onUnmounted(() => {
     :page-size="pageSize"
     :total="total"
     :compact="gridMobile"
-    :busy="busy"
+    :busy="catalogUpdating"
     :href="pageHref"
     @select="selectPage"
   />
