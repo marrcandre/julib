@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { catalogCoverUrl } from "../catalog-images";
 import type { Book, Copy } from "../api";
 const props = withDefaults(
   defineProps<{
@@ -15,14 +16,29 @@ const props = withDefaults(
       | "metadata_attribution_url"
     > & { copies?: Copy[]; is_desired?: boolean };
     variant?: "cards" | "covers" | "list";
+    imagePriority?: "high" | "eager" | "lazy";
   }>(),
-  { variant: "cards" },
+  { variant: "cards", imagePriority: "lazy" },
 );
 const failed = ref(false);
+const loaded = ref(false);
+const coverImage = ref<HTMLImageElement | null>(null);
+const displayCover = computed(() => catalogCoverUrl(props.book.cover_url));
 watch(
   () => props.book.cover_url,
-  () => (failed.value = false),
+  () => {
+    failed.value = false;
+    loaded.value = false;
+  },
 );
+function markLoaded(event: Event) {
+  if (event.currentTarget !== coverImage.value) return;
+  loaded.value = true;
+}
+function markFailed(event: Event) {
+  if (event.currentTarget !== coverImage.value) return;
+  failed.value = true;
+}
 const availability = computed(() =>
   props.book.is_desired
     ? "Desejado"
@@ -44,14 +60,30 @@ const statusIcon = computed(() =>
 </script>
 <template>
   <article class="book-card" :class="'book-card--' + variant">
-    <div class="cover">
+    <div
+      class="cover"
+      :class="{ 'cover--loading': book.cover_url && !loaded && !failed }"
+    >
+      <div
+        v-if="book.cover_url && !loaded && !failed"
+        class="cover-placeholder cover-placeholder--loading"
+        aria-hidden="true"
+      >
+        <i class="pi pi-book" />
+      </div>
       <img
         v-if="book.cover_url && !failed"
-        :src="book.cover_url"
+        :key="displayCover"
+        ref="coverImage"
+        :src="displayCover"
         :alt="'Capa de ' + book.title"
-        loading="lazy"
+        :loading="imagePriority === 'lazy' ? 'lazy' : 'eager'"
+        :fetchpriority="imagePriority === 'high' ? 'high' : 'auto'"
+        decoding="async"
+        :class="{ 'cover-image--loaded': loaded }"
         referrerpolicy="no-referrer"
-        @error="failed = true"
+        @load="markLoaded"
+        @error="markFailed"
       />
       <div v-else class="cover-placeholder">
         <i class="pi pi-book" aria-hidden="true" /><span
@@ -152,6 +184,26 @@ const statusIcon = computed(() =>
 }
 .cover {
   position: relative;
+}
+.cover img {
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+.cover img.cover-image--loaded {
+  opacity: 1;
+}
+.cover-placeholder--loading {
+  position: absolute;
+  inset: 0;
+  color: var(--muted);
+}
+.cover--loading img {
+  position: relative;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cover img {
+    transition: none;
+  }
 }
 .cover-status {
   position: absolute;
