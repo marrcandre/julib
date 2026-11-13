@@ -1,17 +1,23 @@
 <script setup lang="ts">
 import { inject, onMounted, ref, type Ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { api, type Session } from "../api";
 
 const session = inject<Ref<Session | null>>("session");
 const router = useRouter();
+const route = useRoute();
+const isLibraryAdmin = () =>
+  session?.value?.libraries.find(
+    (library) => String(library.id) === String(route.params.libraryId),
+  )?.role === "admin";
 const name = ref(session?.value?.library || "");
 const saving = ref(false);
 const error = ref("");
 const saved = ref(false);
 
 onMounted(() => {
-  if (!session?.value?.technical) router.replace("/livros");
+  if (!isLibraryAdmin())
+    router.replace(`/bibliotecas/${route.params.libraryId}/livros`);
 });
 
 async function save() {
@@ -26,6 +32,10 @@ async function save() {
     });
     name.value = result.name;
     session.value.library = result.name;
+    const active = session.value.libraries.find(
+      (library) => String(library.id) === String(route.params.libraryId),
+    );
+    if (active) active.name = result.name;
     saved.value = true;
   } catch (cause) {
     error.value = (cause as Error).message;
@@ -36,7 +46,7 @@ async function save() {
 </script>
 
 <template>
-  <section v-if="session?.technical" class="readable settings-page">
+  <section v-if="isLibraryAdmin()" class="readable settings-page">
     <div class="eyebrow">IDENTIDADE DA BIBLIOTECA</div>
     <h1>Configurações</h1>
     <p class="muted">

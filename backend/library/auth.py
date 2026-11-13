@@ -36,13 +36,28 @@ class AllowedSession(SessionAuth):
         return user
 
 
-def require_library(request: HttpRequest) -> Library:
+def require_membership(request: HttpRequest) -> Membership:
     if not isinstance(request.user, User) or not permitted(request.user):
         raise HttpError(403, "Conta sem autorização.")
-    membership = Membership.objects.filter(user=request.user).select_related("library").first()
-    if not membership:
-        raise HttpError(403, "Conta sem biblioteca. Solicite a configuração ao administrador.")
-    return membership.library
+    memberships = Membership.objects.filter(user=request.user).select_related("library")
+    library_id = request.headers.get("X-Library-ID")
+    if library_id is None:
+        selected_memberships = list(memberships[:2])
+        if len(selected_memberships) == 1:
+            return selected_memberships[0]
+        if not selected_memberships:
+            raise HttpError(403, "Conta sem biblioteca autorizada.")
+        raise HttpError(403, "Selecione uma biblioteca para continuar.")
+    if not library_id.isdecimal() or int(library_id) < 1:
+        raise HttpError(403, "Biblioteca não autorizada.")
+    try:
+        return memberships.get(library_id=int(library_id))
+    except Membership.DoesNotExist:
+        raise HttpError(403, "Biblioteca não autorizada.") from None
+
+
+def require_library(request: HttpRequest) -> Library:
+    return require_membership(request).library
 
 
 class AccountAdapter(DefaultAccountAdapter):
@@ -68,8 +83,21 @@ class GoogleAdapter(DefaultSocialAccountAdapter):
         user = super().save_user(request, sociallogin, form)
         user.is_staff = user.email.lower() == settings.ADMIN_EMAIL
         user.is_superuser = user.is_staff
-        user.save(update_fields=["is_staff", "is_superuser"])
-        library = Library.objects.first()
+        update_fields = ["is_staff", "is_superuser"]
+        if user.is_staff:
+            user.can_create_libraries = True
+            update_fields.append("can_create_libraries")
+        user.save(update_fields=update_fields)
+        library = Library.objects.order_by("pk").first()
         if library:
-            Membership.objects.get_or_create(user=user, library=library)
+            membership, _ = Membership.objects.get_or_create(
+                user=user,
+                library=library,
+                defaults={
+                    "role": Membership.ROLE_ADMIN if user.is_staff else Membership.ROLE_MEMBER
+                },
+            )
+            if user.is_staff and membership.role != Membership.ROLE_ADMIN:
+                membership.role = Membership.ROLE_ADMIN
+                membership.save(update_fields=["role"])
         return user

@@ -144,6 +144,11 @@ const route = useRoute(),
   books = ref<Book[]>([]),
   locations = ref<Location[]>([]),
   tags = ref<Tag[]>([]);
+const libraryBooksPath = computed(() =>
+  route.params.libraryId
+    ? `/bibliotecas/${route.params.libraryId}/livros`
+    : "/livros",
+);
 const initialCatalog = readCatalogQuery(
   route.query,
   readCatalogOrder(session?.value?.user_id),
@@ -307,7 +312,7 @@ watch(requestedSize, async (size) => {
 });
 function pageHref(target: number) {
   return router.resolve({
-    path: "/livros",
+    path: libraryBooksPath.value,
     query: catalogQuery({ ...catalogState(), page: target }),
   }).fullPath;
 }
@@ -334,11 +339,14 @@ function catalogState() {
 }
 const catalogUrl = computed(
   () =>
-    router.resolve({ path: "/livros", query: catalogQuery(catalogState()) })
+    router.resolve({ path: libraryBooksPath.value, query: catalogQuery(catalogState()) })
       .fullPath,
 );
 function bookLink(book: Book) {
-  return { path: "/livros/" + book.id, query: { voltar: catalogUrl.value } };
+  return {
+    path: libraryBooksPath.value + "/" + book.id,
+    query: { voltar: catalogUrl.value },
+  };
 }
 onBeforeRouteLeave(() => {
   saveCatalogPosition(catalogUrl.value);
@@ -346,7 +354,7 @@ onBeforeRouteLeave(() => {
 watch(
   () => route.query,
   (query) => {
-    if (route.path !== "/livros") return;
+    if (route.path !== libraryBooksPath.value) return;
     const state = readCatalogQuery(
       query,
       readCatalogOrder(session?.value?.user_id),
@@ -385,7 +393,7 @@ async function load() {
   catalogError.value = "";
   catalogUpdating.value = true;
   const path = catalogUrl.value;
-  if (route.path === "/livros" && route.fullPath !== path)
+  if (route.path === libraryBooksPath.value && route.fullPath !== path)
     void router.replace(path);
   const searchValue = q.value;
   const params = new URLSearchParams({
@@ -661,7 +669,7 @@ onMounted(() => {
   void (async () => {
     if (route.query.livro) {
       await router.replace({
-        path: "/livros/" + String(route.query.livro),
+        path: libraryBooksPath.value + "/" + String(route.query.livro),
         query: { voltar: catalogUrl.value },
       });
       return;

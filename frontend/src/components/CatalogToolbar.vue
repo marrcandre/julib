@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, nextTick, onMounted, onUnmounted } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
 import Menu from "primevue/menu";
@@ -48,6 +48,7 @@ const emit = defineEmits<{
   share: [];
 }>();
 const router = useRouter();
+const route = useRoute();
 const viewport = window.matchMedia("(max-width: 800px)");
 const mobile = ref(viewport.matches);
 const syncViewport = () => {
@@ -89,7 +90,12 @@ const moreItems = [
   {
     label: "Importar do Goodreads",
     icon: "pi pi-upload",
-    command: () => router.push("/importar"),
+    command: () =>
+      router.push(
+        route.params.libraryId
+          ? `/bibliotecas/${route.params.libraryId}/importar`
+          : "/importar",
+      ),
   },
   {
     label: "Organizar exemplares",

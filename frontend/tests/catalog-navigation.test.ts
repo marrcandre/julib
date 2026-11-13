@@ -18,6 +18,12 @@ it("keeps return navigation inside the private catalog", () => {
   ])
     expect(safeCatalogReturn(path)).toBe("/livros");
 });
+it("preserves the active library in book return links", () => {
+  expect(
+    safeCatalogReturn("/bibliotecas/17/livros?q=Orwell&pagina=2"),
+  ).toBe("/bibliotecas/17/livros?q=Orwell&pagina=2");
+  expect(safeCatalogReturn("/bibliotecas/17/livros/42")).toBe("/livros");
+});
 it("restores wishlist filters and pagination without accepting invalid IDs", () => {
   const state = readCatalogQuery({
     q: "Orwell",

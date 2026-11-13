@@ -158,8 +158,18 @@ class LibraryNameIn(Schema):
     name: str = Field(max_length=150)
 
 
+class LibraryCreateIn(Schema):
+    name: str = Field(min_length=1, max_length=150)
+
+
 class LibraryNameOut(Schema):
     name: str
+
+
+class LibrarySummaryOut(Schema):
+    id: int
+    name: str
+    role: Literal["admin", "member"]
 
 
 class SessionOut(Schema):
@@ -170,6 +180,8 @@ class SessionOut(Schema):
     name: str
     email: str
     technical: bool
+    can_create_libraries: bool
+    libraries: list[LibrarySummaryOut]
     library: str | None
     csrf: str
 

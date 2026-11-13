@@ -11,6 +11,9 @@ for (const width of [393, 1280])
       JSON.parse(readFileSync("../.superpowers/e2e-session.json", "utf-8")),
     ]);
     await page.goto("/livros");
+    const libraryHeaders = () => ({
+      "X-Library-ID": new URL(page.url()).pathname.split("/")[2],
+    });
     await page.goto("/livros?situacao=wishlist");
     await page
       .getByRole("button", { name: "Adicionar livro", exact: true })
@@ -72,6 +75,7 @@ for (const width of [393, 1280])
     await open.click();
     const acquired = await page.request.get(
       "/api/v1/books?scope=all&q=" + encodeURIComponent(title),
+      { headers: libraryHeaders() },
     );
     expect((await acquired.json()).items[0].copies).toHaveLength(1);
     await page
@@ -109,6 +113,7 @@ for (const width of [393, 1280])
     await expect(open).not.toBeVisible();
     const response = await page.request.get(
       "/api/v1/books?scope=all&q=" + encodeURIComponent(title),
+      { headers: libraryHeaders() },
     );
     expect((await response.json()).total).toBe(0);
   });

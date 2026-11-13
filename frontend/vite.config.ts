@@ -9,10 +9,10 @@ export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(packageJson.version) },
   server: {
     proxy: {
-      "/api": { target: "http://127.0.0.1:8000", changeOrigin: false },
-      "/accounts": { target: "http://127.0.0.1:8000", changeOrigin: false },
-      "/admin": { target: "http://127.0.0.1:8000", changeOrigin: false },
-      "/static": { target: "http://127.0.0.1:8000", changeOrigin: false },
+      "/api": { target: process.env.E2E_API_URL ?? "http://127.0.0.1:8000", changeOrigin: false },
+      "/accounts": { target: process.env.E2E_API_URL ?? "http://127.0.0.1:8000", changeOrigin: false },
+      "/admin": { target: process.env.E2E_API_URL ?? "http://127.0.0.1:8000", changeOrigin: false },
+      "/static": { target: process.env.E2E_API_URL ?? "http://127.0.0.1:8000", changeOrigin: false },
     },
   },
   test: { environment: "jsdom", include: ["tests/**/*.test.ts"] },

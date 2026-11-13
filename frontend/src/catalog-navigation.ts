@@ -72,10 +72,16 @@ export function catalogQuery(s: CatalogState): LocationQueryRaw {
 }
 export function safeCatalogReturn(value: LocationQuery[string]): string {
   const text = one(value) || "";
-  if (!text.startsWith("/livros") || text.startsWith("//")) return "/livros";
+  if (
+    (!text.startsWith("/livros") && !text.startsWith("/bibliotecas/")) ||
+    text.startsWith("//")
+  )
+    return "/livros";
   try {
     const url = new URL(text, "https://julib.invalid");
-    return url.origin === "https://julib.invalid" && url.pathname === "/livros"
+    return url.origin === "https://julib.invalid" &&
+      (url.pathname === "/livros" ||
+        /^\/bibliotecas\/-?\d+\/livros$/.test(url.pathname))
       ? url.pathname + url.search
       : "/livros";
   } catch {

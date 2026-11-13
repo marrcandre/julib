@@ -35,6 +35,7 @@ def test_attach_cover_checks_ownership_size_and_format(cloud, monkeypatch):
         cloudinary.api,
         "resource",
         lambda _: {
+            "public_id": f"julib/{lib.pk}/id",
             "format": "jpg",
             "bytes": 6 * 1024 * 1024,
             "secure_url": "https://res.cloudinary.com/test.jpg",
@@ -46,12 +47,32 @@ def test_attach_cover_checks_ownership_size_and_format(cloud, monkeypatch):
         cloudinary.api,
         "resource",
         lambda _: {
+            "public_id": f"julib/{lib.pk}/id",
             "format": "jpg",
             "bytes": 1024,
             "secure_url": "https://res.cloudinary.com/test.jpg",
         },
     )
     assert verify_upload(lib, f"julib/{lib.pk}/id")["cover_url"].startswith("https:")
+
+
+def test_attach_cover_rejects_noncanonical_cloudinary_public_id(cloud, monkeypatch):
+    import cloudinary.api
+
+    lib = Library.objects.create(name="Casa")
+    monkeypatch.setattr(
+        cloudinary.api,
+        "resource",
+        lambda _: {
+            "public_id": "julib/another-library/id",
+            "format": "jpg",
+            "bytes": 1024,
+            "secure_url": "https://res.cloudinary.com/test.jpg",
+        },
+    )
+
+    with pytest.raises(ValidationError, match="identificador"):
+        verify_upload(lib, f"julib/{lib.pk}/id")
 
 
 def test_signed_upload_accepts_cloudinary_url(monkeypatch):

@@ -104,6 +104,85 @@ main.container {
   font-size: 25px;
   color: #ffbd59;
 }
+.library-switcher {
+  position: relative;
+  min-width: 0;
+}
+.library-switcher > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.library-switcher > summary::-webkit-details-marker {
+  display: none;
+}
+.brand-name {
+  max-width: min(32vw, 280px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.library-chevron {
+  color: #c9d9ce !important;
+  font-size: 13px !important;
+  margin-left: 2px;
+}
+.library-menu {
+  position: absolute;
+  z-index: 25;
+  top: calc(100% + 14px);
+  left: 0;
+  width: min(300px, calc(100vw - 32px));
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+.library-menu button {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.library-menu button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.library-menu button:hover,
+.library-menu button:focus-visible {
+  background: var(--soft);
+}
+.library-menu .new-library-option {
+  justify-content: flex-start;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 8px 8px;
+  color: var(--green);
+}
+.library-create-form {
+  display: grid;
+  gap: 12px;
+}
+.library-create-form .p-inputtext {
+  width: 100%;
+}
+.library-create-form .primary {
+  justify-self: start;
+}
+.library-empty-state h1 {
+  margin-bottom: 12px;
+}
 nav {
   display: flex;
   align-self: stretch;
