@@ -31,6 +31,17 @@ const router = createRouter({
   },
   routes: [
     { path: "/", redirect: "/livros" },
+    { path: "/bibliotecas", component: Books },
+    {
+      path: "/bibliotecas/:libraryId",
+      redirect: (to) => `/bibliotecas/${to.params.libraryId}/livros`,
+    },
+    { path: "/bibliotecas/:libraryId/livros", component: Books },
+    { path: "/bibliotecas/:libraryId/livros/:id", component: BookDetails },
+    { path: "/bibliotecas/:libraryId/emprestimos", component: Loans },
+    { path: "/bibliotecas/:libraryId/locais", component: Locations },
+    { path: "/bibliotecas/:libraryId/importar", component: ImportBooks },
+    { path: "/bibliotecas/:libraryId/configuracoes", component: Settings },
     { path: "/livros", component: Books },
     { path: "/livros/:id", component: BookDetails },
     { path: "/emprestimos", component: Loans },

@@ -4,7 +4,7 @@ from typing import Any, Literal, cast
 from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth import logout
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponseForbidden
 from django.middleware.csrf import get_token
@@ -16,8 +16,20 @@ from ninja.files import UploadedFile
 
 from . import catalog, circulation, imports, media, providers, services, sharing
 from . import schemas as s
-from .auth import AllowedSession, require_library, technical
-from .models import Book, Copy, ImportSession, Loan, Location, Person, ShareLink, Tag, User
+from .auth import AllowedSession, require_library, require_membership, technical
+from .models import (
+    Book,
+    Copy,
+    ImportSession,
+    Library,
+    Loan,
+    Location,
+    Membership,
+    Person,
+    ShareLink,
+    Tag,
+    User,
+)
 from .presentation import book_data, candidate_credits, loan_data
 from .readiness import database_ready
 
@@ -76,7 +88,10 @@ def ready_head(request: HttpRequest) -> Status[dict[str, str]]:
 @api.get("/session", response=s.SessionOut)
 def session(request: HttpRequest) -> dict[str, Any]:
     user = cast(User, request.user)
-    membership = user.membership_set.select_related("library").first()
+    memberships = list(user.membership_set.select_related("library").order_by("library_id"))
+    selected = require_membership(request) if request.headers.get("X-Library-ID") else None
+    if selected is None and len(memberships) == 1:
+        selected = memberships[0]
     google_account = SocialAccount.objects.filter(user=user, provider="google").first()
     return {
         "user_id": user.pk,
@@ -86,9 +101,39 @@ def session(request: HttpRequest) -> dict[str, Any]:
         "cover_columns": user.cover_columns,
         "avatar_url": (google_account.get_avatar_url() or "") if google_account else "",
         "technical": technical(request.user),
-        "library": membership.library.name if membership else None,
+        "can_create_libraries": user.can_create_libraries,
+        "libraries": [
+            {"id": m.library_id, "name": m.library.name, "role": m.role} for m in memberships
+        ],
+        "library": selected.library.name if selected else None,
         "csrf": get_token(request),
     }
+
+
+@api.get("/libraries", response=list[s.LibrarySummaryOut])
+def libraries(request: HttpRequest) -> list[dict[str, Any]]:
+    return [
+        {"id": membership.library_id, "name": membership.library.name, "role": membership.role}
+        for membership in Membership.objects.filter(user=cast(User, request.user))
+        .select_related("library")
+        .order_by("library_id")
+    ]
+
+
+@api.post("/libraries", response=s.LibrarySummaryOut)
+def create_library(request: HttpRequest, payload: s.LibraryCreateIn) -> dict[str, Any]:
+    user = cast(User, request.user)
+    if not user.can_create_libraries:
+        raise HttpError(403, "Esta conta não pode criar bibliotecas.")
+    name = payload.name.strip()
+    if not name:
+        raise ValidationError("Informe o nome da biblioteca.")
+    with transaction.atomic():
+        library = Library.objects.create(name=name)
+        membership = Membership.objects.create(
+            user=user, library=library, role=Membership.ROLE_ADMIN
+        )
+    return {"id": library.pk, "name": library.name, "role": membership.role}
 
 
 @api.put("/preferences/catalog", response=s.CatalogPreferencesIn)
@@ -102,9 +147,10 @@ def catalog_preferences(request: HttpRequest, payload: s.CatalogPreferencesIn) -
 
 @api.put("/library/name", response=s.LibraryNameOut)
 def update_library_name(request: HttpRequest, payload: s.LibraryNameIn) -> dict[str, str]:
-    if not technical(request.user):
-        raise HttpError(403, "Acesso restrito ao administrador técnico.")
-    library = require_library(request)
+    membership = require_membership(request)
+    if membership.role != Membership.ROLE_ADMIN:
+        raise HttpError(403, "Somente administradores desta biblioteca podem renomeá-la.")
+    library = membership.library
     library.name = payload.name.strip()
     library.save(update_fields=["name"])
     return {"name": library.name}

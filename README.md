@@ -41,7 +41,7 @@ make frontend
 
 Abra http://127.0.0.1:5173. Configure Google OAuth conforme [operação](docs/operations.md) para entrar. Os comandos `*-local` carregam `.env` e depois `.env.local`, usando o PostgreSQL Docker mesmo se houver uma URL do Supabase exportada no shell. O banco é obrigatório; não há fallback SQLite. O frontend encaminha API, OAuth e Admin para o Django local.
 
-Admin: `/admin/`. Swagger: `/api/v1/docs`. Ambos exigem a conta administrativa autorizada. Provisione a biblioteca antes do primeiro login; as contas permitidas são associadas ao entrar. Nenhum cadastro aberto ou login alternativo de produção.
+Admin: `/admin/`. Swagger: `/api/v1/docs`. Ambos exigem a conta administrativa autorizada. Provisione a biblioteca inicial antes do primeiro login; contas da allowlist mantêm somente as associações provisionadas. A conta com permissão explícita pode criar outras bibliotecas; não há cadastro público.
 
 ## Verificar
 
@@ -88,7 +88,7 @@ Em Visualização, o slider ajusta de 3 a 10 livros por linha. Essa densidade fi
 
 Na página **Livros**, o seletor **Acervo / Desejados** separa os livros possuídos dos que você quer adquirir. Ao cadastrar por câmera, busca ou manualmente, escolha o destino em **Salvar em**. Desejados guardam capa, ISBN, páginas e tags, sem criar exemplar ou aparecer no link público.
 
-Após entrar, a página principal é **Livros**. A identificação da biblioteca e o título da aba usam o nome configurado pelo administrador técnico; o menu da conta reúne as opções **Claro** e **Escuro**.
+Após entrar, a página principal é **Livros**. Use o nome da biblioteca na barra superior para alternar entre as bibliotecas autorizadas ou, se sua conta tiver permissão, criar outra. Livros, empréstimos, pessoas, locais e configurações de cada biblioteca ficam separados. A URL mantém a biblioteca ativa por aba, e a preferência mais recente ajuda a escolher a biblioteca ao abrir uma sessão nova. O título da aba acompanha a biblioteca ativa. O tema continua sendo uma preferência pessoal no menu da conta.
 
 Nos detalhes de um desejado, **Adicionar ao acervo** pede localização e data de aquisição e cria um exemplar da mesma edição. Para corrigir um cadastro do acervo, **Mover para desejados** remove os exemplares ativos sem histórico após confirmação; exemplares baixados e seus históricos permanecem preservados. Se um exemplar ativo já teve empréstimo, registre sua baixa apropriada antes de mover o livro.
 

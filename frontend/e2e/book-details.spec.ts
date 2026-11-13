@@ -341,7 +341,11 @@ test("book and copy editing preserve returned loan history on the real API", asy
     JSON.parse(readFileSync("../.superpowers/e2e-session.json", "utf8")),
   ]);
   const session = await (await page.request.get("/api/v1/session")).json();
-  const headers = { "X-CSRFToken": session.csrf };
+  const libraryId = session.libraries[0].id;
+  const headers = {
+    "X-CSRFToken": session.csrf,
+    "X-Library-ID": String(libraryId),
+  };
   const title = "Detalhes E2E " + Date.now();
   const registered = await page.request.post("/api/v1/registrations", {
     headers,
@@ -358,7 +362,7 @@ test("book and copy editing preserve returned loan history on the real API", asy
     data: { name: locationName },
   });
   const location = await located.json();
-  await page.goto("/livros/" + book_id);
+  await page.goto(`/bibliotecas/${libraryId}/livros/${book_id}`);
   await page.getByRole("button", { name: "Editar livro sem capa" }).click();
   await expect(
     page.getByRole("heading", { name: "Editar livro", exact: true }),

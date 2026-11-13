@@ -5,7 +5,16 @@ export type Copy = components["schemas"]["CopyOut"];
 export type Book = components["schemas"]["BookOut"];
 export type Person = components["schemas"]["PersonOut"];
 export type Loan = components["schemas"]["LoanOut"];
-export type Session = components["schemas"]["SessionOut"];
+export type LibrarySummary = {
+  id: number;
+  name: string;
+  role: "admin" | "member";
+};
+export type Session = Omit<components["schemas"]["SessionOut"], "library"> & {
+  library: string | null;
+  can_create_libraries: boolean;
+  libraries: LibrarySummary[];
+};
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -23,6 +32,17 @@ export async function api<T = unknown>(
   options: RequestInit = {},
 ): Promise<T> {
   const headers = new Headers(options.headers);
+  const libraryId = /^\/bibliotecas\/(\d+)(?:\/|$)/.exec(
+    window.location.pathname,
+  )?.[1];
+  const unscoped =
+    path === "/session" ||
+    path === "/libraries" ||
+    path === "/logout" ||
+    path === "/preferences/catalog" ||
+    path.startsWith("/public/");
+  if (libraryId && !unscoped) headers.set("X-Library-ID", libraryId);
+  else headers.delete("X-Library-ID");
   if (options.body && !(options.body instanceof FormData))
     headers.set("Content-Type", "application/json");
   if (options.method && options.method !== "GET")

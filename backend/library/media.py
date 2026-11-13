@@ -42,6 +42,13 @@ def verify_upload(library: Library, public_id: str) -> dict[str, str]:
     if not public_id.startswith(f"julib/{library.pk}/"):
         raise ValidationError("Imagem não pertence à biblioteca.")
     resource = cloudinary.api.resource(public_id)
+    canonical_public_id = resource.get("public_id")
+    if (
+        not isinstance(canonical_public_id, str)
+        or canonical_public_id != public_id
+        or not canonical_public_id.startswith(f"julib/{library.pk}/")
+    ):
+        raise ValidationError("O identificador canônico da imagem não pertence à biblioteca.")
     if (
         resource.get("format") not in {"jpg", "jpeg", "png", "webp", "avif"}
         or resource.get("bytes", 0) > 5 * 1024 * 1024

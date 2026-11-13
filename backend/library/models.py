@@ -8,6 +8,7 @@ from django.utils import timezone
 
 
 class User(AbstractUser):
+    can_create_libraries = models.BooleanField(default=False, db_default=False)
     catalog_view = models.CharField(
         max_length=10,
         default="covers",
@@ -28,8 +29,18 @@ class Library(models.Model):
 
 
 class Membership(models.Model):
+    ROLE_ADMIN = "admin"
+    ROLE_MEMBER = "member"
+    ROLE_CHOICES = [(ROLE_ADMIN, "Administradora"), (ROLE_MEMBER, "Membro")]
+
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     library = models.ForeignKey(Library, on_delete=models.CASCADE)
+    role = models.CharField(
+        max_length=10,
+        choices=ROLE_CHOICES,
+        default=ROLE_MEMBER,
+        db_default=ROLE_MEMBER,
+    )
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["user", "library"], name="unique_member")]
@@ -70,6 +81,11 @@ class Location(Owned):
     name = models.CharField(max_length=150)
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["id", "library"], name="unique_location_library_id"),
+        ]
+
     def __str__(self) -> str:
         return self.name
 
@@ -79,7 +95,8 @@ class Tag(Owned):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["library", "name"], name="unique_library_tag")
+            models.UniqueConstraint(fields=["id", "library"], name="unique_tag_library_id"),
+            models.UniqueConstraint(fields=["library", "name"], name="unique_library_tag"),
         ]
 
     def __str__(self) -> str:
@@ -107,9 +124,10 @@ class Book(Owned):
 
     class Meta:
         constraints = [
+            models.UniqueConstraint(fields=["id", "library"], name="unique_book_library_id"),
             models.UniqueConstraint(
                 fields=["library", "isbn"], condition=~Q(isbn=""), name="unique_library_isbn"
-            )
+            ),
         ]
         ordering = ["title", "pk"]
 
@@ -139,7 +157,8 @@ class Copy(Owned):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["library", "number"], name="unique_copy_number")
+            models.UniqueConstraint(fields=["id", "library"], name="unique_copy_library_id"),
+            models.UniqueConstraint(fields=["library", "number"], name="unique_copy_number"),
         ]
         ordering = ["number"]
 
@@ -152,6 +171,11 @@ class Person(Owned):
     phone = models.CharField(max_length=40, validators=[MinLengthValidator(1)])
     email = models.EmailField(blank=True)
     archived = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["id", "library"], name="unique_person_library_id"),
+        ]
 
     def clean(self) -> None:
         super().clean()
@@ -232,5 +256,8 @@ class Registration(Owned):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["library", "key"], name="unique_registration_key")
+            models.UniqueConstraint(
+                fields=["id", "library"], name="unique_registration_library_id"
+            ),
+            models.UniqueConstraint(fields=["library", "key"], name="unique_registration_key"),
         ]

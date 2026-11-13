@@ -110,8 +110,10 @@ test("lost registration response can be retried without duplicating a copy", asy
   );
   await page.getByRole("button", { name: "Salvar", exact: true }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
+  const libraryId = new URL(page.url()).pathname.split("/")[2];
   const response = await page.request.get(
     "/api/v1/books?q=" + encodeURIComponent(title),
+    { headers: { "X-Library-ID": libraryId } },
   );
   const data = await response.json();
   expect(data.total).toBe(1);
