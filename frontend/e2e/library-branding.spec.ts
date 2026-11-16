@@ -1,4 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { readFileSync } from "node:fs";
+
+const appVersion = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+).version;
 
 for (const width of [320, 800, 1280]) {
   test(`library identity and compact footer ${width}`, async ({ page }) => {
@@ -36,8 +41,8 @@ for (const width of [320, 800, 1280]) {
       "Sua biblioteca, bem organizada",
     );
     await page.locator(".account summary").click();
-    await expect(page.locator(".account-menu")).toContainText("Julib v0.2.0");
-    await expect(page.locator(".copyright")).toContainText("v0.2.0");
+    await expect(page.locator(".account-menu")).toContainText(`Julib v${appVersion}`);
+    await expect(page.locator(".copyright")).toContainText(`v${appVersion}`);
     await expect(page.getByRole("radio", { name: "Claro" })).toBeVisible();
     await expect(page.getByRole("radio", { name: "Escuro" })).toBeVisible();
     await expect(page.getByRole("radio")).toHaveCount(2);

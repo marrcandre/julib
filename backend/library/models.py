@@ -28,6 +28,49 @@ class Library(models.Model):
         return self.name
 
 
+class LibraryInvite(models.Model):
+    library = models.ForeignKey(Library, on_delete=models.CASCADE, related_name="invites")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_library_invites",
+    )
+    token_hash = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    accepted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="accepted_library_invites",
+    )
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="revoked_library_invites",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["id", "library"], name="unique_invite_library_id"),
+            models.CheckConstraint(
+                condition=~(Q(accepted_at__isnull=False) & Q(revoked_at__isnull=False)),
+                name="invite_cannot_be_accepted_and_revoked",
+            ),
+            models.CheckConstraint(
+                condition=Q(expires_at__gt=models.F("created_at")),
+                name="invite_expiry_after_creation",
+            ),
+        ]
+
+
 class Membership(models.Model):
     ROLE_ADMIN = "admin"
     ROLE_MEMBER = "member"
@@ -41,9 +84,24 @@ class Membership(models.Model):
         default=ROLE_MEMBER,
         db_default=ROLE_MEMBER,
     )
+    joined_at = models.DateTimeField(default=timezone.now, null=True, blank=True)
+    invitation = models.ForeignKey(
+        LibraryInvite,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="memberships",
+    )
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=["user", "library"], name="unique_member")]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "library"], name="unique_member"),
+            models.UniqueConstraint(
+                fields=["invitation"],
+                condition=Q(invitation__isnull=False),
+                name="unique_invite_membership",
+            ),
+        ]
 
 
 class Owned(models.Model):

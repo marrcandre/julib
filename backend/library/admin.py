@@ -3,7 +3,7 @@ from typing import Any, ClassVar
 from django import forms
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
 
 from . import circulation, services
@@ -22,7 +22,23 @@ from .models import (
     User,
 )
 
-admin.site.register(User, UserAdmin)
+
+class ProtectedUserAdmin(UserAdmin):
+    def delete_model(self, request, obj):
+        _admin_guard(lambda: services.delete_users([obj.pk]))
+
+    def delete_queryset(self, request, queryset):
+        _admin_guard(lambda: services.delete_users(list(queryset.values_list("pk", flat=True))))
+
+
+def _admin_guard(operation):
+    try:
+        return operation()
+    except ValidationError as exc:
+        raise PermissionDenied(" ".join(exc.messages)) from exc
+
+
+admin.site.register(User, ProtectedUserAdmin)
 
 
 class BookAdminForm(forms.ModelForm):
@@ -199,7 +215,44 @@ class LocationAdmin(SafeAdmin):
         obj.pk = saved.pk
 
 
-admin.site.register(Membership)
+@admin.register(Membership)
+class MembershipAdmin(admin.ModelAdmin):
+    list_display = ("user", "library", "role", "joined_at")
+    list_filter = ("role", "library")
+    search_fields = ("user__email", "user__username", "library__name")
+    readonly_fields = ("joined_at", "invitation")
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj:
+            return self.readonly_fields + ("user", "library")
+        return self.readonly_fields
+
+    def has_delete_permission(self, request, obj=None):
+        if obj and obj.role == Membership.ROLE_ADMIN:
+            if (
+                Membership.objects.filter(
+                    library_id=obj.library_id, role=Membership.ROLE_ADMIN
+                ).count()
+                <= 1
+            ):
+                return False
+        return super().has_delete_permission(request, obj)
+
+    def save_model(self, request, obj, form, change):
+        if change:
+            _admin_guard(lambda: services.change_membership_role(obj.pk, obj.role))
+            obj.refresh_from_db()
+            return
+        obj.full_clean()
+        super().save_model(request, obj, form, change)
+
+    def delete_model(self, request, obj):
+        _admin_guard(lambda: services.delete_memberships([obj.pk]))
+
+    def delete_queryset(self, request, queryset):
+        _admin_guard(
+            lambda: services.delete_memberships(list(queryset.values_list("pk", flat=True)))
+        )
 
 
 class LibraryAdmin(admin.ModelAdmin):
