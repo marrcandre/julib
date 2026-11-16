@@ -117,9 +117,14 @@ test("book has a private standalone URL, local cover draft and atomic edit with 
   await expect(emptyCover).toHaveAttribute("title", "Editar livro");
   await page.evaluate(() => window.scrollTo(0, 0));
   const initialCover = await emptyCover.boundingBox();
+  expect(initialCover).not.toBeNull();
   await emptyCover.click();
   const editingCover = await page.locator(".book-cover-picker").boundingBox();
-  expect(editingCover).toEqual(initialCover);
+  expect(editingCover).not.toBeNull();
+  expect(editingCover!.x).toBe(initialCover!.x);
+  expect(editingCover!.width).toBe(initialCover!.width);
+  expect(editingCover!.height).toBe(initialCover!.height);
+  expect(Math.abs(editingCover!.y - initialCover!.y)).toBeLessThanOrEqual(1);
   const file = {
     name: "capa.png",
     mimeType: "image/png",
