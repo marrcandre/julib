@@ -12,8 +12,20 @@
   max-width: min(480px, 38vw);
   flex-shrink: 1;
 }
-.brand-name {
+.app-header .header-inner > .library-switcher,
+.app-header .header-inner > .brand {
+  flex: 1 1 0;
   min-width: 0;
+  max-width: none;
+}
+.app-header .library-switcher > .brand {
+  width: 100%;
+  max-width: none;
+}
+.brand-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
