@@ -10,18 +10,20 @@ from django.http import HttpRequest, HttpResponseForbidden
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_protect
 from ninja import File, NinjaAPI, Query, Status
 from ninja.errors import HttpError
 from ninja.files import UploadedFile
 
-from . import catalog, circulation, imports, media, providers, services, sharing
+from . import catalog, circulation, imports, invites, media, providers, services, sharing
 from . import schemas as s
-from .auth import AllowedSession, require_library, require_membership, technical
+from .auth import AllowedSession, permitted, require_library, require_membership, technical
 from .models import (
     Book,
     Copy,
     ImportSession,
     Library,
+    LibraryInvite,
     Loan,
     Location,
     Membership,
@@ -62,6 +64,11 @@ def conflict(request: HttpRequest, exc: IntegrityError) -> Any:
     )
 
 
+@api.exception_handler(invites.InviteError)
+def invite_error(request: HttpRequest, exc: invites.InviteError) -> Any:
+    return api.create_response(request, {"detail": str(exc)}, status=exc.status_code)
+
+
 @api.get("/health", auth=None)
 def health(request: HttpRequest) -> dict[str, str]:
     return {"status": "ok"}
@@ -88,7 +95,11 @@ def ready_head(request: HttpRequest) -> Status[dict[str, str]]:
 @api.get("/session", response=s.SessionOut)
 def session(request: HttpRequest) -> dict[str, Any]:
     user = cast(User, request.user)
-    memberships = list(user.membership_set.select_related("library").order_by("library_id"))
+    memberships = list(
+        invites.visible_memberships(user, invites.valid_pending_invite(request)).order_by(
+            "library_id"
+        )
+    )
     selected = require_membership(request) if request.headers.get("X-Library-ID") else None
     if selected is None and len(memberships) == 1:
         selected = memberships[0]
@@ -101,7 +112,7 @@ def session(request: HttpRequest) -> dict[str, Any]:
         "cover_columns": user.cover_columns,
         "avatar_url": (google_account.get_avatar_url() or "") if google_account else "",
         "technical": technical(request.user),
-        "can_create_libraries": user.can_create_libraries,
+        "can_create_libraries": user.can_create_libraries and permitted(user),
         "libraries": [
             {"id": m.library_id, "name": m.library.name, "role": m.role} for m in memberships
         ],
@@ -114,16 +125,206 @@ def session(request: HttpRequest) -> dict[str, Any]:
 def libraries(request: HttpRequest) -> list[dict[str, Any]]:
     return [
         {"id": membership.library_id, "name": membership.library.name, "role": membership.role}
-        for membership in Membership.objects.filter(user=cast(User, request.user))
+        for membership in invites.visible_memberships(
+            cast(User, request.user), invites.valid_pending_invite(request)
+        )
         .select_related("library")
         .order_by("library_id")
     ]
 
 
+def _member_name(user: User) -> str:
+    return user.get_full_name() or user.username
+
+
+def _locked_library_admin(library: Library, user: User) -> Membership:
+    membership = (
+        Membership.objects.select_for_update()
+        .filter(library=library, user=user, role=Membership.ROLE_ADMIN)
+        .first()
+    )
+    if membership is None:
+        raise HttpError(403, "Somente administradores desta biblioteca podem realizar esta ação.")
+    return membership
+
+
+def _member_data(membership: Membership, viewer: User, admin_count: int) -> dict[str, Any]:
+    user = membership.user
+    avatar = SocialAccount.objects.filter(user=user, provider="google").first()
+    viewer_is_admin = Membership.objects.filter(
+        user=viewer, library_id=membership.library_id, role=Membership.ROLE_ADMIN
+    ).exists()
+    is_self = user.pk == viewer.pk
+    last_admin = membership.role == Membership.ROLE_ADMIN and admin_count <= 1
+    return {
+        "user_id": user.pk,
+        "name": _member_name(user),
+        "email": user.email,
+        "avatar_url": (avatar.get_avatar_url() or "") if avatar else "",
+        "role": membership.role,
+        "joined_at": membership.joined_at,
+        "is_current_user": is_self,
+        "can_change_role": viewer_is_admin and not is_self and not last_admin,
+        "can_remove": viewer_is_admin and not is_self and not last_admin,
+        "can_leave": is_self and not last_admin,
+    }
+
+
+@api.get("/members", response=s.MemberDirectoryOut)
+def member_directory(request: HttpRequest) -> dict[str, Any]:
+    current = require_membership(request)
+    viewer = cast(User, request.user)
+    admin_count = Membership.objects.filter(
+        library=current.library, role=Membership.ROLE_ADMIN
+    ).count()
+    current_data = _member_data(current, viewer, admin_count)
+    if current.role != Membership.ROLE_ADMIN:
+        return {"members": [], "current_membership": current_data, "can_manage": False}
+    memberships = (
+        Membership.objects.filter(library=current.library)
+        .select_related("user", "library", "invitation")
+        .order_by("joined_at", "pk")
+    )
+    return {
+        "members": [_member_data(item, viewer, admin_count) for item in memberships],
+        "current_membership": current_data,
+        "can_manage": True,
+    }
+
+
+@api.patch("/members/{user_id}/role", response=s.LibraryMemberOut)
+def change_member_role(
+    request: HttpRequest, user_id: int, payload: s.MemberRoleIn
+) -> dict[str, Any]:
+    current = require_membership(request)
+    if current.role != Membership.ROLE_ADMIN:
+        raise HttpError(403, "Somente administradores podem alterar papéis.")
+    with transaction.atomic():
+        library = Library.objects.select_for_update().get(pk=current.library_id)
+        _locked_library_admin(library, cast(User, request.user))
+        target = get_object_or_404(
+            Membership.objects.select_related("user", "library"),
+            library=library,
+            user_id=user_id,
+        )
+        try:
+            target = services.change_membership_role(target.pk, payload.role)
+            target = Membership.objects.select_related("user", "library").get(pk=target.pk)
+        except ValidationError as exc:
+            raise HttpError(409, "; ".join(exc.messages)) from exc
+    admin_count = Membership.objects.filter(
+        library_id=current.library_id, role=Membership.ROLE_ADMIN
+    ).count()
+    return _member_data(target, cast(User, request.user), admin_count)
+
+
+@api.delete("/members/me")
+def leave_library(request: HttpRequest) -> dict[str, bool]:
+    current = require_membership(request)
+    with transaction.atomic():
+        library = Library.objects.select_for_update().get(pk=current.library_id)
+        target = get_object_or_404(
+            Membership.objects.filter(library=library), user_id=request.user.pk
+        )
+        try:
+            services.delete_memberships([target.pk])
+        except ValidationError as exc:
+            raise HttpError(409, "; ".join(exc.messages)) from exc
+    return {"ok": True}
+
+
+@api.delete("/members/{user_id}")
+def remove_member(request: HttpRequest, user_id: int) -> dict[str, bool]:
+    current = require_membership(request)
+    with transaction.atomic():
+        library = Library.objects.select_for_update().get(pk=current.library_id)
+        _locked_library_admin(library, cast(User, request.user))
+        target = get_object_or_404(Membership.objects.filter(library=library), user_id=user_id)
+        try:
+            services.delete_memberships([target.pk])
+        except ValidationError as exc:
+            raise HttpError(409, "; ".join(exc.messages)) from exc
+    return {"ok": True}
+
+
+@api.get("/invites", response=list[s.LibraryInviteOut])
+def list_invites(request: HttpRequest) -> list[dict[str, Any]]:
+    membership = require_membership(request)
+    if membership.role != Membership.ROLE_ADMIN:
+        raise HttpError(403, "Somente administradores podem gerenciar convites.")
+    return [
+        {
+            "id": invite.pk,
+            "created_at": invite.created_at,
+            "expires_at": invite.expires_at,
+            "accepted_at": invite.accepted_at,
+            "revoked_at": invite.revoked_at,
+            "status": invites.invite_status(invite),
+        }
+        for invite in LibraryInvite.objects.filter(library=membership.library).order_by(
+            "-created_at", "-pk"
+        )
+    ]
+
+
+@api.post("/invites", response=s.LibraryInviteCreateOut)
+def create_invite(request: HttpRequest) -> dict[str, Any]:
+    membership = require_membership(request)
+    if membership.role != Membership.ROLE_ADMIN:
+        raise HttpError(403, "Somente administradores podem criar convites.")
+    invite, invite_url = invites.create_link(request, membership.library, cast(User, request.user))
+    return {"id": invite.pk, "invite_url": invite_url, "expires_at": invite.expires_at}
+
+
+@api.get("/csrf", auth=None, response=s.CsrfOut)
+def csrf_token(request: HttpRequest) -> dict[str, str]:
+    return {"csrf": get_token(request)}
+
+
+@api.post("/invites/prepare", auth=None, response=s.LibraryInvitePreviewOut)
+@csrf_protect
+def prepare_invite(request: HttpRequest, payload: s.LibraryInvitePrepareIn) -> dict[str, Any]:
+    invite = invites.prepare_invite(request, payload.token)
+    return {
+        "pending": True,
+        "library_name": invite.library.name,
+        "expires_at": invite.expires_at,
+    }
+
+
+@api.get("/invites/pending", auth=None, response=s.LibraryInvitePreviewOut)
+def pending_invite(request: HttpRequest) -> dict[str, Any]:
+    invite = invites.pending_invite_preview(request)
+    if invite is None:
+        return {"pending": False, "library_name": None, "expires_at": None}
+    return {"pending": True, "library_name": invite.library.name, "expires_at": invite.expires_at}
+
+
+@api.post("/invites/accept", response=s.LibraryInviteAcceptOut)
+def accept_invite(request: HttpRequest) -> dict[str, Any]:
+    invite, membership, already_member = invites.accept_pending_invite(
+        request, cast(User, request.user)
+    )
+    return {
+        "library_id": invite.library_id,
+        "library_name": invite.library.name,
+        "already_member": already_member,
+    }
+
+
+@api.delete("/invites/{invite_id}")
+def cancel_invite(request: HttpRequest, invite_id: int) -> dict[str, bool]:
+    membership = require_membership(request)
+    if membership.role != Membership.ROLE_ADMIN:
+        raise HttpError(403, "Somente administradores podem revogar convites.")
+    invites.revoke_invite(membership.library, invite_id, cast(User, request.user))
+    return {"ok": True}
+
+
 @api.post("/libraries", response=s.LibrarySummaryOut)
 def create_library(request: HttpRequest, payload: s.LibraryCreateIn) -> dict[str, Any]:
     user = cast(User, request.user)
-    if not user.can_create_libraries:
+    if not permitted(user) or not user.can_create_libraries:
         raise HttpError(403, "Esta conta não pode criar bibliotecas.")
     name = payload.name.strip()
     if not name:

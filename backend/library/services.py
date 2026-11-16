@@ -4,7 +4,76 @@ from typing import Any
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from .models import Book, Copy, Library, Location, Tag
+from .models import Book, Copy, Library, Location, Membership, Tag, User
+
+LAST_ADMIN_ERROR = "A biblioteca precisa manter pelo menos um administrador."
+
+
+@transaction.atomic
+def change_membership_role(membership_id: int, role: str) -> Membership:
+    membership = Membership.objects.only("library_id").get(pk=membership_id)
+    library = Library.objects.select_for_update().get(pk=membership.library_id)
+    membership = Membership.objects.select_for_update().get(pk=membership_id, library=library)
+    if role not in {Membership.ROLE_ADMIN, Membership.ROLE_MEMBER}:
+        raise ValidationError("Papel de membro inválido.")
+    if membership.role == Membership.ROLE_ADMIN and role != Membership.ROLE_ADMIN:
+        admin_count = Membership.objects.filter(library=library, role=Membership.ROLE_ADMIN).count()
+        if admin_count <= 1:
+            raise ValidationError(LAST_ADMIN_ERROR)
+    if membership.role != role:
+        membership.role = role
+        membership.save(update_fields=["role"])
+    return membership
+
+
+@transaction.atomic
+def delete_memberships(membership_ids: list[int]) -> None:
+    memberships = list(
+        Membership.objects.filter(pk__in=set(membership_ids)).values("pk", "library_id", "role")
+    )
+    library_ids = sorted({row["library_id"] for row in memberships})
+    list(Library.objects.select_for_update().filter(pk__in=library_ids).order_by("pk"))
+    locked = list(
+        Membership.objects.select_for_update()
+        .filter(pk__in=[row["pk"] for row in memberships])
+        .order_by("library_id", "pk")
+    )
+    admin_removals: dict[int, int] = {}
+    for membership in locked:
+        if membership.role == Membership.ROLE_ADMIN:
+            admin_removals[membership.library_id] = admin_removals.get(membership.library_id, 0) + 1
+    for library_id, removals in admin_removals.items():
+        admin_count = Membership.objects.filter(
+            library_id=library_id, role=Membership.ROLE_ADMIN
+        ).count()
+        if admin_count - removals < 1:
+            raise ValidationError(LAST_ADMIN_ERROR)
+    Membership.objects.filter(pk__in=[membership.pk for membership in locked]).delete()
+
+
+@transaction.atomic
+def delete_users(user_ids: list[int]) -> None:
+    ids = sorted(set(user_ids))
+    # User deletion can cascade across several libraries. Lock them in a stable order
+    # before checking every affected admin membership and issuing the cascade.
+    list(Library.objects.select_for_update().order_by("pk"))
+    users = list(User.objects.select_for_update().filter(pk__in=ids).order_by("pk"))
+    memberships = list(
+        Membership.objects.select_for_update()
+        .filter(user_id__in=[user.pk for user in users])
+        .order_by("library_id", "pk")
+    )
+    admin_removals: dict[int, int] = {}
+    for membership in memberships:
+        if membership.role == Membership.ROLE_ADMIN:
+            admin_removals[membership.library_id] = admin_removals.get(membership.library_id, 0) + 1
+    for library_id, removals in admin_removals.items():
+        admin_count = Membership.objects.filter(
+            library_id=library_id, role=Membership.ROLE_ADMIN
+        ).count()
+        if admin_count - removals < 1:
+            raise ValidationError(LAST_ADMIN_ERROR)
+    User.objects.filter(pk__in=[user.pk for user in users]).delete()
 
 
 def optional_page_count(value: Any) -> int | None:

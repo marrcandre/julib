@@ -50,3 +50,43 @@ test("create and switch libraries without changing another tab", async ({
   );
   await expect(secondTab).toHaveTitle(`Livros | ${libraryName}`);
 });
+
+test("library administrators can issue a one-time invite link", async ({ page, context }) => {
+  await context.addCookies([
+    JSON.parse(readFileSync(process.env.E2E_SESSION_PATH ?? "../.superpowers/e2e-session.json", "utf-8")),
+  ]);
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: async (payload: ShareData) => {
+        (window as Window & { sharedInvite?: string }).sharedInvite = payload.url;
+      },
+    });
+  });
+  const libraries: { id: number; name: string; role: string }[] = await (
+    await page.request.get("/api/v1/libraries")
+  ).json();
+  const adminLibrary = libraries.find((library) => library.role === "admin");
+  expect(adminLibrary).toBeTruthy();
+
+  await page.goto(`/bibliotecas/${adminLibrary!.id}/membros`);
+  await expect(page.getByRole("heading", { name: "Membros e convites" })).toBeVisible();
+  await page.getByRole("button", { name: "Criar link de convite" }).click();
+  await expect.poll(() => page.evaluate(() => (window as Window & { sharedInvite?: string }).sharedInvite)).toMatch(/\/convites\/aceitar#[\w-]+$/);
+  await expect(page.getByText(/Link compartilhado/)).toBeVisible();
+});
+
+test("invite token is removed from the address before the API request", async ({ page }) => {
+  let requestUrl = "";
+  await page.route("**/api/v1/csrf", (route) => route.fulfill({ json: { csrf: "csrf-test" } }));
+  await page.route("**/api/v1/invites/prepare", async (route) => {
+    requestUrl = page.url();
+    await route.fulfill({ json: { pending: true, library_name: "Biblioteca de teste" } });
+  });
+
+  await page.goto("/convites/aceitar#invite-secret-for-test");
+  await expect(page.getByRole("heading", { name: "Você foi convidado" })).toBeVisible();
+  expect(requestUrl).not.toContain("invite-secret-for-test");
+  await expect(page).toHaveURL(/\/convites\/aceitar$/);
+  expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain("invite-secret-for-test");
+});

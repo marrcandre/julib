@@ -83,6 +83,7 @@ async function normalizeLibraryRoute() {
   if (
     !currentSession ||
     publicCollection.value ||
+    route.path === "/convites/aceitar" ||
     route.path === "/sobre"
   )
     return;
@@ -326,6 +327,8 @@ onUnmounted(() => {
               v-if="activeLibrary?.role === 'admin'"
               :to="libraryBase + '/configuracoes'"
               >Configurações</RouterLink
+            ><RouterLink v-if="activeLibrary" :to="libraryBase + '/membros'"
+              >Membros e convites</RouterLink
             ><RouterLink to="/sobre">Sobre</RouterLink
             ><a v-if="session.technical" href="/admin/">Admin</a
             ><a v-if="session.technical" href="/api/v1/docs">Swagger</a
@@ -364,6 +367,9 @@ onUnmounted(() => {
         @click="navigationOpen = false"
         ><i class="pi pi-cog" aria-hidden="true" />Configurações</RouterLink
       >
+      <RouterLink :to="libraryBase + '/membros'" @click="navigationOpen = false"
+        ><i class="pi pi-users" aria-hidden="true" />Membros</RouterLink
+      >
     </nav>
   </Drawer>
   <Toast position="top-right" class="app-feedback-toast" />
@@ -380,7 +386,7 @@ onUnmounted(() => {
     <p v-if="loading" role="status" class="muted">Carregando sua biblioteca…</p>
     <template v-else
       ><RouterView
-        v-if="(session && (session.libraries.length > 0 || publicCollection || route.path === '/sobre')) || publicCollection || route.path === '/sobre'"
+        v-if="(session && (session.libraries.length > 0 || publicCollection || route.path === '/sobre' || route.path === '/convites/aceitar')) || publicCollection || route.path === '/sobre' || route.path === '/convites/aceitar'"
         :key="String(route.params.libraryId || 'public')"
       />
       <section

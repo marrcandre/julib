@@ -13,6 +13,8 @@ const ImportBooks = () => import("./pages/ImportBooks.vue");
 const About = () => import("./pages/About.vue");
 const PublicCatalog = () => import("./pages/PublicCatalog.vue");
 const Settings = () => import("./pages/Settings.vue");
+const LibraryMembers = () => import("./pages/LibraryMembers.vue");
+const InviteAccept = () => import("./pages/InviteAccept.vue");
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
@@ -42,6 +44,8 @@ const router = createRouter({
     { path: "/bibliotecas/:libraryId/locais", component: Locations },
     { path: "/bibliotecas/:libraryId/importar", component: ImportBooks },
     { path: "/bibliotecas/:libraryId/configuracoes", component: Settings },
+    { path: "/bibliotecas/:libraryId/membros", component: LibraryMembers },
+    { path: "/convites/aceitar", component: InviteAccept },
     { path: "/livros", component: Books },
     { path: "/livros/:id", component: BookDetails },
     { path: "/emprestimos", component: Loans },

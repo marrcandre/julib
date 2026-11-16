@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -170,6 +170,64 @@ class LibrarySummaryOut(Schema):
     id: int
     name: str
     role: Literal["admin", "member"]
+
+
+class LibraryMemberOut(Schema):
+    user_id: int
+    name: str
+    email: str
+    avatar_url: str
+    role: Literal["admin", "member"]
+    joined_at: datetime | None
+    is_current_user: bool
+    can_change_role: bool
+    can_remove: bool
+    can_leave: bool
+
+
+class MemberDirectoryOut(Schema):
+    members: list[LibraryMemberOut]
+    current_membership: LibraryMemberOut
+    can_manage: bool
+
+
+class MemberRoleIn(Schema):
+    role: Literal["admin", "member"]
+
+
+class LibraryInviteOut(Schema):
+    id: int
+    created_at: datetime
+    expires_at: datetime
+    accepted_at: datetime | None
+    revoked_at: datetime | None
+    status: Literal["pending", "accepted", "expired", "revoked"]
+
+
+class LibraryInviteCreateOut(Schema):
+    id: int
+    invite_url: str
+    expires_at: datetime
+
+
+class LibraryInvitePrepareIn(Schema):
+    token: str = Field(min_length=20, max_length=128)
+
+
+class LibraryInvitePreviewOut(Schema):
+    pending: bool
+    library_name: str | None = None
+    expires_at: datetime | None = None
+
+
+class LibraryInviteAcceptOut(Schema):
+    library_id: int
+    library_name: str
+    already_member: bool
+
+
+class CsrfOut(Schema):
+    csrf: str
 
 
 class SessionOut(Schema):
