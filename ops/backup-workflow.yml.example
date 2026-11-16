@@ -33,7 +33,7 @@ jobs:
           mkdir -p /tmp/julib-bin
           cat > /tmp/julib-bin/pg_dump <<'SH'
           #!/usr/bin/env bash
-          exec docker run --rm --network host postgres:17-alpine pg_dump "$@"
+          exec docker run --rm --network host -e PGOPTIONS postgres:17-alpine pg_dump "$@"
           SH
           chmod +x /tmp/julib-bin/pg_dump
           echo /tmp/julib-bin >> "$GITHUB_PATH"
@@ -49,11 +49,13 @@ jobs:
           BACKUP_MAX_BYTES: '52428800'
         run: |
           printf '%s' "$BACKUP_PUBLIC_KEY" > /tmp/backup-public.pem
-          uv run --project backend python backend/manage.py cleanup_imports
           uv run --project backend python scripts/backup.py create --public /tmp/backup-public.pem --output /tmp/julib-backup.enc --media
+          cd /tmp && sha256sum julib-backup.enc > julib-backup.enc.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: julib-backup-${{ github.run_id }}
-          path: /tmp/julib-backup.enc
-          retention-days: 7
+          path: |
+            /tmp/julib-backup.enc
+            /tmp/julib-backup.enc.sha256
+          retention-days: 30
           if-no-files-found: error

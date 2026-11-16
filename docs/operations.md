@@ -46,9 +46,11 @@ Após carregar .env, `make migrate` seleciona MIGRATION_DATABASE_URL quando pres
 
 Crie um cliente OAuth Web no projeto Google. Configure a tela de consentimento e os usuários permitidos/testadores quando o app estiver em modo de testes. Credenciais ficam somente no Django, em GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET. Escopos: identidade básica/e-mail.
 
-URI de retorno local usando o proxy: `http://127.0.0.1:5173/accounts/google/login/callback/`. Produção: `https://SEU_FRONTEND/accounts/google/login/callback/`. A origem pública deve estar nos hosts/CSRF Django. Defina APP_ORIGIN=https://julib.vercel.app no runtime de produção para o callback usar a interface atrás do proxy; mantenha vazio no desenvolvimento local. Não coloque o domínio do backend como callback se a sessão for utilizada pela origem frontend.
+URI de retorno local usando o proxy: `http://127.0.0.1:5173/accounts/google/login/callback/`. Produção: `https://julib.vercel.app/accounts/google/login/callback/`. A origem pública deve estar nos hosts/CSRF Django. Defina APP_ORIGIN=https://julib.vercel.app no runtime de produção para o callback usar a interface atrás do proxy; mantenha vazio no desenvolvimento local. Não coloque o domínio do backend como callback se a sessão for utilizada pela origem frontend.
 
 O link de entrada abre a confirmação OAuth do allauth. Somente e-mail verificado em allowlist ou em convite válido é aceito; novos usuários comuns da allowlist são associados à biblioteca inicial no provisionamento OAuth, e contas já existentes mantêm suas memberships. Um cadastro que começou por convite fica vinculado a ele até a validação no callback e só recebe membership ao aceitar o convite. Use `bootstrap_library` para provisionar memberships de usuários existentes da allowlist. A migração `0010` conserva as memberships existentes, atribui o papel administrativo às contas técnicas existentes e armazena a permissão explícita de criar bibliotecas. Essa capacidade fica no usuário; não é derivada do papel na biblioteca durante as chamadas da API. Valide o login e a permissão de criação com a conta administrativa e uma conta sem essa capacidade.
+
+**Verificação manual em produção:** confira no ambiente Django `APP_ORIGIN=https://julib.vercel.app`, `ALLOWED_HOSTS` e `CSRF_TRUSTED_ORIGINS` para a origem HTTPS pública. No cliente OAuth Web do Google, confirme a URI autorizada `https://julib.vercel.app/accounts/google/login/callback/`; segredos continuam apenas no backend. Em janela privada, inicie login pela interface, confira que o navegador volta pela URL de callback acima e conclui em `/livros` com sessão válida. Repita com uma conta permitida e uma conta fora da allowlist sem convite; a segunda deve ser recusada sem criar usuário ou membership. Não copie `code`, `state`, cookies ou tokens para logs. Não use login local para validar a callback do Google.
 
 ## Migração para múltiplas bibliotecas
 
@@ -59,6 +61,10 @@ Esta `0010` ainda não foi publicada e foi corrigida diretamente. Um banco de de
 Antes de aplicar `0011`, execute o preflight somente de leitura descrito abaixo. Ele confere também tags de livros e exemplares de linhas de importação; essas tabelas não armazenam uma coluna de biblioteca compartilhada e são protegidas por triggers. As constraints compostas são validadas na migração; os triggers protegem novas relações e mudanças posteriores, enquanto o preflight detecta relações antigas inconsistentes. Investigue e corrija qualquer divergência antes de repetir.
 
 Publique backend e frontend juntos antes de criar uma segunda biblioteca. A API mantém compatibilidade para contas com uma única membership sem cabeçalho de contexto; contas com várias memberships precisam enviar `X-Library-ID`, que o backend valida a cada operação. A URL da interface determina esse cabeçalho por aba. Depois que houver mais de uma biblioteca, não faça rollback para uma versão anterior à Fase 1: ela ignora o cabeçalho e pode operar na primeira membership. Use correção para frente ou uma versão de rollback que suporte múltiplas bibliotecas.
+
+### Migration `0014` — search_path dos triggers
+
+A migration forward-only `0014_secure_integrity_trigger_search_path` substitui os corpos das quatro funções `julib_check_*` sem trocar nomes, assinaturas, triggers ou regras de integridade. Cada função fixa `search_path = pg_catalog, public, pg_temp`; `pg_temp` fica explicitamente por último, e cada tabela da aplicação aparece qualificada como `public.<tabela>`. Isso impede que uma tabela temporária com nome coincidente altere a leitura feita pelo trigger. A migration não altera tabelas nem linhas existentes, por isso não requer backfill e preserva os relacionamentos atuais; ensaie em PostgreSQL 17 descartável antes de aplicar. Não reverta: se uma publicação falhar, corrija para frente. Após o ensaio, confira novamente o Supabase Advisor e que as quatro `proconfig` exibem o search path esperado.
 
 ## Cloudinary
 
@@ -82,7 +88,7 @@ Falha de backend interrompe publicação do frontend. Rollback do código só co
 
 ## Backup privado diário
 
-Mantenha o código num repositório público e o workflow operacional em repositório privado. Copie ops/backup-workflow.yml.example para `.github/workflows/backup.yml` **somente no privado**. O job recusa repositório público. Agenda UTC 06:23 (03:23 em São Paulo), também com execução manual.
+Mantenha o código num repositório público e os workflows operacionais no repositório privado `julib-backups`. Copie `ops/backup-workflow.yml.example` para `.github/workflows/backup.yml` **somente no privado**. O job recusa repositório público. Agenda UTC 06:23 (03:23 em São Paulo), também com execução manual. Backup e deploy/migrations são processos independentes. O workflow lê o banco e a mídia; não execute nele comandos de manutenção nem `cleanup_imports`.
 
 Gere chaves localmente:
 
@@ -90,21 +96,39 @@ Gere chaves localmente:
 uv run --project backend python scripts/backup.py keygen --private /CAMINHO_SEGURO/julib-private.pem --public /CAMINHO_SEGURO/julib-public.pem
 ```
 
-Guarde a chave privada fora do GitHub e uma segunda cópia segura. A chave pública PEM entra no secret BACKUP_PUBLIC_KEY do repositório privado. Outros secrets: BACKUP_DATABASE_URL e credenciais Cloudinary. DATABASE_URL para leitura das referências aponta para o mesmo banco. Ajuste a referência do código no workflow ao commit/branch revisado.
+Guarde a chave privada fora do GitHub e uma segunda cópia segura. A chave pública PEM entra no secret BACKUP_PUBLIC_KEY do repositório privado. Outros secrets: BACKUP_DATABASE_URL e credenciais Cloudinary. Use para BACKUP_DATABASE_URL uma credencial sem DML/DDL, com leitura das tabelas do schema `public`; o script também abre a consulta de referências em transação `READ ONLY` e define `default_transaction_read_only=on` para o subprocesso `pg_dump`. DATABASE_URL para leitura das referências aponta para o mesmo banco. Ajuste a referência do código no workflow ao commit/branch revisado.
 
-O script gera dump PostgreSQL custom somente do esquema public do Julib, sem owner/ACL (não inclui esquemas internos auth/storage/extensões do Supabase) e pacote das capas gerenciadas, manifesto e arquivos, cifrado por AES-256-GCM com chave aleatória protegida pela chave pública RSA. Não copia capas externas indisponíveis; guarda suas URLs no banco. Não faz upload parcial nem envia cópia sem cifrar. O limite inicial de pacote é 50 MB; sete pacotes usam até aproximadamente 350 MB, fora outros consumos. Confirme cotas reais no GitHub/Supabase/Cloudinary; a política de inatividade não é SLA. O cliente pg_dump deve ser da mesma versão principal ou mais recente que o servidor.
+O script gera dump PostgreSQL custom somente do esquema public do Julib, sem owner/ACL (não inclui esquemas internos auth/storage/extensões do Supabase) e pacote das capas gerenciadas, manifesto e arquivos, cifrado por AES-256-GCM com chave aleatória protegida pela chave pública RSA. O tag de autenticação AES-GCM verifica a integridade do conteúdo cifrado ao descriptografar. Não copia capas externas indisponíveis; guarda suas URLs no banco. Não faz upload parcial nem envia cópia sem cifrar. O limite atual por pacote é 50 MiB; o workflow gera também um arquivo `.sha256` separado para conferir a cópia baixada. O cliente pg_dump deve ser da mesma versão principal ou mais recente que o servidor.
 
-Retenção de sete dias configurada no artifact privado. O job falha ao exceder o orçamento; não marque “backup completo” se falhar. Deduplicação de mídia e migração para outro destino são próximos passos caso a medição ultrapasse a cota; não estão ativadas silenciosamente. Esse impedimento precisa ser resolvido antes de usar o acervo real em volume incompatível.
+Artifacts diários e manuais são configurados para retenção de 30 dias. A documentação atual do GitHub informa que artifacts em repositório privado podem ter retenção entre 1 e 400 dias, limitada por política da organização/empresa ([retenção](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository)). O armazenamento incluído depende do plano do proprietário; GitHub Free lista 500 MB compartilhados entre Actions artifacts e GitHub Packages ([limites e planos](https://docs.github.com/en/actions/reference/limits), [billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions)). No tamanho histórico registrado em 06/11/2026 (7.598.510 bytes cifrados), 30 cópias seriam cerca de 228 MB antes de outras versões/arquivos. O limite de 50 MiB por arquivo permitiria até 1,5 GiB em 30 dias, acima dos 500 MB. Portanto, antes de habilitar o fluxo, confira plano real, uso atual e tamanho do backup de 16/11; reduza consumo/volume ou escolha outro destino privado se 30 cópias não couberem. Não marque “backup completo” quando a execução ou o artifact falhar. A janela de retenção é proteção operacional, não garantia de restauração nem SLA.
+
+### Publicar uma cópia cifrada já existente
+
+`ops/upload-existing-backup-workflow.yml.example` é um fluxo manual separado. Copie-o **somente** para `.github/workflows/upload-existing-backup.yml` no `julib-backups`; ele não cria release/tag, não consulta banco, não executa migrations nem gera outro backup. Exige um runner self-hosted privado com label `julib-backup-upload` e diretório `/srv/julib-backup-inbox` no qual a conta do serviço tenha somente leitura. Restrinja esse runner ao repositório `julib-backups` e a pessoas de confiança. O fluxo lê um basename `julib-backup-*.enc`, rejeita symlink, arquivo vazio ou acima de 50 MiB antes e depois de copiar, confere a estrutura do envelope (cabeçalho, comprimento da chave encapsulada, nonce e espaço para tag AES-GCM), compara o SHA-256 informado com o valor registrado na verificação do backup e envia o `.enc` junto do `.sha256` como artifact privado por 30 dias. A verificação de estrutura e hash não substitui a autenticação AES-GCM e a restauração prévia do arquivo.
+
+Somente depois de autorização para transferir o arquivo: no host privado do runner, um operador instala o `.enc` cifrado previamente verificado na pasta de entrada, atribuindo leitura à conta do runner e mantendo a pasta sem escrita para essa conta:
+
+```sh
+sudo install -o root -g GRUPO_DO_RUNNER -m 0440 -- /CAMINHO_PRIVADO/julib-backup-DATA.enc /srv/julib-backup-inbox/
+```
+
+Não coloque o arquivo, a chave privada nem o manifesto descriptografado no repositório de código. Em Actions, use **Run workflow** no repositório privado e informe o nome do arquivo e o SHA-256 documentado para aquela cópia. Confira o sucesso, o nome e a retenção do artifact; mantenha registrado run ID, SHA-256 e data de expiração. A execução manual e o upload não foram habilitados nesta preparação.
 
 ## Testar recuperação
 
-Baixe o artifact privado e extraia apenas o arquivo .enc. Descriptografe localmente:
+Baixe o artifact privado e extraia o `.enc` e seu `.sha256` para um diretório local privado. Antes de descriptografar, valide a cópia:
+
+```sh
+(cd /DIRETORIO_PRIVADO_DO_ARTIFACT && sha256sum -c ./*.enc.sha256)
+```
+
+Compare também o hash com o registro do run antes de prosseguir. Descriptografe localmente:
 
 ```sh
 uv run --project backend python scripts/backup.py decrypt --private /CAMINHO_SEGURO/julib-private.pem --input /CAMINHO_SEGURO/julib-backup.enc --output /CAMINHO_SEGURO/julib-restore.tar.gz
 ```
 
-Em diretório vazio e privado, liste o tar antes de extrair: contém database.dump, manifest.json e media/. Nunca aceite tar de fonte desconhecida. Restaure em banco **novo e descartável**, nunca na produção durante um teste:
+O decifrador valida a autenticação AES-GCM e falha se o conteúdo tiver sido alterado. Em diretório vazio e privado, liste o tar antes de extrair: contém `database.dump`, `manifest.json` e `media/`. Nunca aceite tar de fonte desconhecida. Restaure em banco **novo e descartável**, nunca na produção durante um teste:
 
 ```sh
 # Apenas no banco novo e descartável: preparar public vazio e a role das políticas.
@@ -120,8 +144,8 @@ Registre tamanho, hora da última cópia e resultado do teste. Ative notificaç�
 ## Rotina
 
 - Conferir consumo e suspensão/inatividade dos planos gratuitos.
-- Conferir backup diário e executar teste de recuperação após alterações do mecanismo.
-- Conferir `cleanup_imports`, já executado diariamente pelo workflow privado antes do backup, removendo sessões após sete dias sem apagar livros.
+- Conferir backup diário e executar teste de recuperação após alterações do mecanismo. Não considerar uma cópia recuperável apenas por existir artifact: verificar SHA-256, descriptografia/autenticação, manifesto, restauração PostgreSQL 17 e contagens de dados/mídia.
+- Tratar `cleanup_imports` como manutenção separada de dados, com revisão e decisão próprias. Se necessária, executar explicitamente fora do processo de backup, avaliar o período das sessões que serão removidas e registrar o resultado; não acoplar ao workflow de backup.
 - Não registrar contatos, tokens compartilhados ou conteúdo CSV em logs.
 - Validar câmera e instalação do PWA nos Chrome do Poco F5 e Samsung A34. Automação em Chromium não substitui teste da câmera física.
 
@@ -164,7 +188,7 @@ Procedimento de publicação:
 
 **Recuperação após habilitar múltiplas bibliotecas:** não retornar ao backend anterior à Fase 1; ele pode ignorar `X-Library-ID` e operar na primeira membership. Após falha de aplicação, manter as migrations aditivas e corrigir para frente ou redeployar uma versão já compatível com múltiplas bibliotecas. Se houver corrupção que exija recuperação de dados, restaurar o backup validado junto das mídias para um estado consistente e implantar uma versão compatível; a decisão deve considerar e registrar a perda das gravações posteriores ao ponto do backup. Não reverter migrations automaticamente nem mover tags.
 
-Enquanto o Actions estiver pausado, **não há backup diário automático pelo GitHub**. A publicação manual não exige uma nova cópia; o backup operacional continua independente e pode ser executado manualmente quando necessário. Releases manuais não expiram automaticamente como artifacts: na rotina manual, remover somente releases `manual-*` com mais de sete dias, depois de confirmar que não apagará a única cópia necessária à recuperação; não apagar a última cópia válida. Não considerar uma agenda diária restabelecida até reativá-la e validar sua execução.
+Enquanto o Actions estiver pausado, **não há backup diário automático pelo GitHub**. A publicação manual não exige uma nova cópia; o backup operacional continua independente. Releases `manual-*` criadas pela rotina antiga não expiram automaticamente e ficam fora da retenção de artifacts de 30 dias. Preserve essas cópias até revisar sua validade e estabelecer a nova rotina; não as exclua automaticamente. Não considerar a retenção de artifacts ou uma agenda diária ativa até instalar o template aprovado no repositório privado, reativar Actions com autorização e validar uma execução.
 
 Após resolução do chamado: reativar CI com `gh workflow enable ci.yml --repo marrcandre/julib`; reativar backup com `gh workflow enable backup.yml --repo marrcandre/julib-backups` e validar uma execução privada; reativar Deploy com `gh workflow enable deploy.yml --repo marrcandre/julib`. Conferir DEPLOY_ENABLED e executar CI do commit atual antes de voltar às publicações automáticas. Não alterar planos nem limites pagos para esse procedimento.
 

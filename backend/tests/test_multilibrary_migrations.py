@@ -11,6 +11,14 @@ def test_multilibrary_migrations_preserve_data_and_do_not_grant_create_capabilit
     targets = MigrationExecutor(connection).loader.graph.leaf_nodes()
     request.addfinalizer(lambda: MigrationExecutor(connection).migrate(targets))
     legacy_target = [("library", "0009_alter_library_name")]
+    # Migration 0014 is intentionally irreversible and changes no schema/data.
+    # Forget only its recorder row in this disposable test DB so this historical
+    # data-preservation test can still exercise the 0010-0013 migration path.
+    from django.db.migrations.recorder import MigrationRecorder
+
+    MigrationRecorder(connection).record_unapplied(
+        "library", "0014_secure_integrity_trigger_search_path"
+    )
     executor = MigrationExecutor(connection)
     executor.migrate(legacy_target)
     old_apps = MigrationExecutor(connection).loader.project_state(legacy_target).apps

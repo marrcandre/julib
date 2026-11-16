@@ -1,0 +1,86 @@
+# Copy ONLY to .github/workflows/upload-existing-backup.yml in the PRIVATE
+# julib-backups repository. Requires a dedicated self-hosted runner labeled
+# julib-backup-upload with /srv/julib-backup-inbox mounted read-only to the runner.
+name: Upload existing encrypted backup
+run-name: Store existing backup ${{ inputs.backup_filename }}
+on:
+  workflow_dispatch:
+    inputs:
+      backup_filename:
+        description: Encrypted file basename already staged in the runner inbox
+        required: true
+        type: string
+      expected_sha256:
+        description: SHA-256 recorded when this backup was verified
+        required: true
+        type: string
+permissions: {}
+concurrency:
+  group: existing-backup-upload
+  cancel-in-progress: false
+jobs:
+  upload:
+    if: github.event.repository.private == true
+    runs-on: [self-hosted, julib-backup-upload]
+    steps:
+      - name: Validate and stage existing encrypted file
+        shell: bash
+        env:
+          BACKUP_FILENAME: ${{ inputs.backup_filename }}
+          EXPECTED_SHA256: ${{ inputs.expected_sha256 }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$BACKUP_FILENAME" =~ ^julib-backup-[A-Za-z0-9._-]+\.enc$ ]]; then
+            echo "Invalid encrypted backup filename." >&2
+            exit 1
+          fi
+          source="/srv/julib-backup-inbox/$BACKUP_FILENAME"
+          if [[ ! -f "$source" || -L "$source" ]]; then
+            echo "Encrypted backup file is missing or is a symbolic link." >&2
+            exit 1
+          fi
+          source_size=$(stat --format=%s -- "$source")
+          if (( source_size == 0 || source_size > 52428800 )); then
+            echo "Encrypted backup is empty or exceeds the 50 MiB limit." >&2
+            exit 1
+          fi
+          if [[ ! "$EXPECTED_SHA256" =~ ^[a-fA-F0-9]{64}$ ]]; then
+            echo "Expected SHA-256 must contain exactly 64 hexadecimal characters." >&2
+            exit 1
+          fi
+          target="$RUNNER_TEMP/julib-existing-backup-$GITHUB_RUN_ID"
+          install -d -m 700 "$target"
+          destination="$target/$BACKUP_FILENAME"
+          install -m 600 -- "$source" "$destination"
+          size=$(stat --format=%s -- "$destination")
+          if (( size == 0 || size > 52428800 )); then
+            echo "Encrypted backup is empty or exceeds the 50 MiB limit." >&2
+            exit 1
+          fi
+          python3 - "$destination" <<'PY'
+          from pathlib import Path
+          import struct
+          import sys
+
+          data = Path(sys.argv[1]).read_bytes()
+          if len(data) < 9 or data[:7] != b"JULIB01":
+              raise SystemExit("File does not have the Julib encrypted backup header.")
+          wrapped_key_size = struct.unpack(">H", data[7:9])[0]
+          if wrapped_key_size < 256 or wrapped_key_size > 1024 or wrapped_key_size % 64:
+              raise SystemExit("Encrypted backup has an invalid wrapped-key length.")
+          minimum_size = 9 + wrapped_key_size + 12 + 16
+          if len(data) < minimum_size:
+              raise SystemExit("Encrypted backup is truncated or has no complete GCM tag.")
+          PY
+          actual_sha256=$(sha256sum -- "$destination" | awk '{print $1}')
+          if [[ "${actual_sha256,,}" != "${EXPECTED_SHA256,,}" ]]; then
+            echo "Backup SHA-256 does not match the recorded value." >&2
+            exit 1
+          fi
+          printf '%s  %s\n' "$actual_sha256" "$BACKUP_FILENAME" > "$target/$BACKUP_FILENAME.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: julib-existing-backup-${{ github.run_id }}
+          path: ${{ runner.temp }}/julib-existing-backup-${{ github.run_id }}/
+          retention-days: 30
+          if-no-files-found: error

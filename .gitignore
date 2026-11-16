@@ -18,6 +18,8 @@ test-results/
 *.sql
 *.dump
 *.age
+*.enc
+*.enc.sha256
 *.sqlite3
 frontend/vercel.json
 backend/staticfiles/

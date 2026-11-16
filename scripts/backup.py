@@ -1,5 +1,6 @@
 """Encrypted PostgreSQL and managed-cover backup. Run only from private operations repository."""
 import argparse
+from contextlib import contextmanager
 import io
 import json
 import os
@@ -36,6 +37,26 @@ def add_bytes(archive: tarfile.TarFile, name: str, data: bytes) -> None:
     info=tarfile.TarInfo(name);info.size=len(data);info.mode=0o600
     archive.addfile(info,io.BytesIO(data))
 
+def dump_database(database: str) -> bytes:
+    environment = os.environ.copy()
+    pgoptions = environment.get('PGOPTIONS', '').strip()
+    environment['PGOPTIONS'] = f'{pgoptions} -c default_transaction_read_only=on'.strip()
+    return subprocess.run(
+        ['pg_dump',database,'--schema=public','--format=custom','--no-owner','--no-acl'],
+        check=True,
+        capture_output=True,
+        env=environment,
+    ).stdout
+
+@contextmanager
+def read_only_transaction():
+    from django.db import connection, transaction
+
+    with transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute('SET TRANSACTION READ ONLY')
+        yield
+
 def backup(output: Path, public_key: Path, with_media: bool) -> None:
     import sys
     sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'backend'))
@@ -44,7 +65,7 @@ def backup(output: Path, public_key: Path, with_media: bool) -> None:
     django.setup()
     from library.models import Book
     database=os.environ['BACKUP_DATABASE_URL']
-    dump=subprocess.run(['pg_dump',database,'--schema=public','--format=custom','--no-owner','--no-acl'],check=True,capture_output=True).stdout
+    dump=dump_database(database)
     manifest={'created_at':datetime.now(timezone.utc).isoformat(),'format':1,'media':[]}
     buffer=io.BytesIO()
     with tarfile.open(fileobj=buffer,mode='w:gz') as archive:
@@ -54,7 +75,11 @@ def backup(output: Path, public_key: Path, with_media: bool) -> None:
             import cloudinary.api
             import httpx
             configure()
-            for i, public_id in enumerate(Book.objects.exclude(cover_id='').values_list('cover_id',flat=True).distinct()):
+            with read_only_transaction():
+                public_ids = list(
+                    Book.objects.exclude(cover_id='').values_list('cover_id',flat=True).distinct()
+                )
+            for i, public_id in enumerate(public_ids):
                 resource=cloudinary.api.resource(public_id)
                 response=httpx.get(resource['secure_url'],timeout=30);response.raise_for_status()
                 name=f'media/{i}.{resource["format"]}'
@@ -65,7 +90,7 @@ def backup(output: Path, public_key: Path, with_media: bool) -> None:
     limit=int(os.environ.get('BACKUP_MAX_BYTES',str(50*1024*1024)))
     if len(result)>limit:raise SystemExit('Backup excede o orçamento configurado. Nada foi enviado; revise capacidade e destino.')
     output.parent.mkdir(parents=True,exist_ok=True);output.write_bytes(result);output.chmod(0o600)
-    print(f'Backup cifrado criado: {len(result)} bytes. Verifique a retenção privada de sete dias.')
+    print(f'Backup cifrado criado: {len(result)} bytes. Verifique hash e retenção do artifact privado.')
 
 def main() -> None:
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='command',required=True)
