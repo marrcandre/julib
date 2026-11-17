@@ -11,7 +11,7 @@ from django.test import Client, RequestFactory
 from django.utils import timezone
 
 from library.auth import GoogleAdapter
-from library.models import Library, Membership, User
+from library.models import Library, LibraryInvite, Membership, User
 
 pytestmark = pytest.mark.django_db
 
@@ -28,6 +28,27 @@ def create_invite(client, library):
 def verify_google(user):
     SocialAccount.objects.create(user=user, provider="google", uid=f"google-{user.pk}")
     EmailAddress.objects.create(user=user, email=user.email, verified=True, primary=True)
+
+
+def existing_invited_sociallogin(user):
+    now = timezone.now()
+    library = Library.objects.create(name="Biblioteca convidada")
+    invite = LibraryInvite.objects.create(
+        library=library,
+        token_hash="a" * 64,
+        created_at=now - timezone.timedelta(days=1),
+        expires_at=now + timezone.timedelta(days=6),
+        accepted_at=now,
+        accepted_by=user,
+    )
+    Membership.objects.create(user=user, library=library, invitation=invite)
+    verify_google(user)
+    sociallogin = SocialLogin(
+        user=user,
+        account=SocialAccount(provider="google", uid=f"google-{user.pk}"),
+    )
+    sociallogin.email_addresses = [type("Email", (), {"verified": True, "email": user.email})()]
+    return sociallogin
 
 
 def test_library_admin_creates_link_that_is_only_returned_once(client, member):
@@ -224,6 +245,30 @@ def test_unlisted_google_login_requires_valid_invite_context(client, member):
 
     assert adapter.is_open_for_signup(request, sociallogin) is True
     adapter.pre_social_login(request, sociallogin)
+
+
+def test_invited_member_can_log_in_after_invite_was_consumed(client):
+    user = User.objects.create_user(username="invitee", email="outside@example.com")
+    sociallogin = existing_invited_sociallogin(user)
+    request = RequestFactory().get("/accounts/google/login/")
+    request.session = client.session
+    adapter = GoogleAdapter()
+
+    assert adapter.is_open_for_signup(request, sociallogin) is True
+    adapter.pre_social_login(request, sociallogin)
+
+
+def test_removing_invited_membership_revokes_google_login(client):
+    user = User.objects.create_user(username="invitee", email="outside@example.com")
+    sociallogin = existing_invited_sociallogin(user)
+    Membership.objects.filter(user=user).delete()
+    request = RequestFactory().get("/accounts/google/login/")
+    request.session = client.session
+    adapter = GoogleAdapter()
+
+    assert adapter.is_open_for_signup(request, sociallogin) is False
+    with pytest.raises(ImmediateHttpResponse):
+        adapter.pre_social_login(request, sociallogin)
 
 
 def test_invite_preparation_requires_csrf_token(client, member):

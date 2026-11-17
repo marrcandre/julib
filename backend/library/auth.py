@@ -102,7 +102,11 @@ class AccountAdapter(DefaultAccountAdapter):
 
 class GoogleAdapter(DefaultSocialAccountAdapter):
     def is_open_for_signup(self, request: HttpRequest, sociallogin: Any) -> bool:
-        return self._allowed(sociallogin) or self._valid_invite_login(request, sociallogin)
+        return (
+            self._allowed(sociallogin)
+            or self._valid_invite_login(request, sociallogin)
+            or self._has_invited_membership_login(sociallogin)
+        )
 
     def _allowed(self, sociallogin: Any) -> bool:
         return sociallogin.account.provider == "google" and any(
@@ -121,10 +125,25 @@ class GoogleAdapter(DefaultSocialAccountAdapter):
             )
         )
 
+    def _has_invited_membership_login(self, sociallogin: Any) -> bool:
+        user = sociallogin.user
+        return (
+            sociallogin.account.provider == "google"
+            and isinstance(user, User)
+            and user.pk is not None
+            and user.is_active
+            and has_invited_membership(user)
+            and any(
+                email.verified and email.email.lower() == user.email.lower()
+                for email in sociallogin.email_addresses
+            )
+        )
+
     def pre_social_login(self, request: HttpRequest, sociallogin: Any) -> None:
         allowed = self._allowed(sociallogin)
         invite_login = self._valid_invite_login(request, sociallogin)
-        if not (allowed or invite_login) or not sociallogin.user.is_active:
+        member_login = self._has_invited_membership_login(sociallogin)
+        if not (allowed or invite_login or member_login) or not sociallogin.user.is_active:
             raise ImmediateHttpResponse(HttpResponseForbidden("Conta Google não autorizada."))
         if request is not None and invite_login:
             pending = valid_pending_invite(request)
