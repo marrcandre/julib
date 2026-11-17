@@ -57,6 +57,88 @@ beforeEach(() => {
   })
 })
 
+it('shows source-specific export guidance and keeps each upload format distinct', async () => {
+  const wrapper = mount(ImportBooks)
+  await flushPromises()
+
+  const sourceButtons = wrapper.findAll('[role="group"][aria-label="Origem da importação"] button')
+  expect(sourceButtons[0].attributes('aria-pressed')).toBe('true')
+  expect(sourceButtons[1].attributes('aria-pressed')).toBe('false')
+  expect(wrapper.text()).toContain('Export Library')
+  expect(wrapper.text()).toContain('Book Id')
+  expect(wrapper.find('a[href="https://help.goodreads.com/s/question/0D51H00005UUXHhSAP/exportation-of-the-library"]').exists()).toBe(true)
+  expect(wrapper.get('input[type="file"]').attributes('multiple')).toBeUndefined()
+
+  await sourceButtons[1].trigger('click')
+  await flushPromises()
+
+  expect(wrapper.text()).toContain('coleção')
+  expect(wrapper.text()).toContain('localização física')
+  expect(wrapper.text()).toContain('notas')
+  expect(wrapper.find('a[href="https://support.libib.com/libib/website/settings.html"]').exists()).toBe(true)
+  expect(wrapper.get('input[type="file"]').attributes('multiple')).toBeDefined()
+  expect(wrapper.findAll('[role="group"][aria-label="Origem da importação"] button')[1].attributes('aria-pressed')).toBe('true')
+})
+
+it('uploads one Goodreads CSV through the existing preview route', async () => {
+  api.mockImplementation(async (path: string, options?: RequestInit) => {
+    if (path === '/imports' && options?.method === 'POST') return { id: 41 }
+    if (path === '/imports' || path === '/imports/libib/sessions') return []
+    if (path === '/imports/41') return { rows: [{
+      id: 1,
+      data: { title: 'Goodreads upload', authors: ['Author'], isbn: '', publisher: '', year: '', page_count: null },
+      result: '',
+      existing: false,
+    }] }
+    throw new Error(`Unexpected API route ${path}`)
+  })
+  const wrapper = mount(ImportBooks)
+  await flushPromises()
+  const input = wrapper.get('input[type="file"]')
+  const file = new File(['Title,Author\nBook,Author\n'], 'goodreads.csv', { type: 'text/csv' })
+  Object.defineProperty(input.element, 'files', { value: [file], configurable: true })
+  await input.trigger('change')
+  await flushPromises()
+
+  const uploadCall = api.mock.calls.find(([path, options]) => path === '/imports' && options?.method === 'POST')
+  const body = uploadCall?.[1]?.body as FormData
+  expect(body.get('file')).toBe(file)
+  expect(body.getAll('files')).toEqual([])
+  expect(wrapper.text()).toContain('Goodreads upload')
+})
+
+it('resumes Goodreads and Libib sessions through their existing details routes', async () => {
+  api.mockImplementation(async (path: string) => {
+    if (path === '/imports') return [{ id: 31, created_at: '2026-11-17T00:00:00Z' }]
+    if (path === '/imports/libib/sessions') return [{ id: 32, created_at: '2026-11-17T00:00:00Z' }]
+    if (path === '/imports/31') return { rows: [{
+      id: 1,
+      data: { title: 'Sessão Goodreads', authors: ['Author'], isbn: '', publisher: '', year: '', page_count: null },
+      result: '',
+      existing: false,
+    }] }
+    if (path === '/imports/libib/32') return {
+      files: [],
+      rows: [row(2, 'Sessão Libib', 'valid')],
+    }
+    throw new Error(`Unexpected API route ${path}`)
+  })
+
+  const wrapper = mount(ImportBooks)
+  await flushPromises()
+  await wrapper.findAll('button').find(button => button.text().includes('Importação #31'))!.trigger('click')
+  await flushPromises()
+  expect(wrapper.text()).toContain('Sessão Goodreads')
+  expect(api).toHaveBeenCalledWith('/imports/31')
+
+  await wrapper.findAll('[role="group"][aria-label="Origem da importação"] button')[1].trigger('click')
+  await flushPromises()
+  await wrapper.findAll('button').find(button => button.text().includes('Importação #32'))!.trigger('click')
+  await flushPromises()
+  expect(wrapper.text()).toContain('Sessão Libib')
+  expect(api).toHaveBeenCalledWith('/imports/libib/32')
+})
+
 it('previews multiple Libib rows and keeps incompatible media visible but unselectable', async () => {
   const wrapper = mount(ImportBooks)
   await flushPromises()
@@ -96,8 +178,47 @@ it('processes selected rows in bounded batches and reports created copies', asyn
   expect(post).toHaveBeenCalledWith('/imports/libib/11/process', {
     actions: [{ id: 1, action: 'import' }],
   })
+  expect(wrapper.text()).toContain('Importação concluída')
+  expect(wrapper.text()).not.toContain('Nenhum registro importável nesta sessão')
   expect(wrapper.text()).toContain('Livro criado')
   expect(wrapper.text()).toContain('1 de 1 registros processados')
+})
+
+it('shows a completed result after a Goodreads session finishes', async () => {
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+  let processed = false
+  api.mockImplementation(async (path: string, options?: RequestInit) => {
+    if (path === '/imports' && options?.method === 'POST') return { id: 42 }
+    if (path === '/imports' || path === '/imports/libib/sessions') return []
+    if (path === '/imports/42') return { rows: [{
+      id: 1,
+      data: { title: 'Goodreads final', authors: ['Author'], isbn: '', publisher: '', year: '', page_count: null },
+      result: processed ? 'created' : '',
+      existing: false,
+    }] }
+    throw new Error(`Unexpected API route ${path}`)
+  })
+  post.mockImplementation(async () => {
+    processed = true
+    return [{ id: 1, result: 'created' }]
+  })
+
+  const wrapper = mount(ImportBooks)
+  await flushPromises()
+  const fileInput = wrapper.get('input[type="file"]')
+  Object.defineProperty(fileInput.element, 'files', {
+    value: [new File(['csv'], 'goodreads.csv', { type: 'text/csv' })],
+    configurable: true,
+  })
+  await fileInput.trigger('change')
+  await flushPromises()
+  await wrapper.get('input[aria-label="Importar Goodreads final"]').setValue(true)
+  await wrapper.get('button.primary').trigger('click')
+  await flushPromises()
+
+  expect(confirm).toHaveBeenCalled()
+  expect(wrapper.text()).toContain('Importação concluída')
+  expect(wrapper.text()).toContain('1 livro(s) criado(s)')
 })
 
 it('shows one invalid file and an empty importable state when it has no rows', async () => {
@@ -184,6 +305,31 @@ it('shows a no-importable-records message when rows exist but all are incompatib
 
   expect(wrapper.text()).toContain('Nenhum registro importável')
   expect(wrapper.find('button.primary').attributes('disabled')).toBeDefined()
+})
+
+it('treats already-imported Libib rows as terminal without showing an empty-session notice', async () => {
+  const alreadyImported = row(8, 'Already imported', 'valid')
+  alreadyImported.data.already_imported = true
+  api.mockImplementation(async (path: string) => {
+    if (path === '/imports') return []
+    if (path === '/imports/libib/sessions') return [{ id: 33, created_at: '2026-11-17T00:00:00Z', total: 1, completed: 1 }]
+    if (path === '/imports/libib/33') return {
+      files: [{ id: 1, name: 'done.csv', collection: 'Fiction', total_rows: 1, completed: 1, status: 'ready', error: '', unknown_columns: [] }],
+      rows: [alreadyImported],
+    }
+    throw new Error(`Unexpected API route ${path}`)
+  })
+
+  const wrapper = mount(ImportBooks)
+  await flushPromises()
+  await wrapper.findAll('[role="group"][aria-label="Origem da importação"] button')[1].trigger('click')
+  await flushPromises()
+  await wrapper.findAll('button').find(button => button.text().includes('Importação #33'))!.trigger('click')
+  await flushPromises()
+
+  expect(wrapper.text()).toContain('Importação concluída')
+  expect(wrapper.text()).toContain('já importado(s)')
+  expect(wrapper.text()).not.toContain('Nenhum registro importável nesta sessão')
 })
 
 it('keeps the source selectors disabled during an upload', async () => {

@@ -399,7 +399,7 @@ test("book and copy editing preserve returned loan history on the real API", asy
     page.locator(".book-copy-info dd").filter({ hasText: locationName }),
   ).toBeVisible();
   const stored = await (
-    await page.request.get("/api/v1/books/" + book_id)
+    await page.request.get("/api/v1/books/" + book_id, { headers })
   ).json();
   expect(stored.copies[0].acquired_on).toBe("2019-05-20");
   expect(stored.copies[0].location_id).toBe(location.id);

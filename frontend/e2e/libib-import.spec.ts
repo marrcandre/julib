@@ -27,6 +27,33 @@ const validRow = {
   },
 }
 
+test('opens the unified import screen from the library menu', async ({ page }) => {
+  await page.route('**/api/v1/session', route => route.fulfill({ json: {
+    user_id: 900,
+    name: 'Pessoa de teste',
+    email: 'test@example.com',
+    catalog_view: 'covers',
+    cover_columns: 7,
+    avatar_url: '',
+    technical: false,
+    can_create_libraries: false,
+    libraries: [{ id: 77, name: 'Biblioteca de teste', role: 'admin' }],
+    library: 'Biblioteca de teste',
+    csrf: 'local-csrf',
+  } }))
+  await page.route('**/api/v1/imports', route => route.fulfill({ json: [] }))
+  await page.route('**/api/v1/imports/libib/sessions', route => route.fulfill({ json: [] }))
+
+  await page.goto('/livros')
+  await page.getByRole('button', { name: 'Mais opções da biblioteca' }).click()
+
+  const importItem = page.getByRole('menuitem', { name: 'Importar livros' })
+  await expect(importItem).toHaveCount(1)
+  await importItem.click()
+  await expect(page).toHaveURL(/\/bibliotecas\/77\/importar$/)
+  await expect(page.getByRole('heading', { name: 'Importar livros' })).toBeVisible()
+})
+
 test('reviews a Libib CSV and confirms copies without relying on its filename', async ({ page }) => {
   let result = ''
   await page.route('**/api/v1/session', route => route.fulfill({
@@ -83,6 +110,23 @@ test('reviews a Libib CSV and confirms copies without relying on its filename', 
   await expect(page.getByText('Livro da prévia', { exact: true })).toBeVisible()
   await expect(page.getByText('notes', { exact: false })).toBeVisible()
   await expect(page.getByText('Cabeçalho Libib inválido ou incompleto.')).toBeVisible()
+  for (const width of [1024, 768, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expect(page.getByRole('group', { name: 'Origem da importação' })).toBeVisible()
+    const dimensions = await page.evaluate(() => ({
+      page: document.documentElement.scrollWidth,
+      viewport: document.documentElement.clientWidth,
+    }))
+    expect(dimensions.page).toBeLessThanOrEqual(dimensions.viewport)
+    if (width <= 768) {
+      const table = await page.locator('.table-wrap').evaluate(element => ({
+        client: element.clientWidth,
+        scroll: element.scrollWidth,
+      }))
+      expect(table.scroll).toBeGreaterThan(table.client)
+    }
+  }
+  await page.setViewportSize({ width: 1280, height: 900 })
   await page.getByRole('checkbox', { name: 'Importar Livro da prévia' }).check()
   await page.getByRole('button', { name: 'Confirmar importação' }).click()
 
