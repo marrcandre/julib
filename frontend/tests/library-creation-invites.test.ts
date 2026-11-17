@@ -93,9 +93,22 @@ describe("LibraryCreationInvites", () => {
       "/library-creation-invites",
       expect.objectContaining({ method: "POST", body: JSON.stringify({ email: "destino@example.com" }) }),
     );
-    expect(wrapper.get("#new-creation-invite-link").element.getAttribute("value")).toBe(
+    expect(wrapper.get("#invite-link").element.getAttribute("value")).toBe(
       "https://julib.example/convites/criar#secret-token",
     );
+  });
+
+  it("keeps the creation link in the shared panel until it is closed", async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper.get("form").trigger("submit");
+    await flushPromises();
+
+    expect(wrapper.get("#invite-link").element.getAttribute("value")).toBe(
+      "https://julib.example/convites/criar#secret-token",
+    );
+    await wrapper.findAll("button").find((button) => button.text() === "Fechar")!.trigger("click");
+    expect(wrapper.find("#invite-link").exists()).toBe(false);
   });
 
   it("does not load invite data for a non-owner", async () => {

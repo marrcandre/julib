@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import Button from "primevue/button";
+import InviteLinkPanel from "../components/InviteLinkPanel.vue";
 import { api } from "../api";
 
 type Member = { user_id: number; name: string; email: string; role: "admin" | "member"; joined_at: string | null; is_current_user: boolean; can_change_role: boolean; can_remove: boolean; can_leave: boolean };
@@ -30,30 +31,26 @@ async function load() {
 }
 async function createInvite() {
   busy.value = true; error.value = "";
+  let shareFailure = "";
   try {
     const result = await api<{ invite_url: string }>("/invites", { method: "POST", body: "{}" });
     newInviteUrl.value = result.invite_url;
+    notice.value = "Convite criado. O link está disponível para visualização e cópia manual.";
     if (navigator.share) {
       try {
         await navigator.share({ title: "Convite para biblioteca", url: result.invite_url });
-        newInviteUrl.value = "";
         notice.value = "Link compartilhado. Ele vale por 7 dias e só pode ser usado uma vez.";
       } catch (cause) {
-        if ((cause as Error).name === "AbortError") notice.value = "Compartilhamento cancelado. O link continua disponível nesta tela.";
-        else { await navigator.clipboard.writeText(result.invite_url); newInviteUrl.value = ""; notice.value = "Link copiado. Ele vale por 7 dias e só pode ser usado uma vez."; }
+        if ((cause as Error).name === "AbortError")
+          notice.value = "Compartilhamento cancelado. O link continua disponível nesta tela.";
+        else shareFailure = "Não foi possível compartilhar. Você ainda pode copiar o link abaixo.";
       }
-    } else { await navigator.clipboard.writeText(result.invite_url); newInviteUrl.value = ""; notice.value = "Link copiado. Ele vale por 7 dias e só pode ser usado uma vez."; }
+    }
     await load();
+    if (shareFailure && !error.value) error.value = shareFailure;
   } catch (cause) {
     if ((cause as Error).name !== "AbortError") error.value = (cause as Error).message;
   } finally { busy.value = false; }
-}
-async function copyNewInvite() {
-  try {
-    await navigator.clipboard.writeText(newInviteUrl.value);
-    newInviteUrl.value = "";
-    notice.value = "Link copiado. Ele vale por 7 dias e só pode ser usado uma vez.";
-  } catch (cause) { error.value = (cause as Error).message; }
 }
 function isMemberBusy(userId: number) { return pendingActions.value.has(`member:${userId}`); }
 function isInviteBusy(inviteId: number) { return pendingActions.value.has(`invite:${inviteId}`); }
@@ -128,7 +125,11 @@ onMounted(load);
     <p v-if="current" class="muted">Seu papel: {{ current.role === 'admin' ? 'administrador' : 'membro' }}.</p>
     <p v-if="loading" class="muted" role="status">Carregando membros e convites…</p>
     <Button v-if="canManage" label="Criar link de convite" icon="pi pi-link" class="primary" :loading="busy" :disabled="loading" @click="createInvite" />
-    <Button v-if="newInviteUrl" label="Copiar link do convite" icon="pi pi-copy" text :disabled="loading" @click="copyNewInvite" />
+    <InviteLinkPanel
+      v-if="newInviteUrl"
+      :url="newInviteUrl"
+      @close="newInviteUrl = ''"
+    />
     <h2 v-if="canManage">Convites ativos e anteriores</h2>
     <ul v-if="canManage" class="invite-list"><li v-for="invite in inviteList" :key="invite.id"><span>{{ invite.status }} · expira {{ new Date(invite.expires_at).toLocaleDateString() }}</span><Button v-if="invite.status === 'pending'" label="Revogar" text :disabled="loading || isInviteBusy(invite.id)" :loading="isInviteBusy(invite.id)" @click="revokeInvite(invite)" /></li></ul>
     <h2 v-if="canManage">Pessoas</h2>

@@ -2,6 +2,7 @@
 import { computed, inject, onMounted, ref } from "vue";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
+import InviteLinkPanel from "../components/InviteLinkPanel.vue";
 import { api, type Session } from "../api";
 
 type CreationInvite = {
@@ -73,17 +74,6 @@ async function createInvite() {
   }
 }
 
-async function copyInvite() {
-  if (!newInviteUrl.value) return;
-  try {
-    await navigator.clipboard.writeText(newInviteUrl.value);
-    newInviteUrl.value = "";
-    notice.value = "Link copiado. Ele não será exibido novamente.";
-  } catch (cause) {
-    error.value = (cause as Error).message || "Não foi possível copiar o link.";
-  }
-}
-
 async function revoke(invite: CreationInvite) {
   if (!window.confirm("Confirma revogar este convite?")) return;
   revokingId.value = invite.id;
@@ -138,11 +128,11 @@ onMounted(load);
         <Button type="submit" label="Gerar convite" icon="pi pi-link" class="primary" :loading="busy" :disabled="loading || busy" />
       </form>
 
-      <div v-if="newInviteUrl" class="creation-invite-link">
-        <label for="new-creation-invite-link">Link (exibido uma vez)</label>
-        <InputText id="new-creation-invite-link" :model-value="newInviteUrl" readonly @focus="($event.target as HTMLInputElement).select()" />
-        <Button label="Copiar link e ocultar" icon="pi pi-copy" text @click="copyInvite" />
-      </div>
+      <InviteLinkPanel
+        v-if="newInviteUrl"
+        :url="newInviteUrl"
+        @close="newInviteUrl = ''"
+      />
 
       <p v-if="loading" class="muted" role="status">Carregando convites…</p>
       <p v-if="notice" class="notice" role="status">{{ notice }}</p>

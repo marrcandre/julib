@@ -319,7 +319,7 @@ nav a.section-active {
   margin: 24px 0;
 }
 .creation-invite-form .p-inputtext,
-.creation-invite-link .p-inputtext {
+.invite-link-panel .p-inputtext {
   width: 100%;
 }
 .creation-invite-form .primary {
@@ -340,13 +340,30 @@ nav a.section-active {
   color: var(--muted);
   overflow-wrap: anywhere;
 }
-.creation-invite-link {
+.invite-link-panel {
   display: grid;
-  gap: 8px;
+  gap: 12px;
   max-width: 760px;
   margin: 20px 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
 }
-.creation-invite-link .p-button {
+.invite-link-panel__heading,
+.invite-link-panel__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.invite-link-panel__field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.invite-link-panel > .p-button {
   justify-self: start;
 }
 .eyebrow {

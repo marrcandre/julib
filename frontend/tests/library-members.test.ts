@@ -14,8 +14,13 @@ const ButtonStub = defineComponent({
     '<button :disabled="disabled || loading" @click="$emit(\'click\')">{{ label }}</button>',
 });
 
+const InputTextStub = defineComponent({
+  props: ["id", "modelValue", "readonly"],
+  template: '<input :id="id" :value="modelValue" :readonly="readonly" />',
+});
+
 function mountPage() {
-  return mount(LibraryMembers, { global: { stubs: { Button: ButtonStub } } });
+  return mount(LibraryMembers, { global: { stubs: { Button: ButtonStub, InputText: InputTextStub } } });
 }
 
 const directory = {
@@ -56,6 +61,33 @@ beforeEach(() => {
 });
 
 describe("LibraryMembers", () => {
+  it("keeps a shared participation invite available for viewing and manual copy", async () => {
+    const inviteUrl = "https://julib.example/convites/aceitar#secret-token";
+    const share = vi.fn().mockResolvedValue(undefined);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { share, clipboard: { writeText } });
+    vi.mocked(api).mockImplementation(async (path, options) => {
+      if (path === "/members") return directory as never;
+      if (path === "/invites" && options?.method === "POST")
+        return { invite_url: inviteUrl } as never;
+      if (path === "/invites") return [] as never;
+      return {} as never;
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.findAll("button").find((button) => button.text() === "Criar link de convite")!.trigger("click");
+    await flushPromises();
+
+    expect(share).toHaveBeenCalledWith({ title: "Convite para biblioteca", url: inviteUrl });
+    expect(wrapper.get("#invite-link").element.getAttribute("value")).toBe(inviteUrl);
+    await wrapper.findAll("button").find((button) => button.text() === "Copiar link")!.trigger("click");
+    expect(writeText).toHaveBeenCalledWith(inviteUrl);
+    expect(wrapper.get('[role="status"]').text()).toContain("Link copiado");
+    await wrapper.findAll("button").find((button) => button.text() === "Fechar")!.trigger("click");
+    expect(wrapper.find("#invite-link").exists()).toBe(false);
+  });
+
   it("confirms before demoting an administrator", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(false);
     const wrapper = mountPage();
