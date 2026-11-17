@@ -88,7 +88,7 @@ const addItems = [
 ];
 const moreItems = [
   {
-    label: "Importar do Goodreads",
+    label: "Importar livros",
     icon: "pi pi-upload",
     command: () =>
       router.push(
