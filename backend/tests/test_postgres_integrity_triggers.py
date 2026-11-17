@@ -1,4 +1,7 @@
 import importlib.util
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -7,7 +10,17 @@ from django.db import DatabaseError, IntegrityError, connection
 from django.db.transaction import atomic
 
 from library import services
-from library.models import Book, ImportRow, ImportSession, Library, Tag
+from library.models import (
+    Book,
+    Copy,
+    ImportFile,
+    ImportReceipt,
+    ImportReceiptCopy,
+    ImportRow,
+    ImportSession,
+    Library,
+    Tag,
+)
 
 backup_spec = importlib.util.spec_from_file_location(
     "backup", Path(__file__).resolve().parents[2] / "scripts/backup.py"
@@ -146,6 +159,274 @@ def test_import_row_copy_parent_trigger_rejects_library_move_with_temp_shadows()
     assert ImportRow.objects.get(session=session).copy_id == copy.pk
 
 
+def test_import_receipt_copy_trigger_rejects_cross_library_copy():
+    left, right, _, _, _, _ = _two_books_and_tags()
+    receipt = ImportReceipt.objects.create(
+        library=left,
+        source_key="b" * 64,
+        file_sha256="a" * 64,
+        row_fingerprint="c" * 64,
+        desired_copies=1,
+        added_copies=1,
+        decision="import",
+    )
+    book = services.create_book(right, {"title": "Outro", "authors": ["Autor"]})
+    copy = services.add_copy(right, book.pk)
+
+    with pytest.raises(IntegrityError) as error:
+        with atomic():
+            ImportReceiptCopy.objects.bulk_create(
+                [ImportReceiptCopy(library=left, receipt=receipt, copy=copy)]
+            )
+
+    assert error.value.__cause__.sqlstate == "23514"
+
+
+def test_import_receipt_accepts_multiple_copies_of_its_book():
+    library, _, book, _, _, _ = _two_books_and_tags()
+    receipt = ImportReceipt.objects.create(
+        library=library,
+        source_key="1" * 64,
+        file_sha256="2" * 64,
+        row_fingerprint="3" * 64,
+        desired_copies=2,
+        added_copies=2,
+        decision="import",
+        book=book,
+    )
+    copies = [services.add_copy(library, book.pk) for _ in range(2)]
+
+    ImportReceiptCopy.objects.bulk_create(
+        [ImportReceiptCopy(library=library, receipt=receipt, copy=copy) for copy in copies]
+    )
+
+    assert receipt.copies.count() == 2
+
+
+def test_deleting_imported_copies_and_book_keeps_durable_receipt_valid():
+    library, _, book, _, _, _ = _two_books_and_tags()
+    receipt = ImportReceipt.objects.create(
+        library=library,
+        source_key="0" * 64,
+        file_sha256="1" * 64,
+        row_fingerprint="2" * 64,
+        desired_copies=1,
+        added_copies=1,
+        decision="import",
+        book=book,
+    )
+    copy = services.add_copy(library, book.pk)
+    relation = ImportReceiptCopy.objects.create(library=library, receipt=receipt, copy=copy)
+
+    copy.delete()
+    book.delete()
+
+    relation.refresh_from_db()
+    receipt.refresh_from_db()
+    assert relation.copy_id is None
+    assert receipt.book_id is None
+    assert ImportReceipt.objects.filter(pk=receipt.pk).exists()
+
+
+def test_import_receipt_copy_trigger_rejects_another_book_in_same_library():
+    library, _, book, _, _, _ = _two_books_and_tags()
+    other_book = services.create_book(library, {"title": "Outro", "authors": ["Autora"]})
+    receipt = ImportReceipt.objects.create(
+        library=library,
+        source_key="4" * 64,
+        file_sha256="5" * 64,
+        row_fingerprint="6" * 64,
+        desired_copies=1,
+        added_copies=1,
+        decision="import",
+        book=book,
+    )
+    other_copy = services.add_copy(library, other_book.pk)
+
+    with pytest.raises(IntegrityError) as error:
+        with atomic():
+            ImportReceiptCopy.objects.bulk_create(
+                [ImportReceiptCopy(library=library, receipt=receipt, copy=other_copy)]
+            )
+
+    assert error.value.__cause__.sqlstate == "23514"
+
+
+def test_import_receipt_copy_update_rejects_another_book_in_same_library():
+    library, _, book, _, _, _ = _two_books_and_tags()
+    other_book = services.create_book(library, {"title": "Outro", "authors": ["Autora"]})
+    receipt = ImportReceipt.objects.create(
+        library=library,
+        source_key="7" * 64,
+        file_sha256="8" * 64,
+        row_fingerprint="9" * 64,
+        desired_copies=1,
+        added_copies=1,
+        decision="import",
+        book=book,
+    )
+    copy = services.add_copy(library, book.pk)
+    relation = ImportReceiptCopy.objects.create(library=library, receipt=receipt, copy=copy)
+    other_copy = services.add_copy(library, other_book.pk)
+
+    with pytest.raises(IntegrityError) as error:
+        with atomic():
+            ImportReceiptCopy.objects.filter(pk=relation.pk).update(copy=other_copy)
+
+    assert error.value.__cause__.sqlstate == "23514"
+
+
+def test_import_receipt_and_copy_book_updates_reject_existing_mismatched_relations():
+    library, _, book, _, _, _ = _two_books_and_tags()
+    other_book = services.create_book(library, {"title": "Outro", "authors": ["Autora"]})
+    receipt = ImportReceipt.objects.create(
+        library=library,
+        source_key="a" * 64,
+        file_sha256="b" * 64,
+        row_fingerprint="c" * 64,
+        desired_copies=1,
+        added_copies=1,
+        decision="import",
+        book=book,
+    )
+    copy = services.add_copy(library, book.pk)
+    ImportReceiptCopy.objects.create(library=library, receipt=receipt, copy=copy)
+
+    with pytest.raises(IntegrityError) as receipt_error:
+        with atomic():
+            ImportReceipt.objects.filter(pk=receipt.pk).update(book=other_book)
+    with pytest.raises(IntegrityError) as copy_error:
+        with atomic():
+            Copy.objects.filter(pk=copy.pk).update(book=other_book)
+
+    assert receipt_error.value.__cause__.sqlstate == "23514"
+    assert copy_error.value.__cause__.sqlstate == "23514"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_copy_reassignment_cannot_race_receipt_link_creation():
+    from django.db import close_old_connections, connection
+
+    library, _, book, _, _, _ = _two_books_and_tags()
+    other_book = services.create_book(library, {"title": "Outro", "authors": ["Autora"]})
+    receipt = ImportReceipt.objects.create(
+        library=library,
+        source_key="d" * 64,
+        file_sha256="e" * 64,
+        row_fingerprint="f" * 64,
+        desired_copies=1,
+        added_copies=1,
+        decision="import",
+        book=book,
+    )
+    copy = services.add_copy(library, book.pk)
+    reassigned = threading.Event()
+    relation_attempting = threading.Event()
+    release_reassignment = threading.Event()
+
+    def reassign_copy():
+        close_old_connections()
+        try:
+            with atomic():
+                Copy.objects.filter(pk=copy.pk).update(book=other_book)
+                reassigned.set()
+                assert release_reassignment.wait(timeout=5)
+        finally:
+            close_old_connections()
+
+    def create_receipt_link():
+        close_old_connections()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SET application_name = 'libib-review-relation-race'")
+            assert reassigned.wait(timeout=5)
+            try:
+                with atomic():
+                    relation_attempting.set()
+                    ImportReceiptCopy.objects.create(library=library, receipt=receipt, copy=copy)
+                return "accepted"
+            except IntegrityError:
+                return "rejected"
+        finally:
+            close_old_connections()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        reassign_future = pool.submit(reassign_copy)
+        link_future = pool.submit(create_receipt_link)
+        assert relation_attempting.wait(timeout=5)
+        deadline = time.monotonic() + 5
+        waiting_for_lock = False
+        while time.monotonic() < deadline:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT wait_event_type FROM pg_stat_activity "
+                    "WHERE application_name = 'libib-review-relation-race'"
+                )
+                row = cursor.fetchone()
+            if row and row[0] == "Lock":
+                waiting_for_lock = True
+                break
+            time.sleep(0.01)
+        release_reassignment.set()
+        reassign_future.result(timeout=5)
+        result = link_future.result(timeout=5)
+
+    assert waiting_for_lock
+    assert result == "rejected"
+    assert not ImportReceiptCopy.objects.filter(receipt=receipt).exists()
+
+
+def test_import_row_trigger_rejects_file_from_another_session():
+    left, _, _, _, _, _ = _two_books_and_tags()
+    session = ImportSession.objects.create(library=left, source="libib")
+    other_session = ImportSession.objects.create(library=left, source="libib")
+    file = ImportFile.objects.create(
+        session=other_session, position=1, original_name="a.csv", sha256="d" * 64
+    )
+
+    with pytest.raises(IntegrityError) as error:
+        with atomic():
+            ImportRow.objects.create(session=session, import_file=file, position=1, data={})
+
+    assert error.value.__cause__.sqlstate == "23514"
+
+
+def test_import_receipt_trigger_rejects_book_from_another_library():
+    left, right, _, _, _, _ = _two_books_and_tags()
+    receipt = ImportReceipt.objects.create(
+        library=left,
+        source_key="f" * 64,
+        file_sha256="e" * 64,
+        row_fingerprint="d" * 64,
+        desired_copies=1,
+        added_copies=0,
+        decision="import",
+    )
+    foreign_book = services.create_book(right, {"title": "Alheio", "authors": ["Autor"]})
+
+    with pytest.raises(IntegrityError) as error:
+        with atomic():
+            ImportReceipt.objects.filter(pk=receipt.pk).update(book=foreign_book)
+
+    assert error.value.__cause__.sqlstate == "23514"
+
+
+def test_import_file_trigger_rejects_parent_session_move():
+    left, _, _, _, _, _ = _two_books_and_tags()
+    first = ImportSession.objects.create(library=left, source="libib")
+    second = ImportSession.objects.create(library=left, source="libib")
+    file = ImportFile.objects.create(
+        session=first, position=1, original_name="a.csv", sha256="c" * 64
+    )
+    ImportRow.objects.create(session=first, import_file=file, position=1, data={})
+
+    with pytest.raises(IntegrityError) as error:
+        with atomic():
+            ImportFile.objects.filter(pk=file.pk).update(session=second)
+
+    assert error.value.__cause__.sqlstate == "23514"
+
+
 def test_all_integrity_triggers_have_fixed_search_path():
     with connection.cursor() as cursor:
         cursor.execute(
@@ -162,7 +443,14 @@ def test_all_integrity_triggers_have_fixed_search_path():
     assert set(configs) == {
         "julib_check_book_tag_library",
         "julib_check_book_tag_parent_library",
+        "julib_check_import_receipt_copy_library",
+        "julib_check_import_receipt_copy_book_parent",
+        "julib_check_import_receipt_copy_book",
+        "julib_check_import_receipt_copy_parent_library",
+        "julib_check_import_receipt_library",
+        "julib_check_import_row_file_parent_session",
         "julib_check_import_row_copy_library",
+        "julib_check_import_row_file_session",
         "julib_check_import_row_parent_library",
     }
     assert all(config == ["search_path=pg_catalog, public, pg_temp"] for config in configs.values())

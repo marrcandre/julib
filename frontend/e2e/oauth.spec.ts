@@ -1,7 +1,11 @@
 import { test, expect } from "@playwright/test";
 
+const frontendOrigin = new URL(
+  process.env.E2E_BASE_URL ?? "http://127.0.0.1:5173",
+).origin;
+
 test("OAuth callback keeps the public frontend origin through the development proxy", async ({ request }) => {
-  const base = "http://127.0.0.1:5173";
+  const base = frontendOrigin;
   const page = await request.get("/accounts/google/login/");
   expect(page.status()).toBe(200);
   const match = (await page.text()).match(/name="csrfmiddlewaretoken" value="([^"]+)"/);
@@ -24,7 +28,7 @@ test("browser submits the Google confirmation with a trusted origin", async ({ p
   const submission = page.waitForRequest(request => request.method() === "POST" && new URL(request.url()).pathname === "/accounts/google/login/");
   await page.locator('form[method="post"] button[type="submit"]').click();
   const request = await submission;
-  expect(request.headers()["origin"]).toBe("http://127.0.0.1:5173");
+  expect(request.headers()["origin"]).toBe(frontendOrigin);
   await expect(page).toHaveURL(/^https:\/\/accounts\.google\.com\//);
 });
 
