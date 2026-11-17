@@ -1,3 +1,4 @@
+import hashlib
 from datetime import timedelta
 from typing import Any, Literal, cast
 
@@ -16,7 +17,17 @@ from ninja import File, NinjaAPI, Query, Status
 from ninja.errors import HttpError
 from ninja.files import UploadedFile
 
-from . import catalog, circulation, imports, invites, media, providers, services, sharing
+from . import (
+    catalog,
+    circulation,
+    imports,
+    invites,
+    libib_imports,
+    media,
+    providers,
+    services,
+    sharing,
+)
 from . import schemas as s
 from .auth import AllowedSession, permitted, require_library, require_membership, technical
 from .models import (
@@ -698,6 +709,81 @@ def attach_cover(request: HttpRequest, pk: int, payload: s.MediaIn) -> dict[str,
 @api.post("/imports")
 def import_preview(request: HttpRequest, file: File[UploadedFile]) -> dict[str, int]:
     return {"id": imports.preview_csv(require_library(request), file.read()).pk}
+
+
+def _libib_uploads(request: HttpRequest) -> list[tuple[str, bytes, str, str]]:
+    files = request.FILES.getlist("files")
+    if not files or len(files) > libib_imports.MAX_FILES:
+        raise ValidationError("Selecione de 1 a 5 arquivos CSV.")
+    total = sum(getattr(file, "size", 0) for file in files)
+    if total > libib_imports.MAX_TOTAL_BYTES:
+        raise ValidationError("O tamanho total dos arquivos excede 25 MiB.")
+    results = []
+    actual_total = 0
+    for file in files:
+        oversize = getattr(file, "size", 0) > libib_imports.MAX_FILE_BYTES
+        chunks: list[bytes] = []
+        size = 0
+        digest = hashlib.sha256()
+        for chunk in file.chunks():
+            size += len(chunk)
+            actual_total += len(chunk)
+            digest.update(chunk)
+            if size > libib_imports.MAX_FILE_BYTES:
+                oversize = True
+                chunks = []
+            if actual_total > libib_imports.MAX_TOTAL_BYTES:
+                raise ValidationError("O tamanho total dos arquivos excede 25 MiB.")
+            if not oversize:
+                chunks.append(chunk)
+        results.append(
+            (
+                file.name or "arquivo.csv",
+                b"" if oversize else b"".join(chunks),
+                "Cada arquivo deve ter até 5 MiB." if oversize else "",
+                digest.hexdigest(),
+            )
+        )
+    return results
+
+
+@api.post("/imports/libib/preview", response=s.LibibImportPreviewOut)
+def libib_import_preview(request: HttpRequest) -> dict[str, int]:
+    session = libib_imports.preview_libib(require_library(request), _libib_uploads(request))
+    return {"id": session.pk}
+
+
+@api.get("/imports/libib/sessions", response=list[s.LibibImportSessionOut])
+def libib_import_sessions(request: HttpRequest) -> list[dict[str, Any]]:
+    library = require_library(request)
+    sessions = ImportSession.objects.filter(
+        library=library,
+        source=ImportSession.SOURCE_LIBIB,
+        created_at__gte=timezone.now() - libib_imports.SESSION_RETENTION,
+    ).order_by("-pk")
+    return [
+        {
+            "id": session.pk,
+            "created_at": session.created_at,
+            "total": session.rows.count(),
+            "completed": session.rows.exclude(result="").count(),
+        }
+        for session in sessions
+    ]
+
+
+@api.get("/imports/libib/{pk}", response=s.LibibImportDetailsOut)
+def libib_import_details(request: HttpRequest, pk: int) -> dict[str, Any]:
+    return libib_imports.libib_details(require_library(request), pk)
+
+
+@api.post("/imports/libib/{pk}/process", response=list[s.LibibImportProcessResult])
+def libib_import_process(
+    request: HttpRequest, pk: int, payload: s.ImportActions
+) -> list[dict[str, Any]]:
+    return libib_imports.process_libib_rows(
+        require_library(request), pk, [action.model_dump() for action in payload.actions]
+    )
 
 
 @api.get("/imports")

@@ -84,6 +84,80 @@ class ImportActions(Schema):
     actions: list[ImportAction] = Field(max_length=25)
 
 
+class LibibImportPreviewOut(Schema):
+    id: int
+
+
+class LibibImportFileOut(Schema):
+    id: int
+    name: str
+    collection: str
+    total_rows: int
+    completed: int
+    status: Literal["ready", "error"]
+    error: str
+    unknown_columns: list[str]
+
+
+class LibibImportRowDataOut(Schema):
+    title: str
+    authors: list[str]
+    isbn: str
+    publisher: str
+    year: str
+    page_count: int | None
+    collection: str
+    tag_names: list[str]
+    copies: int
+    not_imported_fields: list[str]
+    status: Literal["valid", "invalid", "incompatible"]
+    errors: list[str]
+    warnings: list[str]
+    existing: bool
+    already_imported: bool
+    possible_duplicate: bool
+    processing_error: str
+    copies_added: int
+
+
+class LibibImportRowOut(Schema):
+    id: int
+    file_id: int | None
+    file_row_number: int | None
+    data: LibibImportRowDataOut
+    result: str
+
+
+class LibibImportDetailsOut(Schema):
+    id: int
+    files: list[LibibImportFileOut]
+    rows: list[LibibImportRowOut]
+
+
+class LibibImportSessionOut(Schema):
+    id: int
+    created_at: datetime
+    total: int
+    completed: int
+
+
+class LibibImportProcessResult(Schema):
+    id: int
+    result: Literal[
+        "created",
+        "copied",
+        "already_imported",
+        "existing",
+        "skipped",
+        "invalid",
+        "incompatible",
+        "error",
+    ]
+    copies_added: int | None = None
+    errors: list[str] | None = None
+    message: str | None = None
+
+
 class MediaIn(Schema):
     public_id: str
 

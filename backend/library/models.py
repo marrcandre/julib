@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
@@ -345,12 +347,110 @@ class ShareLink(Owned):
 
 
 class ImportSession(Owned):
-    pass
+    SOURCE_GOODREADS = "goodreads"
+    SOURCE_LIBIB = "libib"
+    source = models.CharField(
+        max_length=20,
+        default=SOURCE_GOODREADS,
+        choices=[(SOURCE_GOODREADS, "Goodreads"), (SOURCE_LIBIB, "Libib")],
+    )
+
+
+class ImportFile(models.Model):
+    session = models.ForeignKey(ImportSession, on_delete=models.CASCADE, related_name="files")
+    position = models.PositiveSmallIntegerField()
+    original_name = models.CharField(max_length=255)
+    collection = models.CharField(max_length=150, blank=True)
+    sha256 = models.CharField(max_length=64)
+    status = models.CharField(
+        max_length=10, default="ready", choices=[("ready", "Ready"), ("error", "Error")]
+    )
+    error = models.CharField(max_length=300, blank=True)
+    unknown_columns = models.JSONField(default=list)
+    total_rows = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["session", "position"], name="unique_import_file_position"
+            )
+        ]
+
+
+class ImportReceipt(Owned):
+    source_key = models.CharField(max_length=64)
+    file_sha256 = models.CharField(max_length=64, db_index=True)
+    row_fingerprint = models.CharField(max_length=64)
+    collection = models.CharField(max_length=150, blank=True)
+    desired_copies = models.PositiveSmallIntegerField()
+    added_copies = models.PositiveSmallIntegerField(default=0)
+    decision = models.CharField(max_length=10, choices=[("import", "Import"), ("copy", "Copy")])
+    state = models.CharField(
+        max_length=12, default="completed", choices=[("completed", "Completed")]
+    )
+    book = models.ForeignKey(Book, null=True, blank=True, on_delete=models.SET_NULL)
+    copies: Any = models.ManyToManyField(
+        Copy, through="ImportReceiptCopy", related_name="import_receipts"
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["id", "library"], name="unique_import_receipt_library_id"
+            ),
+            models.UniqueConstraint(
+                fields=["library", "source_key"], name="unique_import_receipt_source"
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["library", "file_sha256"], name="receipt_library_file_hash")
+        ]
+
+
+class ImportReceiptCopy(models.Model):
+    library = models.ForeignKey(Library, on_delete=models.CASCADE)
+    receipt = models.ForeignKey(ImportReceipt, on_delete=models.CASCADE)
+    copy = models.ForeignKey(Copy, null=True, blank=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["receipt", "copy"], name="unique_receipt_copy"),
+        ]
+
+    def clean(self) -> None:
+        super().clean()
+        if (
+            self.receipt_id
+            and self.copy_id
+            and self.copy
+            and self.receipt.library_id != self.copy.library_id
+        ):
+            raise ValidationError("O recibo e o exemplar devem pertencer à mesma biblioteca.")
+        if self.library_id and self.receipt_id and self.library_id != self.receipt.library_id:
+            raise ValidationError("O recibo pertence a outra biblioteca.")
+        if (
+            self.library_id
+            and self.copy_id
+            and self.copy
+            and self.library_id != self.copy.library_id
+        ):
+            raise ValidationError("O exemplar pertence a outra biblioteca.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
 
 class ImportRow(models.Model):
     session = models.ForeignKey(ImportSession, on_delete=models.CASCADE, related_name="rows")
+    import_file = models.ForeignKey(
+        ImportFile, null=True, blank=True, on_delete=models.CASCADE, related_name="rows"
+    )
     position = models.PositiveIntegerField()
+    file_row_number = models.PositiveIntegerField(null=True, blank=True)
+    source_key = models.CharField(max_length=64, blank=True)
+    row_fingerprint = models.CharField(max_length=64, blank=True)
     data = models.JSONField()
     result = models.CharField(max_length=20, blank=True)
     copy = models.ForeignKey(Copy, null=True, on_delete=models.SET_NULL)

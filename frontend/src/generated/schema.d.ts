@@ -696,6 +696,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/imports/libib/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Libib Import Preview */
+        post: operations["library_api_libib_import_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/libib/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Libib Import Sessions */
+        get: operations["library_api_libib_import_sessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/libib/{pk}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Libib Import Details */
+        get: operations["library_api_libib_import_details"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/libib/{pk}/process": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Libib Import Process */
+        post: operations["library_api_libib_import_process"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/imports/{pk}": {
         parameters: {
             query?: never;
@@ -1418,6 +1486,126 @@ export interface components {
         MediaIn: {
             /** Public Id */
             public_id: string;
+        };
+        /** LibibImportPreviewOut */
+        LibibImportPreviewOut: {
+            /** Id */
+            id: number;
+        };
+        /** LibibImportSessionOut */
+        LibibImportSessionOut: {
+            /** Id */
+            id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Total */
+            total: number;
+            /** Completed */
+            completed: number;
+        };
+        /** LibibImportDetailsOut */
+        LibibImportDetailsOut: {
+            /** Id */
+            id: number;
+            /** Files */
+            files: components["schemas"]["LibibImportFileOut"][];
+            /** Rows */
+            rows: components["schemas"]["LibibImportRowOut"][];
+        };
+        /** LibibImportFileOut */
+        LibibImportFileOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Collection */
+            collection: string;
+            /** Total Rows */
+            total_rows: number;
+            /** Completed */
+            completed: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ready" | "error";
+            /** Error */
+            error: string;
+            /** Unknown Columns */
+            unknown_columns: string[];
+        };
+        /** LibibImportRowDataOut */
+        LibibImportRowDataOut: {
+            /** Title */
+            title: string;
+            /** Authors */
+            authors: string[];
+            /** Isbn */
+            isbn: string;
+            /** Publisher */
+            publisher: string;
+            /** Year */
+            year: string;
+            /** Page Count */
+            page_count: number | null;
+            /** Collection */
+            collection: string;
+            /** Tag Names */
+            tag_names: string[];
+            /** Copies */
+            copies: number;
+            /** Not Imported Fields */
+            not_imported_fields: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "valid" | "invalid" | "incompatible";
+            /** Errors */
+            errors: string[];
+            /** Warnings */
+            warnings: string[];
+            /** Existing */
+            existing: boolean;
+            /** Already Imported */
+            already_imported: boolean;
+            /** Possible Duplicate */
+            possible_duplicate: boolean;
+            /** Processing Error */
+            processing_error: string;
+            /** Copies Added */
+            copies_added: number;
+        };
+        /** LibibImportRowOut */
+        LibibImportRowOut: {
+            /** Id */
+            id: number;
+            /** File Id */
+            file_id: number | null;
+            /** File Row Number */
+            file_row_number: number | null;
+            data: components["schemas"]["LibibImportRowDataOut"];
+            /** Result */
+            result: string;
+        };
+        /** LibibImportProcessResult */
+        LibibImportProcessResult: {
+            /** Id */
+            id: number;
+            /**
+             * Result
+             * @enum {string}
+             */
+            result: "created" | "copied" | "already_imported" | "existing" | "skipped" | "invalid" | "incompatible" | "error";
+            /** Copies Added */
+            copies_added?: number | null;
+            /** Errors */
+            errors?: string[] | null;
+            /** Message */
+            message?: string | null;
         };
         /** ImportAction */
         ImportAction: {
@@ -2693,6 +2881,94 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    library_api_libib_import_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibibImportPreviewOut"];
+                };
+            };
+        };
+    };
+    library_api_libib_import_sessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibibImportSessionOut"][];
+                };
+            };
+        };
+    };
+    library_api_libib_import_details: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pk: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibibImportDetailsOut"];
+                };
+            };
+        };
+    };
+    library_api_libib_import_process: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pk: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportActions"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibibImportProcessResult"][];
+                };
             };
         };
     };
