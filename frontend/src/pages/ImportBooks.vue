@@ -252,7 +252,7 @@ onMounted(async () => {
     <div class="import-source-selector" role="group" aria-label="Origem da importação">
       <Button
         label="Goodreads"
-        icon="pi pi-book"
+        icon="pi pi-upload"
         class="import-source-option"
         :outlined="source !== 'goodreads'"
         :aria-pressed="source === 'goodreads'"
@@ -273,7 +273,7 @@ onMounted(async () => {
     <section class="import-setup panel" :aria-labelledby="source + '-instructions-title'">
       <div class="import-setup-heading">
         <span class="import-source-icon" aria-hidden="true">
-          <i :class="source === 'goodreads' ? 'pi pi-book' : 'pi pi-upload'" />
+          <i class="pi pi-upload" />
         </span>
         <div>
           <h2 :id="source + '-instructions-title'">{{ source === 'goodreads' ? 'Importar do Goodreads' : 'Importar do Libib' }}</h2>
