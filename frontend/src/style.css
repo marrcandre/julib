@@ -277,7 +277,8 @@ nav a.section-active {
   padding: 0;
 }
 .members-page,
-.invite-page {
+.invite-page,
+.creation-invites-page {
   max-width: 760px;
   margin: 36px auto;
 }
@@ -292,7 +293,8 @@ nav a.section-active {
   margin: 0 0 20px;
 }
 .member-list li,
-.invite-list li {
+.invite-list li,
+.creation-invite-list li {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -309,6 +311,43 @@ nav a.section-active {
 .member-list small {
   color: var(--muted);
   overflow-wrap: anywhere;
+}
+.creation-invite-form {
+  display: grid;
+  gap: 10px;
+  max-width: 520px;
+  margin: 24px 0;
+}
+.creation-invite-form .p-inputtext,
+.creation-invite-link .p-inputtext {
+  width: 100%;
+}
+.creation-invite-form .primary {
+  justify-self: start;
+  margin-top: 4px;
+}
+.creation-invite-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+}
+.creation-invite-list li > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.creation-invite-list small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.creation-invite-link {
+  display: grid;
+  gap: 8px;
+  max-width: 760px;
+  margin: 20px 0;
+}
+.creation-invite-link .p-button {
+  justify-self: start;
 }
 .eyebrow {
   color: var(--green);

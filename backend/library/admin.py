@@ -1,18 +1,20 @@
 from typing import Any, ClassVar
 
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
 
-from . import circulation, services
+from . import circulation, invites, services
+from .auth import technical
 from .models import (
     Book,
     Copy,
     ImportRow,
     ImportSession,
     Library,
+    LibraryCreationInvite,
     Loan,
     Location,
     Membership,
@@ -39,6 +41,92 @@ def _admin_guard(operation):
 
 
 admin.site.register(User, ProtectedUserAdmin)
+
+
+class LibraryCreationInviteAdminForm(forms.ModelForm):
+    class Meta:
+        model = LibraryCreationInvite
+        fields = ["email"]
+
+
+@admin.register(LibraryCreationInvite)
+class LibraryCreationInviteAdmin(admin.ModelAdmin):
+    form = LibraryCreationInviteAdminForm
+    list_display = (
+        "email",
+        "status_display",
+        "created_at",
+        "expires_at",
+        "accepted_by",
+        "created_library",
+    )
+    list_filter = ("accepted_at", "revoked_at", "created_at")
+    search_fields = ("email", "accepted_by__email", "created_library__name")
+    actions = ["revoke_selected"]
+    readonly_fields = (
+        "created_by",
+        "created_at",
+        "expires_at",
+        "accepted_at",
+        "accepted_by",
+        "revoked_at",
+        "revoked_by",
+        "created_library",
+        "status_display",
+    )
+
+    def _owner(self, request):
+        return technical(request.user)
+
+    def has_module_permission(self, request):
+        return self._owner(request)
+
+    def has_view_permission(self, request, obj=None):
+        return self._owner(request)
+
+    def has_add_permission(self, request):
+        return self._owner(request)
+
+    def has_change_permission(self, request, obj=None):
+        return self._owner(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_fields(self, request, obj=None):
+        return ("email",) if obj is None else self.readonly_fields + ("email",)
+
+    def get_readonly_fields(self, request, obj=None):
+        return () if obj is None else self.readonly_fields + ("email",)
+
+    @admin.display(description="Estado")
+    def status_display(self, obj):
+        return invites.invite_status(obj)
+
+    def save_model(self, request, obj, form, change):
+        if change:
+            raise PermissionDenied("Convites de criação não podem ser editados.")
+        invite, invite_url = invites.create_creation_link(request, request.user, obj.email)
+        obj.pk = invite.pk
+        obj._state.adding = False
+        obj._state.db = invite._state.db
+        self.message_user(
+            request,
+            f"Convite criado. Copie este link agora; ele não será exibido novamente: {invite_url}",
+            level=messages.SUCCESS,
+        )
+
+    @admin.action(description="Revogar convites de criação selecionados")
+    def revoke_selected(self, request, queryset):
+        revoked = 0
+        for invite in queryset:
+            try:
+                invites.revoke_creation_invite(invite.pk, request.user)
+                revoked += 1
+            except invites.InviteError as exc:
+                self.message_user(request, str(exc), level=messages.ERROR)
+        if revoked:
+            self.message_user(request, f"{revoked} convite(s) revogado(s).", level=messages.SUCCESS)
 
 
 class BookAdminForm(forms.ModelForm):

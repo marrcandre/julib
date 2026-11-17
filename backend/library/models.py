@@ -71,6 +71,62 @@ class LibraryInvite(models.Model):
         ]
 
 
+class LibraryCreationInvite(models.Model):
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_library_creation_invites",
+    )
+    token_hash = models.CharField(max_length=64, unique=True)
+    email = models.EmailField(blank=True, default="")
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    accepted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="accepted_library_creation_invites",
+    )
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="revoked_library_creation_invites",
+    )
+    created_library = models.OneToOneField(
+        Library,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="creation_invite",
+    )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=~(Q(accepted_at__isnull=False) & Q(revoked_at__isnull=False)),
+                name="creation_invite_not_accepted_and_revoked",
+            ),
+            models.CheckConstraint(
+                condition=Q(expires_at__gt=models.F("created_at")),
+                name="creation_invite_expiry_after_creation",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(accepted_at__isnull=True, created_library__isnull=True)
+                    | Q(accepted_at__isnull=False, created_library__isnull=False)
+                ),
+                name="creation_invite_acceptance_has_library",
+            ),
+        ]
+
+
 class Membership(models.Model):
     ROLE_ADMIN = "admin"
     ROLE_MEMBER = "member"

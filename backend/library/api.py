@@ -23,6 +23,7 @@ from .models import (
     Copy,
     ImportSession,
     Library,
+    LibraryCreationInvite,
     LibraryInvite,
     Loan,
     Location,
@@ -319,6 +320,88 @@ def cancel_invite(request: HttpRequest, invite_id: int) -> dict[str, bool]:
         raise HttpError(403, "Somente administradores podem revogar convites.")
     invites.revoke_invite(membership.library, invite_id, cast(User, request.user))
     return {"ok": True}
+
+
+def _creation_invite_data(invite: Any) -> dict[str, Any]:
+    library = invite.created_library
+    return {
+        "id": invite.pk,
+        "email": invite.email,
+        "created_at": invite.created_at,
+        "expires_at": invite.expires_at,
+        "accepted_at": invite.accepted_at,
+        "revoked_at": invite.revoked_at,
+        "status": invites.invite_status(invite),
+        "created_library": (
+            {"id": library.pk, "name": library.name, "role": Membership.ROLE_ADMIN}
+            if library
+            else None
+        ),
+    }
+
+
+@api.get("/library-creation-invites", response=list[s.LibraryCreationInviteOut])
+def list_library_creation_invites(request: HttpRequest) -> list[dict[str, Any]]:
+    if not technical(cast(User, request.user)):
+        raise HttpError(403, "Somente o proprietário da aplicação pode consultar estes convites.")
+    return [
+        _creation_invite_data(invite)
+        for invite in LibraryCreationInvite.objects.select_related("created_library").order_by(
+            "-created_at", "-pk"
+        )
+    ]
+
+
+@api.post("/library-creation-invites", response=s.LibraryCreationInviteCreateOut)
+def create_library_creation_invite(
+    request: HttpRequest, payload: s.LibraryCreationInviteCreateIn
+) -> dict[str, Any]:
+    user = cast(User, request.user)
+    if not technical(user):
+        raise HttpError(403, "Somente o proprietário da aplicação pode criar estes convites.")
+    invite, invite_url = invites.create_creation_link(request, user, payload.email)
+    return {"id": invite.pk, "invite_url": invite_url, "expires_at": invite.expires_at}
+
+
+@api.post(
+    "/library-creation-invites/prepare",
+    auth=None,
+    response=s.LibraryCreationInvitePreviewOut,
+)
+@csrf_protect
+def prepare_library_creation_invite(
+    request: HttpRequest, payload: s.LibraryCreationInvitePrepareIn
+) -> dict[str, Any]:
+    invite = invites.prepare_creation_invite(request, payload.token)
+    return {"pending": True, "email": invite.email, "expires_at": invite.expires_at}
+
+
+@api.get(
+    "/library-creation-invites/pending",
+    auth=None,
+    response=s.LibraryCreationInvitePreviewOut,
+)
+def pending_library_creation_invite(request: HttpRequest) -> dict[str, Any]:
+    invite = invites.pending_creation_invite_preview(request)
+    if invite is None:
+        return {"pending": False, "email": "", "expires_at": None}
+    return {"pending": True, "email": invite.email, "expires_at": invite.expires_at}
+
+
+@api.delete("/library-creation-invites/{invite_id}")
+def revoke_library_creation_invite(request: HttpRequest, invite_id: int) -> dict[str, bool]:
+    invites.revoke_creation_invite(invite_id, cast(User, request.user))
+    return {"ok": True}
+
+
+@api.post("/libraries/from-invite", response=s.LibrarySummaryOut)
+def create_library_from_invite(
+    request: HttpRequest, payload: s.LibraryCreationInviteConsumeIn
+) -> dict[str, Any]:
+    library, membership = invites.consume_creation_invite(
+        request, cast(User, request.user), payload.name
+    )
+    return {"id": library.pk, "name": library.name, "role": membership.role}
 
 
 @api.post("/libraries", response=s.LibrarySummaryOut)

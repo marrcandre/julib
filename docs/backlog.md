@@ -4,12 +4,12 @@
 
 Ordem aprovada para as próximas evoluções. Este registro define o escopo planejado; não indica que as fases foram implementadas nem autoriza publicação automática ao concluí-las.
 
-### Fase 1 — Convites para criação de bibliotecas
+### Fase 1 — Convites para criação de bibliotecas (implementada; publicação pendente)
 
-- Permitir que o proprietário da aplicação convide pessoas para criar novas bibliotecas.
-- O convidado autentica-se com Google e pode criar sua primeira biblioteca; torna-se automaticamente administrador dela.
-- O novo administrador poderá convidar outras pessoas para participar da própria biblioteca.
-- Preservar o fluxo atual de convites para ingresso em bibliotecas existentes.
+- [x] Permitir que o proprietário da aplicação convide pessoas para criar novas bibliotecas.
+- [x] O convidado autentica-se com Google e cria a biblioteca; torna-se automaticamente administrador dela.
+- [x] O novo administrador pode convidar outras pessoas para participar da própria biblioteca.
+- [x] Preservar o fluxo atual de convites para ingresso em bibliotecas existentes.
 
 ### Fase 2 — Importação de coleções do Libib
 

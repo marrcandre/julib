@@ -84,6 +84,8 @@ async function normalizeLibraryRoute() {
     !currentSession ||
     publicCollection.value ||
     route.path === "/convites/aceitar" ||
+    route.path === "/convites/criar" ||
+    route.path === "/administracao/convites" ||
     route.path === "/sobre"
   )
     return;
@@ -151,6 +153,7 @@ const pageTitle = computed(() => {
   if (route.path.endsWith("/importar")) return "Importar livros";
   if (route.path.endsWith("/configuracoes")) return "Configurações";
   if (route.path.startsWith("/colecao/")) return "Coleção";
+  if (route.path === "/administracao/convites") return "Convites de criação";
   return "Sobre";
 });
 watch(
@@ -329,6 +332,8 @@ onUnmounted(() => {
               >Configurações</RouterLink
             ><RouterLink v-if="activeLibrary" :to="libraryBase + '/membros'"
               >Membros e convites</RouterLink
+            ><RouterLink v-if="session.technical" to="/administracao/convites"
+              >Convites para criar bibliotecas</RouterLink
             ><RouterLink to="/sobre">Sobre</RouterLink
             ><a v-if="session.technical" href="/admin/">Admin</a
             ><a v-if="session.technical" href="/api/v1/docs">Swagger</a
@@ -370,6 +375,12 @@ onUnmounted(() => {
       <RouterLink :to="libraryBase + '/membros'" @click="navigationOpen = false"
         ><i class="pi pi-users" aria-hidden="true" />Membros</RouterLink
       >
+      <RouterLink
+        v-if="session?.technical"
+        to="/administracao/convites"
+        @click="navigationOpen = false"
+        ><i class="pi pi-link" aria-hidden="true" />Convites de criação</RouterLink
+      >
     </nav>
   </Drawer>
   <Toast position="top-right" class="app-feedback-toast" />
@@ -386,7 +397,7 @@ onUnmounted(() => {
     <p v-if="loading" role="status" class="muted">Carregando sua biblioteca…</p>
     <template v-else
       ><RouterView
-        v-if="(session && (session.libraries.length > 0 || publicCollection || route.path === '/sobre' || route.path === '/convites/aceitar')) || publicCollection || route.path === '/sobre' || route.path === '/convites/aceitar'"
+        v-if="(session && (session.libraries.length > 0 || publicCollection || route.path === '/sobre' || route.path === '/convites/aceitar' || route.path === '/convites/criar' || route.path === '/administracao/convites')) || publicCollection || route.path === '/sobre' || route.path === '/convites/aceitar' || route.path === '/convites/criar' || route.path === '/administracao/convites'"
         :key="String(route.params.libraryId || 'public')"
       />
       <section

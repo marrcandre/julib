@@ -244,6 +244,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/library-creation-invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Library Creation Invites */
+        get: operations["library_api_list_library_creation_invites"];
+        put?: never;
+        /** Create Library Creation Invite */
+        post: operations["library_api_create_library_creation_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/library-creation-invites/prepare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Prepare Library Creation Invite */
+        post: operations["library_api_prepare_library_creation_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/library-creation-invites/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pending Library Creation Invite */
+        get: operations["library_api_pending_library_creation_invite"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/library-creation-invites/{invite_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Library Creation Invite */
+        delete: operations["library_api_revoke_library_creation_invite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/libraries/from-invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Library From Invite */
+        post: operations["library_api_create_library_from_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/preferences/catalog": {
         parameters: {
             query?: never;
@@ -872,6 +958,75 @@ export interface components {
             library_name: string;
             /** Already Member */
             already_member: boolean;
+        };
+        /** LibraryCreationInviteOut */
+        LibraryCreationInviteOut: {
+            /** Id */
+            id: number;
+            /** Email */
+            email: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Accepted At */
+            accepted_at: string | null;
+            /** Revoked At */
+            revoked_at: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "accepted" | "expired" | "revoked";
+            created_library?: components["schemas"]["LibrarySummaryOut"] | null;
+        };
+        /** LibraryCreationInviteCreateOut */
+        LibraryCreationInviteCreateOut: {
+            /** Id */
+            id: number;
+            /** Invite Url */
+            invite_url: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /** LibraryCreationInviteCreateIn */
+        LibraryCreationInviteCreateIn: {
+            /**
+             * Email
+             * @default
+             */
+            email: string;
+        };
+        /** LibraryCreationInvitePreviewOut */
+        LibraryCreationInvitePreviewOut: {
+            /** Pending */
+            pending: boolean;
+            /**
+             * Email
+             * @default
+             */
+            email: string;
+            /** Expires At */
+            expires_at?: string | null;
+        };
+        /** LibraryCreationInvitePrepareIn */
+        LibraryCreationInvitePrepareIn: {
+            /** Token */
+            token: string;
+        };
+        /** LibraryCreationInviteConsumeIn */
+        LibraryCreationInviteConsumeIn: {
+            /** Name */
+            name: string;
         };
         /** CatalogPreferencesIn */
         CatalogPreferencesIn: {
@@ -1729,6 +1884,138 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    library_api_list_library_creation_invites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryCreationInviteOut"][];
+                };
+            };
+        };
+    };
+    library_api_create_library_creation_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryCreationInviteCreateIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryCreationInviteCreateOut"];
+                };
+            };
+        };
+    };
+    library_api_prepare_library_creation_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryCreationInvitePrepareIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryCreationInvitePreviewOut"];
+                };
+            };
+        };
+    };
+    library_api_pending_library_creation_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryCreationInvitePreviewOut"];
+                };
+            };
+        };
+    };
+    library_api_revoke_library_creation_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invite_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    library_api_create_library_from_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryCreationInviteConsumeIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibrarySummaryOut"];
+                };
             };
         };
     };

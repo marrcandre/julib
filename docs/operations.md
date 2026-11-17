@@ -10,6 +10,20 @@ Use SECRET_KEY aleatória longa, DEBUG=false em produção, ALLOWED_HOSTS explí
 
 ## Convites e gestão de membros
 
+### Convites para criação de bibliotecas
+
+O proprietário técnico pode emitir, consultar e revogar convites pela área Julib **Convites para criar bibliotecas** ou pelo Django Admin. Convites têm uso único e validade de sete dias; podem ser livres ou vinculados a um e-mail. O Julib não envia e-mail: copie o link apresentado na emissão e encaminhe-o ao destinatário. O token bruto só aparece nessa resposta/mensagem de emissão; o banco guarda SHA-256 e as listagens mostram somente metadados, estado e a biblioteca resultante.
+
+O link usa `/convites/criar#<token>`. A página remove o fragmento da barra de endereço antes da primeira chamada à API. A sessão guarda somente o hash do convite durante o OAuth. E-mail vinculado exige que a conta Google autenticada apresente aquele mesmo endereço verificado; link livre aceita qualquer conta Google com e-mail verificado.
+
+A migration aditiva `0015_librarycreationinvite` cria uma tabela separada dos convites de participação. A relação única entre convite consumido e biblioteca, além das constraints de estado e validade, impede associar mais de uma biblioteca ao convite. Ao resgatar, o backend bloqueia a linha do convite com `select_for_update`, revalida validade, revogação, uso e identidade dentro da transação, e cria biblioteca, membership `admin` e consumo no mesmo commit. Revogação bloqueia a mesma linha e revalida o estado: se revogar confirmar primeiro, o consumo aguardando é recusado; se o consumo confirmar primeiro, revogar retorna conflito. Dois resgates simultâneos resultam em no máximo uma biblioteca. A garantia não depende de remover cookies ou limpar sessões. Os testes de corrida devem ser executados em PostgreSQL real; SQLite não comprova essa serialização.
+
+Uma conta fora da allowlist pode usar uma sessão com convite de criação somente para concluir o resgate. O convite não altera `can_create_libraries`, `staff`, allowlist nem memberships existentes. Depois do consumo, a autorização de acesso à biblioteca deriva do convite associado à biblioteca e da membership administrativa; a criação comum em `/libraries` continua exigindo a capacidade global existente. O token não é registrado em logs.
+
+Para validação local, use a base PostgreSQL descartável configurada no fluxo de desenvolvimento (`make db`; pytest cria `test_julib`, e `make e2e-local` usa `julib_e2e`). Confira a migration e o schema e execute `secure_database --role julib_app` com a credencial administrativa no procedimento de publicação, para a tabela nova manter RLS e grants restritos ao backend. Não ensaie nem execute a migration em produção como parte de desenvolvimento. Esta alteração não escolhe versão; classifique o conjunto efetivo da publicação e use `scripts/release.py` conforme a seção de versionamento.
+
+### Convites para participar de bibliotecas existentes
+
 Administradores de cada biblioteca podem gerar links de convite de uso único, com validade de sete dias, e revogá-los. O link retorna o token apenas na criação; listagens nunca contêm tokens. O navegador mantém o token somente em memória durante a preparação: ele é lido do fragmento (`#...`) e removido da barra de endereço antes da chamada ao backend. O backend guarda somente SHA-256 do token na sessão Django e valida a sessão OAuth/CSRF normalmente. Links devem ser tratados como credenciais temporárias e compartilhados apenas com o destinatário.
 
 Para aceitar, é necessário entrar com Google e endereço verificado. Um convite válido permite a conta convidada fora da `ALLOWED_EMAILS` somente para concluir o ingresso naquela biblioteca; não concede criação de bibliotecas nem outras memberships. O novo papel é `member`. Usuários já membros recebem confirmação sem membership duplicada e o link permanece disponível para outro destinatário. Convites aceitos não podem ser revogados; revogar ou expirar um link pendente invalida a sessão que o preparou.

@@ -172,6 +172,41 @@ class LibrarySummaryOut(Schema):
     role: Literal["admin", "member"]
 
 
+class LibraryCreationInviteCreateIn(Schema):
+    email: str = Field(default="", max_length=254)
+
+
+class LibraryCreationInviteOut(Schema):
+    id: int
+    email: str
+    created_at: datetime
+    expires_at: datetime
+    accepted_at: datetime | None
+    revoked_at: datetime | None
+    status: Literal["pending", "accepted", "expired", "revoked"]
+    created_library: LibrarySummaryOut | None = None
+
+
+class LibraryCreationInviteCreateOut(Schema):
+    id: int
+    invite_url: str
+    expires_at: datetime
+
+
+class LibraryCreationInvitePrepareIn(Schema):
+    token: str = Field(min_length=20, max_length=128)
+
+
+class LibraryCreationInvitePreviewOut(Schema):
+    pending: bool
+    email: str = ""
+    expires_at: datetime | None = None
+
+
+class LibraryCreationInviteConsumeIn(Schema):
+    name: str = Field(min_length=1, max_length=150)
+
+
 class LibraryMemberOut(Schema):
     user_id: int
     name: str
