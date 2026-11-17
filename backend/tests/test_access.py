@@ -1,5 +1,8 @@
 import pytest
-from django.test import Client, override_settings
+from django.contrib import messages
+from django.contrib.messages.storage.fallback import FallbackStorage
+from django.http import HttpResponse
+from django.test import Client, RequestFactory, override_settings
 
 from library.models import Book, Library, Membership, User
 
@@ -35,6 +38,39 @@ def test_session_mutations_require_csrf(users):
     client = Client(enforce_csrf_checks=True)
     client.force_login(users[1])
     assert client.post("/api/v1/logout").status_code == 403
+
+
+def test_logout_clears_pending_messages_and_authentication(users):
+    client = Client()
+    client.force_login(users[1])
+
+    csrf_response = client.get("/api/v1/session")
+    csrf_cookie = client.cookies["csrftoken"].value
+
+    request = RequestFactory().get("/")
+    request.session = client.session
+    storage = FallbackStorage(request)
+    storage.add(messages.SUCCESS, "Conectado com sucesso como marco_andre.")
+    message_response = HttpResponse()
+    storage.update(message_response)
+    client.cookies["messages"] = message_response.cookies["messages"].value
+    assert csrf_response.status_code == 200
+
+    response = client.post("/api/v1/logout")
+
+    assert response.status_code == 200
+    assert response.cookies["sessionid"]["max-age"] == 0
+    assert response.cookies["messages"]["max-age"] == 0
+    assert "csrftoken" not in response.cookies
+    assert client.cookies["csrftoken"].value == csrf_cookie
+    assert client.get("/api/v1/session").status_code == 401
+
+    login_response = client.get("/accounts/google/login/")
+    login_html = login_response.content.decode()
+    assert login_response.status_code == 200
+    assert "Conectado com sucesso como marco_andre." not in login_html
+    assert "Entrar via Google" in login_html
+    assert "Continuar" in login_html
 
 
 def test_login_exposes_only_google_and_disables_local_email_flows(mailoutbox):

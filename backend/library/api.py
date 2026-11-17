@@ -3,6 +3,7 @@ from typing import Any, Literal, cast
 
 from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth import logout
+from django.contrib.messages import get_messages
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Q
@@ -442,6 +443,7 @@ def update_library_name(request: HttpRequest, payload: s.LibraryNameIn) -> dict[
 
 @api.post("/logout")
 def logout_view(request: HttpRequest) -> dict[str, bool]:
+    list(get_messages(request))
     logout(request)
     return {"ok": True}
 
