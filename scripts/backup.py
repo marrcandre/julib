@@ -1,15 +1,18 @@
 """Encrypted PostgreSQL and managed-cover backup. Run only from private operations repository."""
 
 import argparse
+import calendar
 import hashlib
 import io
 import json
 import os
+import re
 import secrets
 import struct
 import subprocess
 import tarfile
 import tempfile
+import time
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
@@ -27,6 +30,9 @@ MAX_MANIFEST_BYTES = 2 * 1024 * 1024
 MAX_MEDIA_BYTES = 8 * 1024 * 1024
 MAX_ARCHIVE_BYTES = 512 * 1024 * 1024
 MAX_ARCHIVE_ENTRIES = 10_000
+CLOUDINARY_BATCH_SIZE = 100
+CLOUDINARY_MAX_ATTEMPTS = 3
+CLOUDINARY_MAX_RATE_WAIT_SECONDS = 600
 
 
 class BackupLimitError(RuntimeError):
@@ -403,23 +409,26 @@ def assert_media_references_unchanged(
 
 
 def _download_media(
-    public_ids: tuple[str, ...], directory: Path, max_total_bytes: int
+    public_ids: tuple[str, ...],
+    directory: Path,
+    max_total_bytes: int,
+    rate_budget: dict | None = None,
 ) -> tuple[list[dict], dict[str, tuple]]:
-    import cloudinary.api
     import httpx
 
     result = []
-    fingerprints = {}
+    resources = _cloudinary_metadata(public_ids, rate_budget=rate_budget)
+    fingerprints = {
+        public_id: _cloudinary_fingerprint(resources[public_id])
+        for public_id in public_ids
+    }
     total = 0
     with httpx.Client(
         timeout=httpx.Timeout(30.0, connect=10.0), follow_redirects=False
     ) as client:
         for index, public_id in enumerate(public_ids):
-            try:
-                resource = cloudinary.api.resource(public_id)
-            except Exception:  # noqa: BLE001 - provider errors can contain signed URLs
-                raise RuntimeError("Falha ao consultar uma mídia Cloudinary.") from None
-            fingerprint = _cloudinary_fingerprint(resource)
+            resource = resources[public_id]
+            fingerprint = fingerprints[public_id]
             url = resource.get("secure_url", "")
             parsed_url = urlsplit(url) if isinstance(url, str) else None
             if (
@@ -472,7 +481,6 @@ def _download_media(
                     "sha256": digest.hexdigest(),
                 }
             )
-            fingerprints[public_id] = fingerprint
     return result, fingerprints
 
 
@@ -485,24 +493,219 @@ def _cloudinary_fingerprint(resource: dict) -> tuple:
         or not asset_id
         or not isinstance(version, int)
         or isinstance(version, bool)
+        or version <= 0
         or not isinstance(byte_count, int)
         or isinstance(byte_count, bool)
         or byte_count < 0
+        or not isinstance(resource.get("format"), str)
+        or not resource["format"]
     ):
         raise RuntimeError("Cloudinary não forneceu a versão verificável da mídia.")
-    return asset_id, version, byte_count, resource.get("format")
+    return asset_id, version, byte_count, resource["format"]
 
 
-def _assert_cloudinary_unchanged(fingerprints: dict[str, tuple]) -> None:
-    import cloudinary.api
+def _cloudinary_batches(public_ids: tuple[str, ...]):
+    for start in range(0, len(public_ids), CLOUDINARY_BATCH_SIZE):
+        yield public_ids[start : start + CLOUDINARY_BATCH_SIZE]
 
-    for public_id, expected in fingerprints.items():
+
+def _cloudinary_reset_epoch(value) -> float | None:
+    if isinstance(value, time.struct_time):
+        return float(calendar.timegm(value))
+    if isinstance(value, (tuple, list)) and len(value) >= 6:
         try:
-            actual = _cloudinary_fingerprint(cloudinary.api.resource(public_id))
-        except Exception:  # noqa: BLE001 - provider errors can contain signed URLs
+            return float(calendar.timegm(value))
+        except (OverflowError, TypeError, ValueError):
+            return None
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value)
+    return None
+
+
+def _cloudinary_reset_wait(rate_budget: dict, error: Exception | None = None) -> float:
+    reset_epoch = _cloudinary_reset_epoch(rate_budget.get("reset_at"))
+    headers = getattr(error, "headers", None) if error else None
+    retry_after = None
+    if headers:
+        retry_after = headers.get("Retry-After") or headers.get("retry-after")
+    if retry_after is not None:
+        try:
+            retry_epoch = time.time() + float(retry_after)
+        except (TypeError, ValueError):
+            try:
+                from email.utils import parsedate_to_datetime
+
+                retry_epoch = parsedate_to_datetime(str(retry_after)).timestamp()
+            except (TypeError, ValueError, OverflowError):
+                retry_epoch = None
+        if retry_epoch is not None:
+            reset_epoch = max(reset_epoch or retry_epoch, retry_epoch)
+    if reset_epoch is None:
+        raise RuntimeError(
+            "Limite da Admin API Cloudinary sem indicador de reset; backup interrompido."
+        ) from None
+    delay = max(0.0, reset_epoch - time.time())
+    if delay > CLOUDINARY_MAX_RATE_WAIT_SECONDS:
+        raise RuntimeError(
+            "Reset da Admin API Cloudinary excede o limite de espera; backup interrompido."
+        ) from None
+    return delay
+
+
+def _cloudinary_has_reset_indicator(
+    rate_budget: dict, error: Exception | None = None
+) -> bool:
+    if _cloudinary_reset_epoch(rate_budget.get("reset_at")) is not None:
+        return True
+    headers = getattr(error, "headers", None) if error else None
+    return bool(headers and (headers.get("Retry-After") or headers.get("retry-after")))
+
+
+def _bounded_cloudinary_sleep(rate_budget: dict, delay: float) -> None:
+    remaining = rate_budget.setdefault(
+        "wait_seconds_remaining", CLOUDINARY_MAX_RATE_WAIT_SECONDS
+    )
+    if delay > remaining:
+        raise RuntimeError(
+            "Espera acumulada da Admin API Cloudinary excede o orçamento total."
+        ) from None
+    rate_budget["wait_seconds_remaining"] = remaining - delay
+    if delay:
+        time.sleep(delay)
+
+
+def _wait_for_cloudinary_reset(
+    rate_budget: dict, error: Exception | None = None
+) -> None:
+    delay = _cloudinary_reset_wait(rate_budget, error)
+    _bounded_cloudinary_sleep(rate_budget, delay)
+    rate_budget["remaining"] = None
+    rate_budget["reset_at"] = None
+
+
+def _cloudinary_error_status(error: Exception) -> int | None:
+    status = getattr(error, "http_code", None) or getattr(error, "status", None)
+    if isinstance(status, int) and not isinstance(status, bool):
+        return status
+    match = re.match(r"Error (\d{3})\b", str(error))
+    return int(match.group(1)) if match else None
+
+
+def _cloudinary_api_batch(public_ids: tuple[str, ...], rate_budget: dict) -> dict:
+    import cloudinary.api
+    import cloudinary.exceptions
+
+    for attempt in range(1, CLOUDINARY_MAX_ATTEMPTS + 1):
+        remaining = rate_budget.get("remaining")
+        calls_left = rate_budget.get("calls_remaining")
+        if (
+            isinstance(remaining, int)
+            and not isinstance(remaining, bool)
+            and isinstance(calls_left, int)
+            and remaining < calls_left
+        ):
+            _wait_for_cloudinary_reset(rate_budget)
+        try:
+            response = cloudinary.api.resources_by_ids(list(public_ids))
+        except cloudinary.exceptions.AuthorizationRequired:
             raise RuntimeError(
-                "Mídia Cloudinary ausente ou indisponível após o download."
+                "Cloudinary recusou a autenticação da Admin API."
             ) from None
+        except cloudinary.exceptions.NotAllowed:
+            raise RuntimeError(
+                "Cloudinary recusou a autorização da Admin API."
+            ) from None
+        except cloudinary.exceptions.NotFound:
+            raise RuntimeError("Mídia Cloudinary ausente na Admin API.") from None
+        except cloudinary.exceptions.RateLimited as exc:
+            if attempt == CLOUDINARY_MAX_ATTEMPTS:
+                raise RuntimeError(
+                    "Limite da Admin API Cloudinary persistiu após tentativas limitadas."
+                ) from None
+            if _cloudinary_has_reset_indicator(rate_budget, exc):
+                _wait_for_cloudinary_reset(rate_budget, exc)
+            else:
+                _bounded_cloudinary_sleep(rate_budget, 2 ** (attempt - 1))
+                rate_budget["remaining"] = None
+                rate_budget["reset_at"] = None
+            continue
+        except Exception as exc:  # noqa: BLE001 - SDK errors may contain credentials
+            status = _cloudinary_error_status(exc)
+            invalid_response = str(exc).startswith("Error parsing server response")
+            transient = not invalid_response and (status is None or status >= 500)
+            if not transient or attempt == CLOUDINARY_MAX_ATTEMPTS:
+                raise RuntimeError(
+                    "Falha não transitória na consulta da Admin API Cloudinary."
+                ) from None
+            _bounded_cloudinary_sleep(rate_budget, 2 ** (attempt - 1))
+            continue
+
+        if isinstance(calls_left, int) and calls_left > 0:
+            rate_budget["calls_remaining"] = calls_left - 1
+        for field in ("rate_limit_remaining", "rate_limit_allowed"):
+            value = getattr(response, field, None)
+            if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                key = "remaining" if field == "rate_limit_remaining" else "allowed"
+                rate_budget[key] = value
+        reset_at = getattr(response, "rate_limit_reset_at", None)
+        if _cloudinary_reset_epoch(reset_at) is not None:
+            rate_budget["reset_at"] = reset_at
+        if not isinstance(response, dict) or not isinstance(
+            response.get("resources"), list
+        ):
+            raise TypeError("Resposta inválida da Admin API Cloudinary.")
+        return response
+    raise RuntimeError("Admin API Cloudinary excedeu o limite de tentativas.")
+
+
+def _cloudinary_metadata(
+    public_ids: tuple[str, ...], rate_budget: dict | None = None
+) -> dict[str, dict]:
+    if len(set(public_ids)) != len(public_ids):
+        raise RuntimeError("Lista de mídias contém IDs duplicados.")
+    if not public_ids:
+        return {}
+    if rate_budget is None:
+        rate_budget = {
+            "calls_remaining": (len(public_ids) + CLOUDINARY_BATCH_SIZE - 1)
+            // CLOUDINARY_BATCH_SIZE,
+            "remaining": None,
+            "reset_at": None,
+            "allowed": None,
+            "wait_seconds_remaining": CLOUDINARY_MAX_RATE_WAIT_SECONDS,
+        }
+    result = {}
+    for batch in _cloudinary_batches(public_ids):
+        response = _cloudinary_api_batch(batch, rate_budget)
+        batch_expected = set(batch)
+        batch_result = {}
+        for resource in response["resources"]:
+            if not isinstance(resource, dict):
+                raise TypeError("Resposta inválida da Admin API Cloudinary.")
+            public_id = resource.get("public_id")
+            if not isinstance(public_id, str) or not public_id:
+                raise RuntimeError("Resposta inválida da Admin API Cloudinary.")
+            if public_id not in batch_expected:
+                raise RuntimeError("Admin API Cloudinary retornou mídia inesperada.")
+            if public_id in batch_result:
+                raise RuntimeError("Admin API Cloudinary retornou mídia duplicada.")
+            _cloudinary_fingerprint(resource)
+            batch_result[public_id] = resource
+        if set(batch_result) != batch_expected:
+            raise RuntimeError("Mídia Cloudinary ausente ou resposta incompleta.")
+        result.update(batch_result)
+    if set(result) != set(public_ids):
+        raise RuntimeError("Mídia Cloudinary ausente ou resposta incompleta.")
+    return result
+
+
+def _assert_cloudinary_unchanged(
+    fingerprints: dict[str, tuple], rate_budget: dict | None = None
+) -> None:
+    public_ids = tuple(fingerprints)
+    resources = _cloudinary_metadata(public_ids, rate_budget=rate_budget)
+    for public_id, expected in fingerprints.items():
+        actual = _cloudinary_fingerprint(resources[public_id])
         if actual != expected:
             raise RuntimeError(
                 "Mídia Cloudinary mudou durante a cópia; backup interrompido."
@@ -705,8 +908,20 @@ def backup(output: Path, public_key: Path, with_media: bool) -> None:
             public_ids_before, public_ids_after_dump, "durante o dump"
         )
         if with_media:
-            media, media_fingerprints = _download_media(public_ids_before, root, limit)
-            _assert_cloudinary_unchanged(media_fingerprints)
+            batch_count = (
+                len(public_ids_before) + CLOUDINARY_BATCH_SIZE - 1
+            ) // CLOUDINARY_BATCH_SIZE
+            rate_budget = {
+                "calls_remaining": batch_count * 2,
+                "remaining": None,
+                "reset_at": None,
+                "allowed": None,
+                "wait_seconds_remaining": CLOUDINARY_MAX_RATE_WAIT_SECONDS,
+            }
+            media, media_fingerprints = _download_media(
+                public_ids_before, root, limit, rate_budget=rate_budget
+            )
+            _assert_cloudinary_unchanged(media_fingerprints, rate_budget=rate_budget)
         else:
             media = []
         public_ids_after_media = _media_ids(Book) if with_media else public_ids_before
