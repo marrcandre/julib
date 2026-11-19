@@ -26,22 +26,22 @@ Ordem aprovada para as próximas evoluções. Este registro define o escopo plan
 - [x] O novo administrador pode convidar outras pessoas para participar da própria biblioteca.
 - [x] Preservar o fluxo atual de convites para ingresso em bibliotecas existentes.
 
-### Fase 2 — Importação de coleções do Libib
+### Fase 2 — Importação de coleções do Libib (implementada; publicação pendente)
 
-- Investigar e documentar os formatos de exportação disponíveis e mapear seus campos para o modelo atual do Julib.
-- Apresentar uma prévia antes de importar e identificar duplicidades, especialmente por ISBN.
-- Nunca sobrescrever ou excluir registros existentes; considerar importações repetidas e preservar os dados originais sempre que possível.
-- Apresentar relatório dos registros importados, ignorados e com erros.
+- [x] Investigar e documentar os formatos de exportação disponíveis e mapear seus campos para o modelo atual do Julib.
+- [x] Apresentar uma prévia antes de importar e identificar duplicidades, especialmente por ISBN.
+- [x] Nunca sobrescrever ou excluir registros existentes; considerar importações repetidas e preservar os dados originais sempre que possível.
+- [x] Apresentar relatório dos registros importados, ignorados e com erros.
 
-### Fase 3 — Enriquecimento bibliográfico
+### Fase 3 — Enriquecimento bibliográfico (implementada; publicação pendente)
 
-Adicionar aos livros `subtitle` (subtítulo), `description` (sinopse ou descrição) e `subjects` (assuntos bibliográficos obtidos das APIs). Assuntos são metadados bibliográficos, não tags: não haverá gerenciamento manual nem filtros específicos para assuntos nesta versão. As tags existentes continuam funcionando como hoje.
+- [x] Adicionar aos livros `subtitle` (subtítulo), `description` (sinopse ou descrição) e `subjects` (assuntos bibliográficos obtidos das APIs). Assuntos são metadados bibliográficos, não tags: não haverá gerenciamento manual nem filtros específicos para assuntos nesta versão. As tags existentes continuam funcionando como hoje.
 
-Preservar dados preenchidos manualmente e aproveitar as integrações existentes com BrasilAPI, Open Library e Google Books. Exibir sinopse expansível e assuntos na ficha do livro.
+- [x] Preservar dados preenchidos manualmente e aproveitar as integrações existentes com BrasilAPI, Open Library e Google Books. Exibir sinopse expansível e assuntos na ficha do livro.
 
-### Fase 4 — Enriquecimento do acervo existente
+### Fase 4 — Enriquecimento do acervo existente (implementada; publicação pendente)
 
-Ampliar o comando atual de enriquecimento para oferecer prévia, preencher somente campos vazios e executar apenas após confirmação explícita. Manter a separação entre bibliotecas.
+- [x] Ampliar o comando atual de enriquecimento para oferecer prévia, preencher somente campos vazios e executar apenas após confirmação explícita. Manter a separação entre bibliotecas.
 
 ## Edição e notificações — 06/11/2026
 

@@ -12,6 +12,9 @@ it("shows public tags and availability without copy details", () => {
       book: {
         id: 1,
         title: "Livro",
+        subtitle: "",
+        description: "",
+        subjects: [],
         authors: ["Autor"],
         isbn: "",
         publisher: "",
@@ -39,6 +42,9 @@ it("shows a cover placeholder until the lazy image loads", async () => {
       book: {
         id: 2,
         title: "Capa de teste",
+        subtitle: "",
+        description: "",
+        subjects: [],
         authors: [],
         isbn: "",
         publisher: "",

@@ -13,6 +13,9 @@ def book_data(book: Book, public: bool = False) -> dict[str, Any]:
         for k in [
             "id",
             "title",
+            "subtitle",
+            "description",
+            "subjects",
             "authors",
             "isbn",
             "publisher",

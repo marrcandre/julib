@@ -7,6 +7,9 @@ test("book has a private standalone URL, local cover draft and atomic edit with 
   const book = {
     id: 1,
     title: "1984",
+    subtitle: "Uma distopia clássica",
+    description: "Uma descrição em texto simples.",
+    subjects: ["Ficção", "Distopia"],
     authors: ["George Orwell"],
     isbn: "9788535914849",
     publisher: "Companhia das Letras",
@@ -37,6 +40,7 @@ test("book has a private standalone URL, local cover draft and atomic edit with 
   };
   let uploads = 0,
     writes = 0,
+    savedPayload: Record<string, unknown> | null = null,
     fail = true;
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url());
@@ -68,6 +72,7 @@ test("book has a private standalone URL, local cover draft and atomic edit with 
             json: { detail: "Confira o ISBN." },
           });
         }
+        savedPayload = data;
         Object.assign(book, data, {
           cover_url: "https://res.cloudinary.com/test/new.png",
         });
@@ -105,6 +110,21 @@ test("book has a private standalone URL, local cover draft and atomic edit with 
     page.getByRole("heading", { name: "1984", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("416", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Uma distopia clássica", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Ficção", { exact: true })).toBeVisible();
+  const description = page
+    .locator("details")
+    .filter({ hasText: "Descrição e sinopse" });
+  await expect(description.locator("summary")).toBeVisible();
+  await expect(
+    description.getByText("Uma descrição em texto simples."),
+  ).not.toBeVisible();
+  await description.locator("summary").click();
+  await expect(
+    description.getByText("Uma descrição em texto simples."),
+  ).toBeVisible();
   await expect(page.getByText("9788535914849", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Histórico", exact: true }).click();
   await expect(
@@ -189,6 +209,11 @@ test("book has a private standalone URL, local cover draft and atomic edit with 
   expect(uploads).toBe(0);
   await page.getByRole("button", { name: "Editar livro sem capa" }).click();
   await page.getByLabel("Título *", { exact: true }).fill("1984 revisado");
+  await page.getByLabel("Subtítulo").fill("Subtítulo manual");
+  await page
+    .getByLabel("Descrição e sinopse")
+    .fill("Descrição editada manualmente.");
+  await page.getByLabel("Assuntos bibliográficos").fill("História\nLiteratura");
   await page.locator("input[type=file]").setInputFiles(file);
   await page
     .getByRole("button", { name: "Salvar alterações", exact: true })
@@ -205,6 +230,9 @@ test("book has a private standalone URL, local cover draft and atomic edit with 
   ).toBeVisible();
   expect(uploads).toBe(1);
   expect(writes).toBe(2);
+  expect(savedPayload?.subtitle).toBe("Subtítulo manual");
+  expect(savedPayload?.description).toBe("Descrição editada manualmente.");
+  expect(savedPayload?.subjects).toEqual(["História", "Literatura"]);
   expect(page.url()).toContain("/livros/1");
   await page.reload();
   await expect(
@@ -254,6 +282,9 @@ test("catalog links open in another tab and return with filters, page and scroll
   const item = (id: number) => ({
     id,
     title: "Livro " + id,
+    subtitle: "",
+    description: "",
+    subjects: [],
     authors: ["Autora"],
     isbn: "",
     publisher: "",

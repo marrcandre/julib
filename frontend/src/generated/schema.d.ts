@@ -1144,6 +1144,12 @@ export interface components {
             id: number;
             /** Title */
             title: string;
+            /** Subtitle */
+            subtitle: string;
+            /** Description */
+            description: string;
+            /** Subjects */
+            subjects: string[];
             /** Authors */
             authors: string[];
             /** Isbn */
@@ -1221,6 +1227,8 @@ export interface components {
              * @default
              */
             url: string;
+            /** Record Type */
+            record_type?: ("edition" | "work") | null;
         };
         /** TagOut */
         TagOut: {
@@ -1239,6 +1247,18 @@ export interface components {
             page_count?: number | null;
             /** Title */
             title: string;
+            /**
+             * Subtitle
+             * @default
+             */
+            subtitle: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Subjects */
+            subjects?: string[];
             /** Authors */
             authors: string[];
             /**
@@ -1294,6 +1314,18 @@ export interface components {
             page_count?: number | null;
             /** Title */
             title: string;
+            /**
+             * Subtitle
+             * @default
+             */
+            subtitle: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Subjects */
+            subjects?: string[];
             /** Authors */
             authors: string[];
             /**
@@ -1655,6 +1687,12 @@ export interface components {
             id: number;
             /** Title */
             title: string;
+            /** Subtitle */
+            subtitle: string;
+            /** Description */
+            description: string;
+            /** Subjects */
+            subjects: string[];
             /** Authors */
             authors: string[];
             /** Isbn */

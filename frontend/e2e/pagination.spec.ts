@@ -10,6 +10,9 @@ for (const width of [393, 1280])
     const book = (id: number) => ({
       id,
       title: `Livro ${id}`,
+      subtitle: "",
+      description: "",
+      subjects: [],
       authors: ["Autora"],
       isbn: "",
       publisher: "",
@@ -207,6 +210,9 @@ test("density and viewport resize keep a reference book on the recalculated page
   const book = (id: number) => ({
     id,
     title: `Livro ${id}`,
+    subtitle: "",
+    description: "",
+    subjects: [],
     authors: ["Autora"],
     isbn: "",
     publisher: "",

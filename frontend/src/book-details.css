@@ -54,6 +54,38 @@ main.container.book-detail-main {
   color: var(--muted);
   margin: 8px 0 15px;
 }
+.book-detail-subtitle {
+  font-size: 16px;
+  margin: 6px 0 0;
+}
+.book-detail-description {
+  margin: 10px 0 16px;
+  max-width: 75ch;
+  white-space: pre-wrap;
+}
+.book-detail-description summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.book-detail-description p {
+  line-height: 1.6;
+  margin: 10px 0 0;
+  overflow-wrap: anywhere;
+}
+.book-subjects ul {
+  display: flex;
+  flex-wrap: wrap;
+  list-style: none;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.book-subjects li {
+  background: var(--soft);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
 .book-detail-overview .tag-pill {
   display: inline-flex;
   gap: 6px;
@@ -292,9 +324,20 @@ main.container.book-detail-main {
 }
 .book-edit-grid input,
 .book-edit-grid .p-inputnumber,
-.book-edit-grid .p-multiselect {
+.book-edit-grid .p-multiselect,
+.book-edit-grid textarea {
   width: 100%;
   min-width: 0;
+}
+.book-edit-grid textarea {
+  resize: vertical;
+  min-height: 100px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
 }
 .book-edit-wide {
   grid-column: 1/-1;

@@ -50,7 +50,7 @@ def test_optional_metadata_origin_does_not_label_a_user_cover():
     assert metadata_attribution(google)["metadata_attribution_name"] == "Google Books"
 
 
-def test_google_is_last_resort_metadata_but_legacy_cover_fallback_is_preserved(monkeypatch):
+def test_international_isbn_uses_openlibrary_then_google_and_preserves_cover_fallback(monkeypatch):
     calls = []
 
     def get(url, **kwargs):
@@ -81,9 +81,10 @@ def test_google_is_last_resort_metadata_but_legacy_cover_fallback_is_preserved(m
 
     monkeypatch.setattr("library.providers.bounded_get", get)
     assert search_books("9780261102217")[0]["source"] == "google"
-    assert "brasilapi" in calls[0]
-    assert "openlibrary" in calls[2]
-    assert "googleapis" in calls[-1]
+    assert "openlibrary.org" in calls[0]
+    assert next(i for i, url in enumerate(calls) if "googleapis.com" in url) < next(
+        i for i, url in enumerate(calls) if "brasilapi.com.br" in url
+    )
     hosts = []
 
     def handler(request):

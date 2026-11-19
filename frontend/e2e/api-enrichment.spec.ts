@@ -6,6 +6,9 @@ for (const width of [393, 1280])
     await page.setViewportSize({ width, height: 900 });
     const base = {
       title: "1984",
+      subtitle: "",
+      description: "",
+      subjects: [],
       authors: ["George Orwell"],
       isbn: "9788535914849",
       source: "google",
@@ -151,6 +154,9 @@ test("late enrichment never overwrites a manual draft", async ({ page }) => {
   const gate = new Promise<void>((resolve) => (release = resolve));
   const candidate = {
     title: "Título inicial",
+    subtitle: "",
+    description: "",
+    subjects: [],
     authors: ["Autor"],
     isbn: "9788535914849",
     source: "google",

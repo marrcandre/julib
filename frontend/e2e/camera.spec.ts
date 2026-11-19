@@ -35,6 +35,9 @@ test("camera reads ISBN automatically without saving or overwriting selected dat
       json = [
         {
           title: "O Hobbit",
+          subtitle: "",
+          description: "",
+          subjects: [],
           authors: ["Tolkien"],
           isbn: "9780261102217",
           source: "google",

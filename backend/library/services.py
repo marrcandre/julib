@@ -4,6 +4,7 @@ from typing import Any
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
+from .metadata import normalize_subjects, validate_subjects
 from .models import Book, Copy, Library, Location, Membership, Tag, User
 
 LAST_ADMIN_ERROR = "A biblioteca precisa manter pelo menos um administrador."
@@ -131,9 +132,15 @@ def create_book(library: Library, data: dict[str, Any], book_id: int | None = No
         "page_count",
         "edition",
         "cover_url",
+        "subtitle",
+        "description",
+        "subjects",
     }:
         raise ValidationError("Origem de dados inválida.")
     tags = data.pop("tag_ids", None)
+    if "subjects" in data:
+        validate_subjects(data["subjects"])
+        data["subjects"] = normalize_subjects(data["subjects"])
     if (
         not data.get("title", "").strip()
         or not data.get("authors")
@@ -175,7 +182,18 @@ def edit_book(library: Library, book_id: int, data: dict[str, Any]) -> Book:
 
         book = owned(Book, library, book_id, lock=True)
         origins = copy.deepcopy(book.provenance)
-        for field in ("title", "authors", "publisher", "year", "language", "page_count", "edition"):
+        for field in (
+            "title",
+            "authors",
+            "publisher",
+            "year",
+            "language",
+            "page_count",
+            "edition",
+            "subtitle",
+            "description",
+            "subjects",
+        ):
             if field in data and data[field] != getattr(book, field):
                 origins.pop(field, None)
         if not data.get("source"):

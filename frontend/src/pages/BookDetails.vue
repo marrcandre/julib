@@ -431,7 +431,14 @@ const facts = computed(() =>
         </figure>
         <div class="book-detail-overview">
           <h1>{{ book.title }}</h1>
+          <p v-if="book.subtitle" class="book-detail-subtitle">
+            {{ book.subtitle }}
+          </p>
           <p class="book-detail-authors">{{ book.authors.join(", ") }}</p>
+          <details v-if="book.description" class="book-detail-description">
+            <summary>Descrição e sinopse</summary>
+            <p>{{ book.description }}</p>
+          </details>
           <span class="tag-pill"
             ><i
               :class="book.is_desired ? 'pi pi-heart' : 'pi pi-book'"
@@ -460,6 +467,15 @@ const facts = computed(() =>
         </section>
       </div>
       <BookSources :book="book" />
+      <section
+        v-if="book.subjects.length"
+        class="book-detail-section book-subjects"
+      >
+        <h2>Assuntos bibliográficos</h2>
+        <ul>
+          <li v-for="subject in book.subjects" :key="subject">{{ subject }}</li>
+        </ul>
+      </section>
       <section v-if="book.is_desired" class="book-detail-section">
         <div class="book-wish-notice">
           <div>

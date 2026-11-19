@@ -7,6 +7,9 @@ const validRow = {
   result: '',
   data: {
     title: 'Livro da prévia',
+    subtitle: "",
+    description: "",
+    subjects: [],
     authors: ['Autora da prévia'],
     isbn: '9780306406157',
     publisher: 'Editora',

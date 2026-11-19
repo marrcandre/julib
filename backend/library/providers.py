@@ -6,6 +6,7 @@ import json
 import os
 import re
 import time
+from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import urljoin, urlsplit
 
@@ -14,10 +15,26 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 
 from .book_http import bounded_get
+from .isbn_ranges import isbn_region as _isbn_region
+from .metadata import (
+    DESCRIPTION_MAX_LENGTH,
+    SUBTITLE_MAX_LENGTH,
+    normalize_subjects,
+)
 from .services import normalize_isbn, optional_page_count
 
 HEADERS = {"User-Agent": "Julib/0.1 (personal-library; marcoandre@gmail.com)"}
 FIELDS = ("title", "authors", "publisher", "year", "language", "page_count", "edition")
+METADATA_FIELDS = (*FIELDS, "subtitle", "description", "subjects")
+PROVIDER_PRIORITIES = {
+    "brazil": ("cbl", "mercado-editorial", "openlibrary", "google"),
+    "international": ("openlibrary", "google", "cbl", "mercado-editorial"),
+}
+FIELD_PRIORITIES = {
+    field: {region: priorities for region, priorities in PROVIDER_PRIORITIES.items()}
+    for field in (*METADATA_FIELDS, "cover_url")
+}
+FIELD_LIMITS = {"subtitle": SUBTITLE_MAX_LENGTH, "description": DESCRIPTION_MAX_LENGTH}
 IMAGE_HOSTS = {
     "books.google.com",
     "books.googleusercontent.com",
@@ -41,12 +58,82 @@ def normalized_identifier(value: Any) -> str:
         return ""
 
 
+def isbn_region(value: Any) -> str:
+    return _isbn_region(value) if isinstance(value, str) else ""
+
+
+class _DescriptionText(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+        self._skip_depth = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in {"script", "style"}:
+            self._skip_depth += 1
+        elif not self._skip_depth and tag in {"p", "div", "br", "li"}:
+            self.parts.append("\n\n" if tag in {"p", "div", "li"} else "\n")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in {"script", "style"} and self._skip_depth:
+            self._skip_depth -= 1
+        elif not self._skip_depth and tag in {"p", "div", "li"}:
+            self.parts.append("\n\n")
+
+    def handle_data(self, data: str) -> None:
+        if not self._skip_depth:
+            self.parts.append(data)
+
+
+def bounded_text(value: Any, limit: int) -> str:
+    if not isinstance(value, str):
+        return ""
+    value = value.strip()
+    return value if len(value) <= limit else ""
+
+
+def plain_description(value: Any) -> str:
+    if isinstance(value, dict):
+        value = value.get("value")
+    if not isinstance(value, str) or not value.strip():
+        return ""
+    parser = _DescriptionText()
+    try:
+        parser.feed(value)
+        parser.close()
+    except ValueError:
+        return ""
+    text = "".join(parser.parts)
+    text = re.sub(r"[ \t\f\v]+", " ", text)
+    text = re.sub(r" *\n *", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    return bounded_text(text, FIELD_LIMITS["description"])
+
+
 class Lookup:
     def __init__(self) -> None:
         self.deadline = time.monotonic() + 18
         self.failures = 0
+        self.providers_queried: list[str] = []
+        self.provider_failures: dict[str, int] = {}
+        self.provider_outcomes: dict[str, str] = {}
+        self.isbn_mismatches: set[str] = set()
+
+    def _provider(self, url: str, params: dict[str, Any]) -> str:
+        if "googleapis.com" in url:
+            name = "google"
+        elif "brasilapi.com.br" in url:
+            name = str(params.get("providers") or "")
+        elif "openlibrary.org" in url:
+            name = "openlibrary"
+        else:
+            name = ""
+        if name and name not in self.providers_queried:
+            self.providers_queried.append(name)
+        return name
 
     def json(self, url: str, params: dict[str, Any]) -> dict[str, Any]:
+        provider = self._provider(url, params)
         key = (
             "books:v2:"
             + hashlib.sha256(json.dumps([url, params], sort_keys=True).encode()).hexdigest()
@@ -57,6 +144,8 @@ class Lookup:
         remaining = self.deadline - time.monotonic()
         if remaining <= 0:
             self.failures += 1
+            if provider:
+                self.provider_failures[provider] = self.provider_failures.get(provider, 0) + 1
             return {}
         if "googleapis.com" in url and os.environ.get("GOOGLE_BOOKS_API_KEY"):
             params = {**params, "key": os.environ["GOOGLE_BOOKS_API_KEY"]}
@@ -85,6 +174,8 @@ class Lookup:
             return value
         except (httpx.HTTPError, ValueError, TypeError, AttributeError):
             self.failures += 1
+            if provider:
+                self.provider_failures[provider] = self.provider_failures.get(provider, 0) + 1
             return {}
 
     def image(self, value: Any) -> str:
@@ -215,17 +306,27 @@ def edition_data(data: dict[str, Any]) -> dict[str, Any]:
             "edition": data.get("edition_name")
             if isinstance(data.get("edition_name"), str)
             else "",
+            "subtitle": bounded_text(data.get("subtitle"), FIELD_LIMITS["subtitle"]),
+            "description": plain_description(data.get("description")),
+            "subjects": normalize_subjects(data.get("subjects")),
             "cover_url": f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg?default=false"
             if cover_id
             else "",
         },
         "openlibrary",
         str(data.get("key") or ""),
+        provenance_details={
+            "description": {"record_type": "edition"},
+        },
     )
 
 
 def candidate(
-    data: dict[str, Any], source: str, identifier: str, origin: str | None = None
+    data: dict[str, Any],
+    source: str,
+    identifier: str,
+    origin: str | None = None,
+    provenance_details: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     data = {**data, "source": source, "source_id": identifier}
     data["provenance"] = {
@@ -233,11 +334,69 @@ def candidate(
             "source": origin or source,
             "source_id": identifier,
             **({"url": data[field]} if field == "cover_url" else {}),
+            **(provenance_details or {}).get(field, {}),
         }
-        for field in (*FIELDS, "cover_url")
+        for field in (*METADATA_FIELDS, "cover_url")
         if data.get(field)
     }
     return data
+
+
+def _provider_for(candidate_data: dict[str, Any], field: str) -> str:
+    provenance = candidate_data.get("provenance")
+    origin = provenance.get(field) if isinstance(provenance, dict) else None
+    if isinstance(origin, dict) and isinstance(origin.get("source"), str):
+        return origin["source"]
+    source = candidate_data.get("source")
+    return source if isinstance(source, str) else ""
+
+
+def _provider_value(field: str, value: Any) -> Any:
+    if field == "subtitle":
+        return bounded_text(value, FIELD_LIMITS["subtitle"])
+    if field == "description":
+        return plain_description(value)
+    if field == "subjects":
+        return normalize_subjects(value)
+    if field == "authors":
+        return [name.strip() for name in value if isinstance(name, str) and name.strip()]
+    if field == "page_count":
+        return optional_page_count(value)
+    if isinstance(value, str):
+        return value.strip()
+    return value
+
+
+def resolve_candidates(
+    candidates: list[dict[str, Any]], isbn: str, fields: set[str]
+) -> dict[str, tuple[Any, dict[str, Any]]]:
+    """Choose the highest-priority usable candidate independently for each field."""
+    region = isbn_region(isbn)
+    if not region:
+        return {}
+    resolved: dict[str, tuple[Any, dict[str, Any]]] = {}
+    for field in fields:
+        priorities = FIELD_PRIORITIES.get(field, {}).get(region, ())
+        for provider in priorities:
+            for item in candidates:
+                if _provider_for(item, field) != provider:
+                    continue
+                value = _provider_value(field, item.get(field))
+                if value in (None, "", []):
+                    continue
+                provenance = item.get("provenance", {})
+                origin = provenance.get(field) if isinstance(provenance, dict) else None
+                if isinstance(origin, dict):
+                    resolved[field] = (value, copy.deepcopy(origin))
+                else:
+                    resolved[field] = (
+                        value,
+                        {"source": provider, "source_id": str(item.get("source_id", ""))},
+                    )
+                break
+            if field in resolved:
+                break
+    return resolved
 
 
 def google(lookup: Lookup, query: str, isbn: str) -> list[dict[str, Any]]:
@@ -255,6 +414,8 @@ def google(lookup: Lookup, query: str, isbn: str) -> list[dict[str, Any]]:
             if isinstance(i, dict)
         } - {""}
         if isbn and isbn not in identifiers:
+            if identifiers and hasattr(lookup, "isbn_mismatches"):
+                lookup.isbn_mismatches.add("google")
             continue
         if not info.get("title") or not item.get("id"):
             continue
@@ -273,12 +434,15 @@ def google(lookup: Lookup, query: str, isbn: str) -> list[dict[str, Any]]:
             candidate(
                 {
                     "title": info["title"],
+                    "subtitle": bounded_text(info.get("subtitle"), FIELD_LIMITS["subtitle"]),
                     "authors": strings(info.get("authors")) or ["Autoria desconhecida"],
                     "isbn": isbn or next(iter(sorted(identifiers)), ""),
                     "publisher": info.get("publisher") or "",
                     "year": str(info.get("publishedDate") or "")[:4],
                     "language": info.get("language") or "",
                     "page_count": optional_page_count(info.get("pageCount")),
+                    "description": plain_description(info.get("description")),
+                    "subjects": normalize_subjects(info.get("categories")),
                     "cover_url": cover.replace("http:", "https:", 1),
                 },
                 "google",
@@ -290,16 +454,22 @@ def google(lookup: Lookup, query: str, isbn: str) -> list[dict[str, Any]]:
 
 def brazil(lookup: Lookup, isbn: str, provider: str) -> dict[str, Any]:
     data = lookup.json("https://brasilapi.com.br/api/isbn/v1/" + isbn, {"providers": provider})
-    if normalized_identifier(data.get("isbn")) != isbn or not data.get("title"):
+    returned_isbn = normalized_identifier(data.get("isbn"))
+    if returned_isbn and returned_isbn != isbn and hasattr(lookup, "isbn_mismatches"):
+        lookup.isbn_mismatches.add(provider)
+    if returned_isbn != isbn or not data.get("title"):
         return {}
     return candidate(
         {
             "title": data["title"],
+            "subtitle": bounded_text(data.get("subtitle"), FIELD_LIMITS["subtitle"]),
             "authors": strings(data.get("authors")) or ["Autoria desconhecida"],
             "isbn": isbn,
             "publisher": data.get("publisher") or "",
             "year": str(data.get("year") or ""),
             "page_count": optional_page_count(data.get("page_count")),
+            "description": plain_description(data.get("synopsis") or data.get("description")),
+            "subjects": normalize_subjects(data.get("subjects")),
             "cover_url": data.get("cover_url") or "",
         },
         "brasilapi",
@@ -362,10 +532,25 @@ def openlibrary(lookup: Lookup, isbn: str) -> dict[str, Any]:
         str(data.get("key") or f"ISBN:{isbn}"),
     )
 
-    for field in FIELDS:
+    for field in METADATA_FIELDS:
         if not result.get(field) and extra.get(field):
             result[field] = extra[field]
             result["provenance"][field] = extra["provenance"][field]
+    if not result.get("description") and isbn in identifiers:
+        for work in objects(detail.get("works")):
+            key = work.get("key")
+            if not isinstance(key, str) or not re.fullmatch(r"/works/OL[0-9]+W", key):
+                continue
+            work_data = lookup.json("https://openlibrary.org" + key + ".json", {})
+            description = plain_description(work_data.get("description"))
+            if description:
+                result["description"] = description
+                result["provenance"]["description"] = {
+                    "source": "openlibrary",
+                    "source_id": key,
+                    "record_type": "work",
+                }
+                break
     if not result.get("cover_url") and extra.get("cover_url"):
         result["cover_url"] = extra["cover_url"]
         result["provenance"]["cover_url"] = extra["provenance"]["cover_url"]
@@ -380,13 +565,7 @@ def complete(data: dict[str, Any]) -> bool:
     return all(
         not missing(data.get(field))
         for field in (
-            "title",
-            "authors",
-            "publisher",
-            "year",
-            "language",
-            "page_count",
-            "edition",
+            *METADATA_FIELDS,
             "cover_url",
         )
     )
@@ -448,20 +627,102 @@ def enrich_book(base: dict[str, Any], lookup: Lookup | None = None) -> dict[str,
     if not own_cover:
         result["cover_url"] = ""
         origins.pop("cover_url", None)
-    sources = [
-        lambda: brazil(lookup, isbn, "cbl"),
-        lambda: brazil(lookup, isbn, "mercado-editorial"),
-        lambda: openlibrary(lookup, isbn),
-        lambda: next(iter(google(lookup, "isbn:" + isbn, isbn)), {}),
-    ]
-    for get in sources:
-        extra = get()
+    region = isbn_region(isbn)
+    if not region:
+        return result
+    sources = {
+        "cbl": lambda: brazil(lookup, isbn, "cbl"),
+        "mercado-editorial": lambda: brazil(lookup, isbn, "mercado-editorial"),
+        "openlibrary": lambda: openlibrary(lookup, isbn),
+        "google": lambda: next(iter(google(lookup, "isbn:" + isbn, isbn)), {}),
+    }
+    requested_fields = {field for field in METADATA_FIELDS if missing(result.get(field))}
+    candidates: list[dict[str, Any]] = []
+    queried: set[str] = set()
+
+    def fetch(source: str) -> dict[str, Any]:
+        queried.add(source)
+        extra = sources[source]()
+        if hasattr(lookup, "provider_outcomes"):
+            if extra:
+                lookup.provider_outcomes[source] = "match"
+            elif source in getattr(lookup, "isbn_mismatches", set()):
+                lookup.provider_outcomes[source] = "isbn_mismatch"
+            elif source in getattr(lookup, "provider_failures", {}):
+                lookup.provider_outcomes[source] = "failure"
+            else:
+                lookup.provider_outcomes[source] = "no_match"
         if extra:
+            candidates.append(extra)
             if not result.get("source"):
                 result.update(source=extra["source"], source_id=extra["source_id"])
-            fill(result, extra, lookup)
-        if complete(result):
+        return extra
+
+    while requested_fields:
+        needed: list[str] = []
+        for field in METADATA_FIELDS:
+            if field not in requested_fields:
+                continue
+            priorities = FIELD_PRIORITIES[field][region]
+            selected = resolve_candidates(candidates, isbn, {field}).get(field)
+            selected_source = selected[1]["source"] if selected else ""
+            selected_rank = (
+                priorities.index(selected_source) if selected_source in priorities else None
+            )
+            required = priorities[: selected_rank + 1] if selected_rank is not None else priorities
+            needed.extend(source for source in required if source not in queried)
+        next_source = next((source for source in needed if source in sources), None)
+        if next_source is None:
             break
+        fetch(next_source)
+
+    resolved = resolve_candidates(candidates, isbn, requested_fields)
+    for field, (value, origin) in resolved.items():
+        if field == "cover_url":
+            continue
+        result[field] = value
+        alternatives: list[str] = []
+        for extra in candidates:
+            alternative_source = _provider_for(extra, field)
+            alternative_value = _provider_value(field, extra.get(field))
+            if (
+                not alternative_value
+                or alternative_source == origin.get("source")
+                or alternative_value == value
+            ):
+                continue
+            rendered = (
+                "; ".join(alternative_value)
+                if isinstance(alternative_value, list)
+                else str(alternative_value)
+            )
+            alternative = f"{alternative_source}: {rendered[:300]}"
+            if alternative not in alternatives and len(alternatives) < 4:
+                alternatives.append(alternative)
+        if alternatives:
+            origin["alternatives"] = alternatives
+        result.setdefault("provenance", {})[field] = origin
+
+    if not result.get("cover_url"):
+        for source in FIELD_PRIORITIES["cover_url"][region]:
+            if source not in queried:
+                fetch(source)
+            extra = next(
+                (
+                    item
+                    for item in candidates
+                    if _provider_for(item, "cover_url") == source and item.get("cover_url")
+                ),
+                {},
+            )
+            if not extra:
+                continue
+            image = lookup.image(extra["cover_url"])
+            if image:
+                origin = extra.get("provenance", {}).get("cover_url", {})
+                result["cover_url"] = image
+                result.setdefault("provenance", {})["cover_url"] = {**origin, "url": image}
+                break
     return result
 
 

@@ -1,11 +1,19 @@
+import json
 import time
 from typing import Any
 
+from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.db.models import Q
 
 from library import providers
+from library.metadata import (
+    DESCRIPTION_MAX_LENGTH,
+    SUBTITLE_MAX_LENGTH,
+    normalize_subjects,
+    validate_subjects,
+)
 from library.models import Book, Library
 from library.providers import normalized_identifier
 from library.services import optional_page_count
@@ -19,6 +27,9 @@ FIELD_LABELS = {
     "page_count": "páginas",
     "edition": "edição",
     "cover_url": "capa",
+    "subtitle": "subtítulo",
+    "description": "descrição",
+    "subjects": "assuntos",
 }
 ENRICHABLE_FIELDS = tuple(FIELD_LABELS)
 MISSING_FIELDS_QUERY = (
@@ -30,13 +41,24 @@ MISSING_FIELDS_QUERY = (
     | Q(page_count__isnull=True)
     | Q(edition="")
     | Q(cover_url="", cover_id="")
+    | Q(subtitle="")
+    | Q(description="")
+    | Q(subjects=[])
 )
 
 
 def missing_fields(book: Book) -> set[str]:
     missing = {
         field
-        for field in ("title", "publisher", "year", "language", "edition")
+        for field in (
+            "title",
+            "publisher",
+            "year",
+            "language",
+            "edition",
+            "subtitle",
+            "description",
+        )
         if not getattr(book, field).strip()
     }
     if not book.authors:
@@ -45,6 +67,8 @@ def missing_fields(book: Book) -> set[str]:
         missing.add("page_count")
     if not book.cover_url and not book.cover_id:
         missing.add("cover_url")
+    if not book.subjects:
+        missing.add("subjects")
     return missing
 
 
@@ -59,9 +83,22 @@ def usable_value(field: str, value: Any) -> Any:
         ):
             return [author.strip() for author in value]
         return None
+    if field == "subjects":
+        try:
+            validate_subjects(value)
+        except ValidationError:
+            return None
+        normalized = normalize_subjects(value)
+        return normalized or None
     if not isinstance(value, str) or not value.strip():
         return None
     value = value.strip()
+    max_length = {
+        "subtitle": SUBTITLE_MAX_LENGTH,
+        "description": DESCRIPTION_MAX_LENGTH,
+    }.get(field)
+    if max_length and len(value) > max_length:
+        return None
     if field == "cover_url" and not value.startswith("https://"):
         return None
     return value
@@ -116,6 +153,9 @@ def candidate_data(book: Book) -> dict[str, Any]:
             "language",
             "page_count",
             "edition",
+            "subtitle",
+            "description",
+            "subjects",
             "cover_url",
             "cover_id",
             "source",
@@ -141,6 +181,9 @@ def select_books(library: Library, limit: int) -> tuple[list[Book], int]:
             "language",
             "page_count",
             "edition",
+            "subtitle",
+            "description",
+            "subjects",
             "cover_url",
             "cover_id",
             "source",
@@ -186,43 +229,173 @@ class Command(BaseCommand):
         mode = "Aplicação" if options["apply"] else "Prévia"
         self.stdout.write(f"{mode}: {len(books)} livros válidos para consulta nesta biblioteca.")
         filled = no_match = field_count = 0
+        matched_books = 0
+        mismatch_count = 0
+        field_stats = {
+            field: {"found": 0, "filled": 0, "preserved": 0} for field in ENRICHABLE_FIELDS
+        }
+        provider_stats: dict[str, dict[str, int]] = {}
+
+        def provider_stat(name: str) -> dict[str, int]:
+            return provider_stats.setdefault(
+                name,
+                {"queried": 0, "matches": 0, "no_match": 0, "isbn_mismatches": 0, "failures": 0},
+            )
+
+        def source_for(enriched: dict[str, Any], field: str) -> str:
+            origins = enriched.get("provenance")
+            origin = origins.get(field) if isinstance(origins, dict) else None
+            return str(origin.get("source") or "") if isinstance(origin, dict) else ""
+
+        def display_value(field: str, value: Any) -> str:
+            if field == "description" and isinstance(value, str) and len(value) > 160:
+                return value[:160] + "… [prévia resumida]"
+            if isinstance(value, list):
+                return ", ".join(str(item) for item in value)
+            return str(value)
+
         for index, book in enumerate(books, 1):
             eligible_fields = missing_fields(book)
-            enriched = providers.enrich_book(candidate_data(book))
-            updates = available_updates(book, enriched, eligible_fields)
+            lookup = providers.Lookup()
+            enriched = providers.enrich_book(candidate_data(book), lookup)
+            if normalized_identifier(enriched.get("isbn")) != book.isbn:
+                enriched = {**enriched, "_isbn_mismatch": True}
+            updates = (
+                available_updates(book, enriched, eligible_fields)
+                if not enriched.get("_isbn_mismatch")
+                else {}
+            )
+            found_fields = {
+                field: source_for(enriched, field)
+                for field in eligible_fields
+                if source_for(enriched, field)
+                and usable_value(field, enriched.get(field)) is not None
+            }
+            if found_fields:
+                matched_books += 1
+            matched_sources = set(found_fields.values())
+            queried = set(getattr(lookup, "providers_queried", []))
+            outcomes = dict(getattr(lookup, "provider_outcomes", {}))
+            failures = getattr(lookup, "provider_failures", {})
+            mismatches = set(getattr(lookup, "isbn_mismatches", set()))
+            if enriched.get("_isbn_mismatch"):
+                mismatch_count += 1
+            for source in queried:
+                stats = provider_stat(source)
+                stats["queried"] += 1
+                if source in matched_sources or outcomes.get(source) == "match":
+                    stats["matches"] += 1
+                elif outcomes.get(source) == "isbn_mismatch" or source in mismatches:
+                    stats["isbn_mismatches"] += 1
+                elif outcomes.get(source) == "no_match":
+                    stats["no_match"] += 1
+            for source, count in failures.items():
+                provider_stat(source)["failures"] += count
+
+            for field in ENRICHABLE_FIELDS:
+                if field in found_fields:
+                    field_stats[field]["found"] += 1
+                if field in updates:
+                    field_count += 1
+                elif (
+                    field not in eligible_fields
+                    and usable_value(field, getattr(book, field)) is not None
+                ):
+                    field_stats[field]["preserved"] += 1
             if not updates:
                 no_match += 1
-                self.stdout.write(f"{index}/{len(books)}: {book.title} — sem novos dados seguros.")
+                state = (
+                    "divergência de ISBN; preservado"
+                    if enriched.get("_isbn_mismatch")
+                    else "sem novos dados seguros"
+                )
+                self.stdout.write(f"{index}/{len(books)}: {book.title} — {state}.")
             elif options["apply"]:
                 saved = save_missing_fields(book.pk, library, enriched, eligible_fields)
                 if saved:
                     filled += 1
-                    field_count += len(saved)
+                    for field in saved:
+                        field_stats[field]["filled"] += 1
                     labels = ", ".join(FIELD_LABELS[field] for field in saved)
-                    self.stdout.write(
-                        f"{index}/{len(books)}: {book.title} — preenchidos: {labels}."
-                    )
+                    status = f"preenchidos: {labels}"
                 else:
-                    self.stdout.write(
-                        f"{index}/{len(books)}: {book.title} — campos alterados durante a consulta; preservados."
-                    )
+                    status = "campos alterados durante a consulta; preservados"
             else:
-                field_count += len(updates)
                 labels = ", ".join(FIELD_LABELS[field] for field in updates)
-                self.stdout.write(f"{index}/{len(books)}: {book.title} — preencheria: {labels}.")
+                status = f"preencheria: {labels}"
+            if updates:
+                details = "; ".join(
+                    f"{FIELD_LABELS[field]} ({source_for(enriched, field)}): {display_value(field, value)}"
+                    for field, value in updates.items()
+                )
+                self.stdout.write(
+                    f"{index}/{len(books)}: {book.title} — {status}. Valores: {details}."
+                )
+            if found_fields:
+                found = ", ".join(
+                    f"{FIELD_LABELS[field]} ({source})" for field, source in found_fields.items()
+                )
+                self.stdout.write(f"  Encontrados: {found}.")
+            preserved = [
+                FIELD_LABELS[field]
+                for field in ENRICHABLE_FIELDS
+                if field not in eligible_fields
+                and usable_value(field, getattr(book, field)) is not None
+            ]
+            if preserved:
+                self.stdout.write(f"  Preservados: {', '.join(preserved)}.")
+            if queried:
+                provider_line = ", ".join(
+                    f"{source}={outcomes.get(source, 'correspondência' if source in matched_sources else 'consultado')}"
+                    for source in sorted(queried)
+                )
+                self.stdout.write(f"  Provedores: {provider_line}.")
+            if mismatches:
+                self.stdout.write(f"  ISBN divergente em: {', '.join(sorted(mismatches))}.")
+            if failures:
+                self.stdout.write(
+                    "  Falhas de consulta: "
+                    + ", ".join(f"{source} ({count})" for source, count in sorted(failures.items()))
+                    + "."
+                )
             if options["delay"] > 0 and index < len(books):
                 time.sleep(options["delay"])
 
-        if not options["apply"]:
+        if options["apply"]:
+            summary = (
+                f"Aplicação concluída: {filled} livros atualizados ({sum(item['filled'] for item in field_stats.values())} campos); "
+                f"{no_match} sem preenchimento; {skipped} livros ignorados por ISBN inválido ou ausente."
+            )
+        else:
             self.stdout.write(
                 f"Prévia concluída: {field_count} campos disponíveis; {no_match} sem resultado seguro; "
                 f"{skipped} livros ignorados por ISBN inválido ou ausente. Use --apply para gravar."
             )
-        else:
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f"Concluído: {filled} livros atualizados ({field_count} campos); "
-                    f"{no_match} sem resultado seguro; "
-                    f"{skipped} livros ignorados por ISBN inválido ou ausente."
-                )
+            summary = ""
+        if summary:
+            self.stdout.write(summary)
+        self.stdout.write(
+            "JSON: "
+            + json.dumps(
+                {
+                    "mode": "apply" if options["apply"] else "preview",
+                    "books_analyzed": len(books),
+                    "books_with_match": matched_books,
+                    "books_without_fill": no_match,
+                    "invalid_isbn_skipped": skipped,
+                    "isbn_mismatch_books": mismatch_count,
+                    "fields_found": {
+                        field: values["found"] for field, values in field_stats.items()
+                    },
+                    "fields_filled": {
+                        field: values["filled"] for field, values in field_stats.items()
+                    },
+                    "fields_preserved": {
+                        field: values["preserved"] for field, values in field_stats.items()
+                    },
+                    "providers": provider_stats,
+                },
+                ensure_ascii=False,
+                sort_keys=True,
             )
+        )

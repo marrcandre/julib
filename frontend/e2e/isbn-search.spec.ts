@@ -23,6 +23,9 @@ test("Brazilian ISBN results omit optional branding and preserve edition data", 
       json = [
         {
           title: query === "9788570550156" ? "A MENSAGEM DE 2 TIMOTEO" : "Solo",
+          subtitle: "",
+          description: "",
+          subjects: [],
           authors: ["Autor"],
           isbn: query,
           source: "brasilapi",

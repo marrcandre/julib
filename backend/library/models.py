@@ -3,10 +3,21 @@ from typing import Any
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
-from django.core.validators import MaxValueValidator, MinLengthValidator, MinValueValidator
+from django.core.validators import (
+    MaxLengthValidator,
+    MaxValueValidator,
+    MinLengthValidator,
+    MinValueValidator,
+)
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
+
+from .metadata import (
+    DESCRIPTION_MAX_LENGTH,
+    SUBTITLE_MAX_LENGTH,
+    validate_subjects,
+)
 
 
 class User(AbstractUser):
@@ -223,6 +234,21 @@ class Book(Owned):
     provenance = models.JSONField(default=dict, db_default={}, blank=True)
     is_desired = models.BooleanField(default=False, db_default=False)
     title = models.CharField(max_length=300)
+    subtitle = models.CharField(
+        max_length=SUBTITLE_MAX_LENGTH, default="", db_default="", blank=True
+    )
+    description = models.TextField(
+        default="",
+        db_default="",
+        blank=True,
+        validators=[MaxLengthValidator(DESCRIPTION_MAX_LENGTH)],
+    )
+    subjects = models.JSONField(
+        default=list,
+        db_default=[],
+        blank=True,
+        validators=[validate_subjects],
+    )
     authors = models.JSONField(default=list)
     isbn = models.CharField(max_length=13, blank=True, default="")
     publisher = models.CharField(max_length=200, blank=True)

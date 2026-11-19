@@ -6,6 +6,9 @@ test("update feedback stays compact in a corner and disappears automatically", a
   const book = {
     id: 1,
     title: "Livro",
+    subtitle: "",
+    description: "",
+    subjects: [],
     authors: ["Autor"],
     isbn: "",
     publisher: "",

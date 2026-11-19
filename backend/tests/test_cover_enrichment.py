@@ -120,6 +120,9 @@ def test_bulk_enrichment_defaults_to_preview_without_saving(monkeypatch):
     book = Book.objects.create(
         library=lib,
         title="Livro",
+        subtitle="Subtítulo",
+        description="Descrição",
+        subjects=["Ficção"],
         authors=["Autora"],
         isbn=ISBN,
         source="goodreads",
@@ -128,7 +131,7 @@ def test_bulk_enrichment_defaults_to_preview_without_saving(monkeypatch):
     monkeypatch.setattr(
         providers,
         "enrich_book",
-        lambda data: {
+        lambda data, lookup=None: {
             **data,
             "page_count": 280,
             "cover_url": GOOGLE_COVER,
@@ -179,7 +182,7 @@ def test_bulk_enrichment_apply_fills_only_blank_fields_and_merges_provenance(mon
     )
     calls = []
 
-    def enrich(data):
+    def enrich(data, lookup=None):
         calls.append(data["isbn"])
         return {
             **data,
@@ -226,13 +229,16 @@ def test_bulk_enrichment_rechecks_fields_after_provider_lookup(monkeypatch):
     book = Book.objects.create(
         library=lib,
         title="Livro",
+        subtitle="Subtítulo",
+        description="Descrição",
+        subjects=["Ficção"],
         authors=["Autora"],
         isbn=ISBN,
         source="goodreads",
         source_id="g-123",
     )
 
-    def concurrent_edit(data):
+    def concurrent_edit(data, lookup=None):
         Book.objects.filter(pk=book.pk).update(page_count=310)
         return {**data, "page_count": 280}
 
@@ -256,7 +262,7 @@ def test_bulk_enrichment_does_not_refill_a_field_that_was_not_missing_at_start(m
         publisher="Editora cadastrada",
     )
 
-    def concurrent_edit(data):
+    def concurrent_edit(data, lookup=None):
         Book.objects.filter(pk=book.pk).update(publisher="")
         return {**data, "publisher": "Editora cadastrada", "page_count": 280}
 
@@ -278,7 +284,9 @@ def test_bulk_enrichment_skips_books_without_a_valid_isbn(monkeypatch):
         library=lib, title="ISBN inválido", authors=["Autor"], isbn="9780000000000"
     )
     calls = []
-    monkeypatch.setattr(providers, "enrich_book", lambda data: calls.append(data) or data)
+    monkeypatch.setattr(
+        providers, "enrich_book", lambda data, lookup=None: calls.append(data) or data
+    )
     output = StringIO()
 
     call_command("enrich_books", library=lib.pk, delay=0, apply=True, stdout=output)
@@ -302,7 +310,7 @@ def test_bulk_enrichment_leaves_book_unchanged_when_sources_return_no_new_fields
         source="goodreads",
         source_id="g-123",
     )
-    monkeypatch.setattr(providers, "enrich_book", lambda data: data)
+    monkeypatch.setattr(providers, "enrich_book", lambda data, lookup=None: data)
 
     call_command("enrich_books", library=lib.pk, delay=0, apply=True, stdout=StringIO())
 
@@ -319,6 +327,9 @@ def test_bulk_enrichment_is_resumable_after_fields_are_filled(monkeypatch):
     book = Book.objects.create(
         library=lib,
         title="Livro",
+        subtitle="Subtítulo",
+        description="Descrição",
+        subjects=["Ficção"],
         authors=["Autora"],
         isbn=ISBN,
         publisher="Editora",
@@ -329,7 +340,7 @@ def test_bulk_enrichment_is_resumable_after_fields_are_filled(monkeypatch):
     )
     calls = []
 
-    def enrich(data):
+    def enrich(data, lookup=None):
         calls.append(data["isbn"])
         return {**data, "page_count": 280}
 
@@ -362,7 +373,7 @@ def test_bulk_enrichment_limit_counts_valid_isbn_books_not_skipped_records(monke
     monkeypatch.setattr(
         providers,
         "enrich_book",
-        lambda data: calls.append(data["isbn"]) or {**data, "page_count": 280},
+        lambda data, lookup=None: calls.append(data["isbn"]) or {**data, "page_count": 280},
     )
 
     call_command("enrich_books", library=lib.pk, limit=1, delay=0, stdout=StringIO())
