@@ -92,7 +92,7 @@ Após entrar, a página principal é **Livros**. Use o nome da biblioteca na bar
 
 Nos detalhes de um desejado, **Adicionar ao acervo** pede localização e data de aquisição e cria um exemplar da mesma edição. Para corrigir um cadastro do acervo, **Mover para desejados** remove os exemplares ativos sem histórico após confirmação; exemplares baixados e seus históricos permanecem preservados. Se um exemplar ativo já teve empréstimo, registre sua baixa apropriada antes de mover o livro.
 
-**Excluir definitivamente**, nos detalhes, exige digitar `EXCLUIR` e remove a edição e seus exemplares. Qualquer empréstimo anterior, inclusive devolvido, bloqueia a exclusão. Repetir um cadastro ou lote de importação já concluído não recria um livro excluído. Arquivos de capa não são apagados automaticamente do Cloudinary, para preservar referências compartilhadas; backups seguem a retenção de sete dias.
+**Excluir definitivamente**, nos detalhes, exige digitar `EXCLUIR` e remove a edição e seus exemplares. Qualquer empréstimo anterior, inclusive devolvido, bloqueia a exclusão. Repetir um cadastro ou lote de importação já concluído não recria um livro excluído. Arquivos de capa não são apagados automaticamente do Cloudinary, para preservar referências compartilhadas; artifacts de backup têm retenção de 30 dias. A rotina automática permanece desativada; consulte o [registro operacional](docs/operations.md#validação-operacional--19112026).
 
 ### Detalhes e edição do livro
 

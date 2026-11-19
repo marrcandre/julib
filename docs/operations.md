@@ -1,6 +1,6 @@
 # Operação do Julib
 
-Operação ativa: aplicação publicada e integrações configuradas. Há registros históricos de backups recuperados, mas não há evidência local de uma cópia recuperável atual; o GitHub Actions de backup permanece pausado. Consulte o histórico de implementação e a [auditoria de requisitos](reviews/2026-11-05-requisitos-e-proximas-entregas.md) para evidências e pendências atuais.
+Operação ativa: aplicação publicada e integrações configuradas. O backup de produção de 19/11/2026 foi descriptografado, verificado e restaurado em PostgreSQL 17.11 descartável, conforme o [registro operacional](#validação-operacional--19112026). O workflow de backup permanece desativado manualmente e `DEPLOY_ENABLED=false`. A automação futura está proposta no [backlog](backlog.md#automatizar-backups-de-produção-e-validar-recuperação-periódica). Consulte também o histórico de implementação e a [auditoria de requisitos](reviews/2026-11-05-requisitos-e-proximas-entregas.md), cujos registros refletem as datas indicadas.
 
 ## Configuração privada
 
@@ -178,7 +178,41 @@ Para perda do conteúdo ou da conta, restaure cada imagem em uma conta de recupe
 
 Registre data/hora, commit da implementação usado, run ID, tamanho, SHA-256 cifrado, formato do manifesto, contagens resumidas, número de mídias, resultado de `verify`, resultado do restore descartável, destino e expiração. Não registre credenciais, DSNs, URLs assinadas, linhas de livros ou manifesto completo.
 
-Antes de qualquer execução real, transferência, ativação de workflow ou recuperação em serviço real, peça autorização explícita. Em 19/11/2026, o workflow manual de backup está instalado no repositório privado e permanece desativado; não houve execução real. Fases 3 e 4 só podem avançar após uma cópia recente cifrada em local seguro, com hash, mídias e restore descartável comprovados.
+Antes de qualquer execução real, transferência, ativação de workflow ou recuperação em serviço real, peça autorização explícita. A execução de 19/11/2026 abaixo foi autorizada e validada; o workflow voltou a ficar desativado. `DEPLOY_ENABLED` permanece `false`. Fases 3 e 4 continuam sujeitas à autorização própria e à disponibilidade de uma cópia recente cifrada em local seguro, com hash, mídias e restore descartável comprovados; este registro não autoriza seu avanço.
+
+### Validação operacional — 19/11/2026
+
+A primeira cópia de produção validada após a correção Cloudinary da versão `v0.6.1` foi gerada na segunda tentativa, pela [execução 44605863622](https://github.com/marrcandre/julib-backups/actions/runs/44605863622). A tentativa anterior, `44578487411`, falhou na verificação final das mídias e não constitui backup validado.
+
+| Evidência | Resultado |
+| --- | --- |
+| Versão e commit do código de backup | `v0.6.1`, `b4a15b5794277f3ccbf3c0940c9cdfdcffd9b967` (`b4a15b5`) |
+| Repositório privado | `marrcandre/julib-backups` |
+| Execução | `44605863622`, concluída com sucesso em 19/11/2026 |
+| Data de geração no manifesto | `2026-11-19T20:12:23.052976+00:00` |
+| Artifact | `julib-backup-44605863622` |
+| Arquivo criptografado | `julib-backup-44605863622.enc`, 13.848.331 bytes, abaixo do limite de 50 MiB |
+| SHA-256 do arquivo criptografado | `3067b1b606f5360b762fa18fc9577b2616942faacf25766de6708e2f76fc7b1f` |
+| Formato | Envelope criptografado `JULIB01`, manifesto versão 2 |
+| Retenção e expiração do artifact | 30 dias; 19/12/2026 |
+| Descriptografia e verificação interna | Aprovadas; autenticação AES-GCM, SHA-256 do sidecar e integridade do pacote conferidos |
+| Restauração | Aprovada com servidor PostgreSQL 17.11 e `pg_restore` 17.11 em container descartável sem rede |
+| Estrutura e registros restaurados | 33 tabelas, 32 sequências e 1.577 registros no total; 33 tabelas com RLS e 33 policies |
+| Mídias Cloudinary | 371 arquivos verificados por tamanho e SHA-256 contra o manifesto |
+| Estado final do workflow | `disabled_manually`, exclusivamente manual e sem `schedule` |
+
+O artifact cifrado e o relatório operacional seguro foram preservados localmente fora do repositório, em diretório privado. O pacote descriptografado, o dump temporário e o container de teste foram removidos após a validação. O teste de restauração não fez alterações em produção nem chamadas de escrita ao Supabase ou Cloudinary.
+
+As 33 tabelas e 32 sequências restauradas correspondem ao índice de objetos (TOC) do dump. O manifesto não registra contagens de tabelas ou de linhas: os 1.577 registros foram contados somente no banco restaurado e não foram comparados com uma nova leitura da produção. O restore foi executado sem owners/ACLs, com a role `julib_app` preparada no destino para as policies; isso não comprova a reconstrução automática das permissões de produção.
+
+Limitações conhecidas:
+
+- PostgreSQL e Cloudinary não compartilham snapshot transacional. A comparação de referências e metadados antes/depois reduz a janela de inconsistência observada, mas não garante atomicidade entre os serviços.
+- O pacote cobre o schema `public` e as mídias referenciadas pelo processo. Schemas administrativos, roles globais, Supabase Auth, configurações de serviços e outros serviços externos não são cobertos integralmente. Capas externas continuam dependendo das URLs de origem.
+- A recuperação depende da preservação segura da chave privada correspondente, fora do GitHub, com uma segunda cópia segura recuperável. A chave privada não integra este registro nem o artifact.
+- Artifacts têm retenção limitada e expiram; o artifact desta execução expira em 19/12/2026. A cópia externa criptografada em armazenamento independente é proposta futura, sem implementação nesta etapa.
+
+A tarefa [Automatizar backups de produção e validar recuperação periódica](backlog.md#automatizar-backups-de-produção-e-validar-recuperação-periódica) registra os requisitos propostos para a próxima etapa. A rotina diária permanece desativada.
 
 ## Completar capas de uma importação
 
