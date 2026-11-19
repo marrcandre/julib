@@ -1,9 +1,8 @@
 # Copy ONLY to .github/workflows/backup.yml in the PRIVATE backup repository.
-name: Private daily backup
+# Manual dispatch only. Enabling or running this workflow requires explicit approval.
+name: Private manual backup
 run-name: Backup ${{ inputs.request_id || github.run_id }}
 on:
-  schedule:
-    - cron: '23 6 * * *'
   workflow_dispatch:
     inputs:
       request_id:
@@ -33,7 +32,12 @@ jobs:
           mkdir -p /tmp/julib-bin
           cat > /tmp/julib-bin/pg_dump <<'SH'
           #!/usr/bin/env bash
-          exec docker run --rm --network host -e PGOPTIONS postgres:17-alpine pg_dump "$@"
+          set -euo pipefail
+          : "${PGPASSFILE:?PGPASSFILE is required}"
+          exec docker run --rm --network host \
+            -v "$PGPASSFILE:$PGPASSFILE:ro" \
+            -e PGPASSFILE -e PGOPTIONS \
+            postgres:17-alpine pg_dump "$@"
           SH
           chmod +x /tmp/julib-bin/pg_dump
           echo /tmp/julib-bin >> "$GITHUB_PATH"
@@ -43,19 +47,35 @@ jobs:
           BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
           BACKUP_PUBLIC_KEY: ${{ secrets.BACKUP_PUBLIC_KEY }}
           CLOUDINARY_URL: ${{ secrets.CLOUDINARY_URL }}
-          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
           BACKUP_MAX_BYTES: '52428800'
         run: |
-          printf '%s' "$BACKUP_PUBLIC_KEY" > /tmp/backup-public.pem
-          uv run --project backend python scripts/backup.py create --public /tmp/backup-public.pem --output /tmp/julib-backup.enc --media
-          cd /tmp && sha256sum julib-backup.enc > julib-backup.enc.sha256
+          set -euo pipefail
+          umask 077
+          backup_dir="$RUNNER_TEMP/julib-backup-$GITHUB_RUN_ID"
+          install -d -m 700 "$backup_dir"
+          public_key="$backup_dir/public.pem"
+          cleanup_export() {
+            result=$?
+            rm -f -- "$public_key"
+            if (( result != 0 )); then rm -rf -- "$backup_dir"; fi
+            exit "$result"
+          }
+          trap cleanup_export EXIT
+          printf '%s' "$BACKUP_PUBLIC_KEY" > "$public_key"
+          backup_file="julib-backup-$GITHUB_RUN_ID.enc"
+          uv run --project backend python scripts/backup.py create --public "$public_key" --output "$backup_dir/$backup_file" --media
+          cd "$backup_dir"
+          sha256sum "$backup_file" > "$backup_file.sha256"
       - uses: actions/upload-artifact@v4
         with:
           name: julib-backup-${{ github.run_id }}
           path: |
-            /tmp/julib-backup.enc
-            /tmp/julib-backup.enc.sha256
+            ${{ runner.temp }}/julib-backup-${{ github.run_id }}/julib-backup-*.enc
+            ${{ runner.temp }}/julib-backup-${{ github.run_id }}/julib-backup-*.enc.sha256
           retention-days: 30
           if-no-files-found: error
+      - name: Remove local backup files
+        if: always()
+        env:
+          BACKUP_DIR: ${{ runner.temp }}/julib-backup-${{ github.run_id }}
+        run: rm -rf -- "$BACKUP_DIR"

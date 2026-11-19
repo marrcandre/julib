@@ -1,6 +1,6 @@
 # Operação do Julib
 
-Operação ativa: aplicação publicada e integrações configuradas. O backup privado tem recuperação validada, mas a agenda automática está pausada enquanto GitHub Actions estiver desativado; backup não é condição para cada publicação. Consulte o histórico de implementação para as evidências e a [auditoria de requisitos](reviews/2026-11-05-requisitos-e-proximas-entregas.md) para pendências atuais.
+Operação ativa: aplicação publicada e integrações configuradas. Há registros históricos de backups recuperados, mas não há evidência local de uma cópia recuperável atual; o GitHub Actions de backup permanece pausado. Consulte o histórico de implementação e a [auditoria de requisitos](reviews/2026-11-05-requisitos-e-proximas-entregas.md) para evidências e pendências atuais.
 
 ## Configuração privada
 
@@ -100,69 +100,85 @@ Antes de habilitar DEPLOY_ENABLED: CI remota verde, Google validado, Data API pr
 
 Falha de backend interrompe publicação do frontend. Rollback do código só com schema compatível; recuperação do banco é deliberada e precisa de destino revisado. O workflow não desfaz migrações automaticamente.
 
-## Backup privado diário
+## Backup cifrado no repositório privado
 
-Mantenha o código num repositório público e os workflows operacionais no repositório privado `julib-backups`. Copie `ops/backup-workflow.yml.example` para `.github/workflows/backup.yml` **somente no privado**. O job recusa repositório público. Agenda UTC 06:23 (03:23 em São Paulo), também com execução manual. Backup e deploy/migrations são processos independentes. O workflow lê o banco e a mídia; não execute nele comandos de manutenção nem `cleanup_imports`.
+O destino aprovado continua sendo o repositório privado `julib-backups`. O template `ops/backup-workflow.yml.example` oferece apenas `workflow_dispatch`; ele não agenda nem ativa execuções. Copie-o somente para `.github/workflows/backup.yml` no repositório privado. A cópia e qualquer execução real exigem autorização explícita. O workflow usa `contents: read`, verifica que o repositório é privado, não dispara migrations/manutenção e envia somente o pacote cifrado e o sidecar SHA-256 como artifact por 30 dias. Esta retenção é uma proposta: confirme o limite configurado para o repositório antes da primeira execução. Artifacts expiram; uma política de cópia permanente, versionada e independente precisa ser aprovada à parte.
 
-Gere chaves localmente:
+### Preparar uma execução manual
 
-```sh
-uv run --project backend python scripts/backup.py keygen --private /CAMINHO_SEGURO/julib-private.pem --public /CAMINHO_SEGURO/julib-public.pem
-```
+- Confirme que o workflow ainda está desabilitado até a autorização e que o repositório privado está acessível aos operadores responsáveis.
+- Confirme a disponibilidade da chave pública de cifragem em secret, da chave privada de recuperação e de uma segunda cópia segura da chave privada. Nunca copie a chave privada para Actions.
+- Configure `BACKUP_DATABASE_URL` com usuário dedicado sem DML/DDL, autorizado a conectar, usar o schema `public` e ler as tabelas e sequências necessárias. Confirme também que a role pode ler **todas** as linhas protegidas por RLS: o código não altera policies, e o dump padrão falha se não puder garantir que todas as linhas foram exportadas. A policy documentada para `julib_app` é específica dessa role; não presuma que uma nova role herdará essa visibilidade. O padrão do `pg_dump` desativa row security para não omitir linhas e falha sem privilégio suficiente; `--enable-row-security` pode exportar somente as linhas visíveis e é inadequado como desvio sem uma política comprovadamente completa ([documentação PostgreSQL](https://www.postgresql.org/docs/17/app-pgdump.html)). Use a mesma conexão de leitura em `DATABASE_URL` para a consulta de referências das capas. O template injeta ambas como secrets do job; o filho `pg_dump` recebe um DSN sem senha e um arquivo `PGPASSFILE` temporário, modo `0600`, removido mesmo quando o comando falha.
+- Se nenhuma role sem DML/DDL puder ler todas as linhas, pare e peça aprovação para provisionar uma permissão/policy de leitura específica; não contorne a falha com a credencial administrativa nem conceda `BYPASSRLS` à role de runtime.
+- Configure apenas as credenciais de leitura necessárias da API Cloudinary como secrets do repositório. Não use `CLOUDINARY_URL` junto das variáveis individuais.
+- Confirme espaço temporário suficiente, versão do cliente `pg_dump` compatível com o servidor, limite padrão de 50 MiB e consumo/cota do artifact. Não reduza cobertura nem aumente o limite sem uma medição e decisão registradas.
+- Verifique os nomes e a presença dos secrets sem imprimir seus valores. Não use `env`, `set -x`, `printenv`, comandos que mostrem o DSN ou logs completos do provedor.
 
-Guarde a chave privada fora do GitHub e uma segunda cópia segura. A chave pública PEM entra no secret BACKUP_PUBLIC_KEY do repositório privado. Outros secrets: BACKUP_DATABASE_URL e credenciais Cloudinary. Use para BACKUP_DATABASE_URL uma credencial sem DML/DDL, com leitura das tabelas do schema `public`; o script também abre a consulta de referências em transação `READ ONLY` e define `default_transaction_read_only=on` para o subprocesso `pg_dump`. DATABASE_URL para leitura das referências aponta para o mesmo banco. Ajuste a referência do código no workflow ao commit/branch revisado.
-
-O script gera dump PostgreSQL custom somente do esquema public do Julib, sem owner/ACL (não inclui esquemas internos auth/storage/extensões do Supabase) e pacote das capas gerenciadas, manifesto e arquivos, cifrado por AES-256-GCM com chave aleatória protegida pela chave pública RSA. O tag de autenticação AES-GCM verifica a integridade do conteúdo cifrado ao descriptografar. Não copia capas externas indisponíveis; guarda suas URLs no banco. Não faz upload parcial nem envia cópia sem cifrar. O limite atual por pacote é 50 MiB; o workflow gera também um arquivo `.sha256` separado para conferir a cópia baixada. O cliente pg_dump deve ser da mesma versão principal ou mais recente que o servidor.
-
-Artifacts diários e manuais são configurados para retenção de 30 dias. A documentação atual do GitHub informa que artifacts em repositório privado podem ter retenção entre 1 e 400 dias, limitada por política da organização/empresa ([retenção](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository)). O armazenamento incluído depende do plano do proprietário; GitHub Free lista 500 MB compartilhados entre Actions artifacts e GitHub Packages ([limites e planos](https://docs.github.com/en/actions/reference/limits), [billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions)). No tamanho histórico registrado em 06/11/2026 (7.598.510 bytes cifrados), 30 cópias seriam cerca de 228 MB antes de outras versões/arquivos. O limite de 50 MiB por arquivo permitiria até 1,5 GiB em 30 dias, acima dos 500 MB. Portanto, antes de habilitar o fluxo, confira plano real, uso atual e tamanho do backup de 16/11; reduza consumo/volume ou escolha outro destino privado se 30 cópias não couberem. Não marque “backup completo” quando a execução ou o artifact falhar. A janela de retenção é proteção operacional, não garantia de restauração nem SLA.
-
-### Publicar uma cópia cifrada já existente
-
-`ops/upload-existing-backup-workflow.yml.example` é um fluxo manual separado. Copie-o **somente** para `.github/workflows/upload-existing-backup.yml` no `julib-backups`; ele não cria release/tag, não consulta banco, não executa migrations nem gera outro backup. Exige um runner self-hosted privado com label `julib-backup-upload` e diretório `/srv/julib-backup-inbox` no qual a conta do serviço tenha somente leitura. Restrinja esse runner ao repositório `julib-backups` e a pessoas de confiança. O fluxo lê um basename `julib-backup-*.enc`, rejeita symlink, arquivo vazio ou acima de 50 MiB antes e depois de copiar, confere a estrutura do envelope (cabeçalho, comprimento da chave encapsulada, nonce e espaço para tag AES-GCM), compara o SHA-256 informado com o valor registrado na verificação do backup e envia o `.enc` junto do `.sha256` como artifact privado por 30 dias. A verificação de estrutura e hash não substitui a autenticação AES-GCM e a restauração prévia do arquivo.
-
-Somente depois de autorização para transferir o arquivo: no host privado do runner, um operador instala o `.enc` cifrado previamente verificado na pasta de entrada, atribuindo leitura à conta do runner e mantendo a pasta sem escrita para essa conta:
+A geração manual local usa a mesma implementação revisada, com ambiente privado carregado por um gerenciador de secrets aprovado, sem colocar valores em argumentos ou arquivos versionados:
 
 ```sh
-sudo install -o root -g GRUPO_DO_RUNNER -m 0440 -- /CAMINHO_PRIVADO/julib-backup-DATA.enc /srv/julib-backup-inbox/
+uv run --project backend python scripts/backup.py create --public /CAMINHO_SEGURO/julib-public.pem --output /DIRETORIO_PRIVADO/julib-backup-DATA.enc --media
 ```
 
-Não coloque o arquivo, a chave privada nem o manifesto descriptografado no repositório de código. Em Actions, use **Run workflow** no repositório privado e informe o nome do arquivo e o SHA-256 documentado para aquela cópia. Confira o sucesso, o nome e a retenção do artifact; mantenha registrado run ID, SHA-256 e data de expiração. A execução manual e o upload não foram habilitados nesta preparação.
+O comando precisa de `BACKUP_DATABASE_URL`, `DATABASE_URL` e credenciais Cloudinary no ambiente privado. Não execute o comando até aprovar expressamente o acesso ao banco de produção. O dump PostgreSQL custom inclui apenas o schema `public`, sem owner/ACL. Esquemas internos do Supabase, roles globais, configuração do projeto e identidades do Supabase Auth ficam fora do pacote; prepare roles e permissões necessárias separadamente no destino descartável. O usuário do restore será o proprietário dos objetos restaurados e grants originais não são reconstituídos automaticamente.
 
-## Testar recuperação
+O pacote usa envelope `JULIB01`: AES-256-GCM com chave aleatória protegida por RSA-OAEP. A geração escreve dump, pacote e cifra em arquivos de uma pasta temporária privada (modo `0700`), publica o arquivo final por substituição atômica e remove a pasta temporária ao terminar. O limite cifrado padrão permanece 50 MiB; cada mídia tem teto de 8 MiB e o verificador limita o conteúdo descompactado a 512 MiB. Uma execução que ultrapasse limites, fique sem espaço, falhe no PostgreSQL/Cloudinary ou detecte alterações nas referências do banco ou versão dos assets é interrompida sem publicar pacote parcial. PostgreSQL e Cloudinary não oferecem snapshot transacional conjunto: as comparações reduzem e detectam divergências observadas, mas não provam que nenhuma alteração breve ocorreu entre as leituras.
 
-Baixe o artifact privado e extraia o `.enc` e seu `.sha256` para um diretório local privado. Antes de descriptografar, valide a cópia:
+Manifesto versão 2 contém data de geração, ID público Cloudinary, caminho relativo, tamanho e SHA-256 de cada arquivo. URLs assinadas, credenciais e dados de livros não são adicionados ao manifesto. Capas externas não são copiadas; o banco mantém suas URLs, que dependem da disponibilidade da fonte.
+
+### Verificar integridade
+
+Calcule o hash cifrado antes de transferir e guarde-o no registro operacional. Após baixar o artifact, confira o sidecar e execute o verificador com a chave privada local:
 
 ```sh
 (cd /DIRETORIO_PRIVADO_DO_ARTIFACT && sha256sum -c ./*.enc.sha256)
+uv run --project backend python scripts/backup.py verify --private /CAMINHO_SEGURO/julib-private.pem --input /DIRETORIO_PRIVADO_DO_ARTIFACT/julib-backup.enc --sha256 SHA256_REGISTRADO
 ```
 
-Compare também o hash com o registro do run antes de prosseguir. Descriptografe localmente:
+O verificador compara o SHA-256 do arquivo cifrado, autentica AES-GCM, valida o tar sem extrair caminhos, exige dump e manifesto, rejeita caminhos/entradas duplicadas ou extras e recalcula tamanho/hash de todas as mídias. Manifestos versão 1, gerados antes deste ajuste e sem hashes por mídia, continuam verificáveis por presença e estrutura; novos backups usam versão 2. A verificação não prova que serviços externos ou permissões do Supabase estejam prontos para recuperação.
+
+### Restaurar em ambiente descartável
+
+A restauração de teste deve usar PostgreSQL descartável, nunca produção. Primeiro valide o `.enc` com `verify`, depois descriptografe para uma pasta privada vazia:
 
 ```sh
-uv run --project backend python scripts/backup.py decrypt --private /CAMINHO_SEGURO/julib-private.pem --input /CAMINHO_SEGURO/julib-backup.enc --output /CAMINHO_SEGURO/julib-restore.tar.gz
+uv run --project backend python scripts/backup.py decrypt --private /CAMINHO_SEGURO/julib-private.pem --input /DIRETORIO_PRIVADO_DO_ARTIFACT/julib-backup.enc --output /DIRETORIO_PRIVADO/julib-restore.tar.gz
+mkdir -m 700 /DIRETORIO_PRIVADO/restore
+cd /DIRETORIO_PRIVADO/restore
+tar -xOf ../julib-restore.tar.gz database.dump > database.dump
 ```
 
-O decifrador valida a autenticação AES-GCM e falha se o conteúdo tiver sido alterado. Em diretório vazio e privado, liste o tar antes de extrair: contém `database.dump`, `manifest.json` e `media/`. Nunca aceite tar de fonte desconhecida. Restaure em banco **novo e descartável**, nunca na produção durante um teste:
+Prepare no cluster descartável o role sem login referenciado nas políticas (por exemplo `julib_app`) antes da restauração e confira como serão atribuídos proprietários e grants, pois o dump exclui owner e ACL. Configure libpq por variáveis `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGSSLMODE` e `PGPASSFILE` modo `0600`; não passe senha em argumento. Somente no banco descartável, prepare schema vazio e execute:
 
 ```sh
-# Apenas no banco novo e descartável: preparar public vazio e a role das políticas.
-# Crie julib_app NOLOGIN no cluster de restauração se a role ainda não existir.
-psql "$RESTORE_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA public'
-pg_restore --exit-on-error --no-owner --no-acl --dbname="$RESTORE_DATABASE_URL" database.dump
+psql -v ON_ERROR_STOP=1 -c 'DROP SCHEMA public'
+pg_restore --exit-on-error --no-owner --no-acl --schema=public database.dump
 ```
 
-Confira contagens de livros/exemplares/pessoas/empréstimos, relações, estados e imagens conforme manifesto. Para perda da conta Cloudinary, reenviar mídia conforme manifesto e atualizar IDs/URLs nos livros, mantendo correspondência por public_id. Essa migração requer validação manual; não confundir dump restaurado com restauração das imagens concluída. Confirme as duas contas Google e revogue links antigos se houver incidente.
+Compare tabelas, relações, estados e contagens de livros, exemplares, pessoas, empréstimos e recibos com o manifesto operacional aprovado. Não registre linhas ou conteúdo de dados nos logs. O pacote de mídia deve ser conferido pelo `verify`; não considere apenas a restauração do banco como recuperação completa.
 
-Registre tamanho, hora da última cópia e resultado do teste. Ative notificações de falha do Actions na conta de Marco. Agenda pode atrasar; execução manual e conferência periódica continuam disponíveis. Perda máxima depende da última cópia bem-sucedida, não apenas da agenda diária.
+### Enviar e reter a cópia cifrada
 
-## Rotina
+Após a validação e autorização explícita para transferência, use o fluxo `ops/upload-existing-backup-workflow.yml.example` somente no repositório privado. Ele exige runner próprio restrito a `julib-backups`, lê a pasta de entrada sem escrita para a conta do runner e valida nome, tamanho, envelope e SHA-256 antes de enviar o arquivo cifrado como artifact por 30 dias. Essa validação de entrada não substitui `verify` nem o restore prévio. Registre ID da execução, SHA-256, data de criação e expiração. Confirme no GitHub a retenção efetiva e o acesso restrito. Não trate artifacts como cópia permanente; releases manuais antigas não expiram automaticamente e não devem ser removidas sem revisão e autorização.
 
-- Conferir consumo e suspensão/inatividade dos planos gratuitos.
-- Conferir backup diário e executar teste de recuperação após alterações do mecanismo. Não considerar uma cópia recuperável apenas por existir artifact: verificar SHA-256, descriptografia/autenticação, manifesto, restauração PostgreSQL 17 e contagens de dados/mídia.
-- Tratar `cleanup_imports` como manutenção separada de dados, com revisão e decisão próprias. Se necessária, executar explicitamente fora do processo de backup, avaliar o período das sessões que serão removidas e registrar o resultado; não acoplar ao workflow de backup.
-- Não registrar contatos, tokens compartilhados ou conteúdo CSV em logs.
-- Validar câmera e instalação do PWA nos Chrome do Poco F5 e Samsung A34. Automação em Chromium não substitui teste da câmera física.
+### Recuperar mídias Cloudinary
 
+O manifesto liga cada `public_id` ao arquivo validado no pacote. Após descriptografar em pasta privada, escreva o manifesto sem imprimi-lo no terminal e extraia apenas os caminhos validados:
+
+```sh
+tar -xOf /DIRETORIO_PRIVADO/julib-restore.tar.gz manifest.json > /DIRETORIO_PRIVADO/manifest.json
+chmod 600 /DIRETORIO_PRIVADO/manifest.json
+tar -xOf /DIRETORIO_PRIVADO/julib-restore.tar.gz media/0.jpg > /DIRETORIO_PRIVADO/cover-0.jpg
+chmod 600 /DIRETORIO_PRIVADO/cover-0.jpg
+```
+
+Para perda do conteúdo ou da conta, restaure cada imagem em uma conta de recuperação preservando a correspondência entre `public_id` e livro; valide URL e imagem antes de ajustar referências no banco. O upload em conta nova ou a atualização de referências em produção exige plano e autorização próprios, pois IDs/URLs podem mudar e Cloudinary e PostgreSQL não compartilham transação. Nunca faça esse ensaio usando a conta de produção.
+
+### Registro operacional e autorização
+
+Registre data/hora, commit da implementação usado, run ID, tamanho, SHA-256 cifrado, formato do manifesto, contagens resumidas, número de mídias, resultado de `verify`, resultado do restore descartável, destino e expiração. Não registre credenciais, DSNs, URLs assinadas, linhas de livros ou manifesto completo.
+
+Antes de qualquer execução real, transferência, ativação de workflow ou recuperação em serviço real, peça autorização explícita. Até lá, templates permanecem apenas exemplos e Actions remoto permanece inalterado. Fases 3 e 4 só podem avançar após uma cópia recente cifrada em local seguro, com hash, mídias e restore descartável comprovados.
 
 ## Completar capas de uma importação
 
@@ -202,9 +218,9 @@ Procedimento de publicação:
 
 **Recuperação após habilitar múltiplas bibliotecas:** não retornar ao backend anterior à Fase 1; ele pode ignorar `X-Library-ID` e operar na primeira membership. Após falha de aplicação, manter as migrations aditivas e corrigir para frente ou redeployar uma versão já compatível com múltiplas bibliotecas. Se houver corrupção que exija recuperação de dados, restaurar o backup validado junto das mídias para um estado consistente e implantar uma versão compatível; a decisão deve considerar e registrar a perda das gravações posteriores ao ponto do backup. Não reverter migrations automaticamente nem mover tags.
 
-Enquanto o Actions estiver pausado, **não há backup diário automático pelo GitHub**. A publicação manual não exige uma nova cópia; o backup operacional continua independente. Releases `manual-*` criadas pela rotina antiga não expiram automaticamente e ficam fora da retenção de artifacts de 30 dias. Preserve essas cópias até revisar sua validade e estabelecer a nova rotina; não as exclua automaticamente. Não considerar a retenção de artifacts ou uma agenda diária ativa até instalar o template aprovado no repositório privado, reativar Actions com autorização e validar uma execução.
+Enquanto o Actions estiver pausado, **não há backup automático pelo GitHub**. O template revisado é manual e não exige reativar agendas. Releases `manual-*` criadas pela rotina antiga não expiram automaticamente e ficam fora da retenção proposta de artifacts por 30 dias. Preserve essas cópias até revisar sua validade; não as exclua automaticamente. Não considerar workflow, retenção ou acesso ao artifact confirmados sem conferência no repositório privado.
 
-Após resolução do chamado: reativar CI com `gh workflow enable ci.yml --repo marrcandre/julib`; reativar backup com `gh workflow enable backup.yml --repo marrcandre/julib-backups` e validar uma execução privada; reativar Deploy com `gh workflow enable deploy.yml --repo marrcandre/julib`. Conferir DEPLOY_ENABLED e executar CI do commit atual antes de voltar às publicações automáticas. Não alterar planos nem limites pagos para esse procedimento.
+Após resolução do chamado, reativar CI e Deploy conforme aprovação operacional própria. Para backup, copiar o template manual para `julib-backups` e obter autorização explícita antes de habilitar Actions ou iniciar uma execução. Conferir DEPLOY_ENABLED e executar CI do commit atual antes de voltar às publicações automáticas. Não alterar planos nem limites pagos para esse procedimento.
 
 ## Diagnósticos no pool de transações
 
