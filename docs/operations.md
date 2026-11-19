@@ -102,7 +102,7 @@ Falha de backend interrompe publicação do frontend. Rollback do código só co
 
 ## Backup cifrado no repositório privado
 
-O destino aprovado continua sendo o repositório privado `julib-backups`. O template `ops/backup-workflow.yml.example` oferece apenas `workflow_dispatch`; ele não agenda nem ativa execuções. Copie-o somente para `.github/workflows/backup.yml` no repositório privado. A cópia e qualquer execução real exigem autorização explícita. O workflow usa `contents: read`, verifica que o repositório é privado, não dispara migrations/manutenção e envia somente o pacote cifrado e o sidecar SHA-256 como artifact por 30 dias. Esta retenção é uma proposta: confirme o limite configurado para o repositório antes da primeira execução. Artifacts expiram; uma política de cópia permanente, versionada e independente precisa ser aprovada à parte.
+O destino aprovado continua sendo o repositório privado `julib-backups`. Em 19/11/2026, o template `ops/backup-workflow.yml.example` foi instalado como `.github/workflows/backup.yml`; o workflow permanece `disabled_manually` e aceita somente `workflow_dispatch`, sem agendamento nem execução de `cleanup_imports`. Ele usa runner hospedado `ubuntu-latest`, permissão `contents: read`, verifica que o repositório é privado e envia somente o pacote cifrado e o sidecar SHA-256 como artifact por 30 dias. A retenção padrão configurada no repositório é 90 dias, com máximo permitido de 400; a retenção individual do artifact continua em 30 dias. A ativação e qualquer execução real exigem autorização explícita. Artifacts expiram; uma política de cópia permanente, versionada e independente precisa ser aprovada à parte.
 
 ### Preparar uma execução manual
 
@@ -159,7 +159,7 @@ Compare tabelas, relações, estados e contagens de livros, exemplares, pessoas,
 
 ### Enviar e reter a cópia cifrada
 
-Após a validação e autorização explícita para transferência, use o fluxo `ops/upload-existing-backup-workflow.yml.example` somente no repositório privado. Ele exige runner próprio restrito a `julib-backups`, lê a pasta de entrada sem escrita para a conta do runner e valida nome, tamanho, envelope e SHA-256 antes de enviar o arquivo cifrado como artifact por 30 dias. Essa validação de entrada não substitui `verify` nem o restore prévio. Registre ID da execução, SHA-256, data de criação e expiração. Confirme no GitHub a retenção efetiva e o acesso restrito. Não trate artifacts como cópia permanente; releases manuais antigas não expiram automaticamente e não devem ser removidas sem revisão e autorização.
+O fluxo opcional `ops/upload-existing-backup-workflow.yml.example` exige runner próprio restrito a `julib-backups`, lê a pasta de entrada sem escrita para a conta do runner e valida nome, tamanho, envelope e SHA-256 antes de enviar um arquivo cifrado como artifact por 30 dias. Em 19/11/2026, esse workflow não estava instalado e não havia runner próprio registrado. O fluxo principal instalado gera e envia o artifact cifrado na mesma execução manual; valide previamente o procedimento e obtenha autorização antes de ativá-lo ou executá-lo. Registre ID da execução, SHA-256, data de criação e expiração. Não trate artifacts como cópia permanente; releases manuais antigas não expiram automaticamente e não devem ser removidas sem revisão e autorização.
 
 ### Recuperar mídias Cloudinary
 
@@ -178,7 +178,7 @@ Para perda do conteúdo ou da conta, restaure cada imagem em uma conta de recupe
 
 Registre data/hora, commit da implementação usado, run ID, tamanho, SHA-256 cifrado, formato do manifesto, contagens resumidas, número de mídias, resultado de `verify`, resultado do restore descartável, destino e expiração. Não registre credenciais, DSNs, URLs assinadas, linhas de livros ou manifesto completo.
 
-Antes de qualquer execução real, transferência, ativação de workflow ou recuperação em serviço real, peça autorização explícita. Até lá, templates permanecem apenas exemplos e Actions remoto permanece inalterado. Fases 3 e 4 só podem avançar após uma cópia recente cifrada em local seguro, com hash, mídias e restore descartável comprovados.
+Antes de qualquer execução real, transferência, ativação de workflow ou recuperação em serviço real, peça autorização explícita. Em 19/11/2026, o workflow manual de backup está instalado no repositório privado e permanece desativado; não houve execução real. Fases 3 e 4 só podem avançar após uma cópia recente cifrada em local seguro, com hash, mídias e restore descartável comprovados.
 
 ## Completar capas de uma importação
 
