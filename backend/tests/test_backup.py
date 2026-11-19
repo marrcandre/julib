@@ -481,17 +481,25 @@ def test_cloudinary_media_is_streamed_and_hashed(monkeypatch, tmp_path):
 
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    monkeypatch.setattr(
-        cloudinary.api,
-        "resource",
-        lambda public_id: {
-            "secure_url": "https://res.cloudinary.com/test/image/upload/sample.jpg",
-            "format": "jpg",
-            "asset_id": "asset-id-1",
-            "version": 7,
-            "bytes": 5,
-        },
-    )
+    calls = []
+
+    def resources_by_ids(public_ids, **_):
+        calls.append(tuple(public_ids))
+        return {
+            "resources": [
+                {
+                    "public_id": public_id,
+                    "secure_url": "https://res.cloudinary.com/test/image/upload/sample.jpg",
+                    "format": "jpg",
+                    "asset_id": "asset-id-1",
+                    "version": 7,
+                    "bytes": 5,
+                }
+                for public_id in public_ids
+            ]
+        }
+
+    monkeypatch.setattr(cloudinary.api, "resources_by_ids", resources_by_ids)
 
     class Response:
         def __enter__(self):
@@ -523,6 +531,7 @@ def test_cloudinary_media_is_streamed_and_hashed(monkeypatch, tmp_path):
     monkeypatch.setattr(httpx, "Client", Client)
     entries, fingerprints = module._download_media(("library/book-1",), tmp_path, 100)
     module._assert_cloudinary_unchanged(fingerprints)
+    assert calls == [("library/book-1",), ("library/book-1",)]
     assert entries == [
         {
             "public_id": "library/book-1",
@@ -542,13 +551,19 @@ def test_cloudinary_download_failure_is_sanitized(monkeypatch, tmp_path):
     spec.loader.exec_module(module)
     monkeypatch.setattr(
         cloudinary.api,
-        "resource",
-        lambda _: {
-            "secure_url": "https://res.cloudinary.com/test/image/upload/sample.jpg",
-            "format": "jpg",
-            "asset_id": "asset-id-1",
-            "version": 7,
-            "bytes": 5,
+        "resources_by_ids",
+        lambda public_ids, **_: {
+            "resources": [
+                {
+                    "public_id": public_id,
+                    "secure_url": "https://res.cloudinary.com/test/image/upload/sample.jpg",
+                    "format": "jpg",
+                    "asset_id": "asset-id-1",
+                    "version": 7,
+                    "bytes": 5,
+                }
+                for public_id in public_ids
+            ]
         },
     )
 
@@ -589,11 +604,24 @@ def test_cloudinary_asset_version_change_aborts_backup(monkeypatch):
     spec.loader.exec_module(module)
     responses = iter(
         [
-            {"asset_id": "asset-id-1", "version": 7, "bytes": 5, "format": "jpg"},
-            {"asset_id": "asset-id-1", "version": 8, "bytes": 5, "format": "jpg"},
+            {
+                "public_id": "library/book-1",
+                "asset_id": "asset-id-1",
+                "version": 8,
+                "bytes": 5,
+                "format": "jpg",
+            },
         ]
     )
-    monkeypatch.setattr(cloudinary.api, "resource", lambda _: next(responses))
-    expected = {"library/book-1": module._cloudinary_fingerprint(cloudinary.api.resource("x"))}
+    monkeypatch.setattr(
+        cloudinary.api,
+        "resources_by_ids",
+        lambda _public_ids, **_: {"resources": [next(responses)]},
+    )
+    expected = {
+        "library/book-1": module._cloudinary_fingerprint(
+            {"asset_id": "asset-id-1", "version": 7, "bytes": 5, "format": "jpg"}
+        )
+    }
     with pytest.raises(RuntimeError, match="mudou"):
         module._assert_cloudinary_unchanged(expected)
