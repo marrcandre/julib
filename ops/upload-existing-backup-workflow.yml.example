@@ -62,14 +62,17 @@ jobs:
           import struct
           import sys
 
-          data = Path(sys.argv[1]).read_bytes()
-          if len(data) < 9 or data[:7] != b"JULIB01":
+          path = Path(sys.argv[1])
+          size = path.stat().st_size
+          with path.open("rb") as stream:
+              header = stream.read(9)
+          if size < 9 or len(header) != 9 or header[:7] != b"JULIB01":
               raise SystemExit("File does not have the Julib encrypted backup header.")
-          wrapped_key_size = struct.unpack(">H", data[7:9])[0]
+          wrapped_key_size = struct.unpack(">H", header[7:9])[0]
           if wrapped_key_size < 256 or wrapped_key_size > 1024 or wrapped_key_size % 64:
               raise SystemExit("Encrypted backup has an invalid wrapped-key length.")
           minimum_size = 9 + wrapped_key_size + 12 + 16
-          if len(data) < minimum_size:
+          if size < minimum_size:
               raise SystemExit("Encrypted backup is truncated or has no complete GCM tag.")
           PY
           actual_sha256=$(sha256sum -- "$destination" | awk '{print $1}')
@@ -84,3 +87,8 @@ jobs:
           path: ${{ runner.temp }}/julib-existing-backup-${{ github.run_id }}/
           retention-days: 30
           if-no-files-found: error
+      - name: Remove local staging files
+        if: always()
+        env:
+          STAGING_DIR: ${{ runner.temp }}/julib-existing-backup-${{ github.run_id }}
+        run: rm -rf -- "$STAGING_DIR"
