@@ -5,6 +5,9 @@ test("uploaded cover has no optional badge and Google data credit stays with bib
   const book = {
     id: 313,
     title: "Livro com capa própria",
+    subtitle: "",
+    description: "",
+    subjects: [],
     authors: ["Autora"],
     isbn: "",
     publisher: "Editora",

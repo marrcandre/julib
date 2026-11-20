@@ -34,6 +34,9 @@ test("catalog supports responsive cards, covers, list and current edit cover", a
   const books = Array.from({ length: 6 }, (_, i) => ({
     id: i + 1,
     title: `Livro de teste ${i + 1}`,
+    subtitle: "",
+    description: "",
+    subjects: [],
     authors: ["Autora de teste"],
     isbn: "",
     publisher: "Editora",

@@ -45,6 +45,9 @@ async function mockCatalog(
         items: Array.from({ length: 12 }, (_, i) => ({
           id: i + 1,
           title: "Livro " + i,
+          subtitle: "",
+          description: "",
+          subjects: [],
           authors: ["Autor"],
           isbn: "",
           publisher: "",

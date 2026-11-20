@@ -17,6 +17,9 @@ const emit = defineEmits<{
 }>();
 const form = ref({
   title: props.book.title,
+  subtitle: props.book.subtitle,
+  description: props.book.description,
+  subjectsText: props.book.subjects.join("\n"),
   authors: props.book.authors.join("; "),
   isbn: props.book.isbn,
   publisher: props.book.publisher,
@@ -113,11 +116,16 @@ async function save() {
         throw new Error("Resposta inválida ao enviar a capa.");
       uploadedId.value = data.public_id;
     }
+    const { subjectsText, ...bookData } = form.value;
     const saved = await api<Book>("/books/" + props.book.id, {
       method: "PUT",
       body: JSON.stringify({
-        ...form.value,
-        authors: form.value.authors
+        ...bookData,
+        subjects: subjectsText
+          .split(/\r?\n/)
+          .map((subject) => subject.trim())
+          .filter(Boolean),
+        authors: bookData.authors
           .split(";")
           .map((a) => a.trim())
           .filter(Boolean),
@@ -216,6 +224,29 @@ onUnmounted(clearFile);
             <label class="book-edit-wide"
               >Título *<InputText v-model="form.title" required maxlength="300"
             /></label>
+            <label class="book-edit-wide"
+              >Subtítulo<InputText
+                v-model="form.subtitle"
+                maxlength="500"
+                autocomplete="off"
+            /></label>
+            <label class="book-edit-wide"
+              >Descrição e sinopse<textarea
+                v-model="form.description"
+                maxlength="20000"
+                rows="7"
+              />
+            </label>
+            <label class="book-edit-wide"
+              >Assuntos bibliográficos<textarea
+                v-model="form.subjectsText"
+                maxlength="10049"
+                rows="4"
+              /><small class="muted"
+                >Um assunto por linha, até 50 assuntos com 200 caracteres
+                cada.</small
+              ></label
+            >
             <label class="book-edit-wide"
               >Autores *<InputText v-model="form.authors" required /><small
                 class="muted"

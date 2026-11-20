@@ -1,9 +1,16 @@
 from datetime import date, datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from ninja import Schema
 from pydantic import Field
+
+from .metadata import (
+    DESCRIPTION_MAX_LENGTH,
+    SUBJECT_MAX_LENGTH,
+    SUBJECTS_MAX_ITEMS,
+    SUBTITLE_MAX_LENGTH,
+)
 
 
 class ProvenanceEntry(Schema):
@@ -11,12 +18,18 @@ class ProvenanceEntry(Schema):
     source: str = Field(max_length=40)
     source_id: str = Field(default="", max_length=300)
     url: str = Field(default="", max_length=1000)
+    record_type: Literal["edition", "work"] | None = None
 
 
 class BookIn(Schema):
     provenance: dict[str, ProvenanceEntry] = Field(default_factory=dict, max_length=12)
     page_count: int | None = Field(default=None, ge=1, le=2147483647)
     title: str = Field(min_length=1, max_length=300)
+    subtitle: str = Field(default="", max_length=SUBTITLE_MAX_LENGTH)
+    description: str = Field(default="", max_length=DESCRIPTION_MAX_LENGTH)
+    subjects: list[Annotated[str, Field(max_length=SUBJECT_MAX_LENGTH)]] = Field(
+        default_factory=list, max_length=SUBJECTS_MAX_ITEMS
+    )
     authors: list[str] = Field(min_length=1)
     isbn: str = ""
     publisher: str = ""
@@ -190,6 +203,9 @@ class PublicBookOut(Schema):
     attribution_url: str = ""
     id: int
     title: str
+    subtitle: str
+    description: str
+    subjects: list[str]
     authors: list[str]
     isbn: str
     publisher: str

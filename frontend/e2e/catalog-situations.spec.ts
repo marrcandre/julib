@@ -10,6 +10,9 @@ for (const width of [320, 1280])
     const book = {
       id: 58,
       title: "Livro de teste",
+      subtitle: "",
+      description: "",
+      subjects: [],
       authors: ["Autora"],
       isbn: "",
       publisher: "",

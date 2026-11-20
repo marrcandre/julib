@@ -40,6 +40,102 @@ def test_optional_pages_roundtrip_validation_and_public_catalog(client, member):
     )
 
 
+def test_new_metadata_roundtrips_privately_and_publicly_without_provenance_leak(client, member):
+    from library.sharing import public_books, renew_link
+
+    lib = Library.objects.create(name="Casa")
+    Membership.objects.create(user=member, library=lib)
+    response = client.post(
+        "/api/v1/books",
+        {
+            "title": "Livro",
+            "authors": ["Autora"],
+            "subtitle": "Uma edição especial",
+            "description": "Sinopse em texto simples.",
+            "subjects": ["História", " história ", "Literatura"],
+            "provenance": {
+                "subtitle": {"source": "google", "source_id": "volume-1"},
+                "description": {
+                    "source": "openlibrary",
+                    "source_id": "/works/OL1W",
+                    "record_type": "work",
+                },
+            },
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    book = response.json()
+    assert book["subtitle"] == "Uma edição especial"
+    assert book["description"] == "Sinopse em texto simples."
+    assert book["subjects"] == ["História", "Literatura"]
+    assert "description" in book["provenance"]
+    services.add_copy(lib, book["id"])
+    public = public_books(renew_link(lib))["items"][0]
+    assert public["subtitle"] == "Uma edição especial"
+    assert public["description"] == "Sinopse em texto simples."
+    assert public["subjects"] == ["História", "Literatura"]
+    assert "provenance" not in public
+    assert "tags" in public and public["tags"] == []
+
+
+def test_manual_metadata_edit_clears_only_edited_field_provenance(client, member):
+    lib = Library.objects.create(name="Casa")
+    Membership.objects.create(user=member, library=lib)
+    book = services.create_book(
+        lib,
+        {
+            "title": "Livro",
+            "authors": ["Autora"],
+            "subtitle": "Subtítulo",
+            "description": "Descrição antiga",
+            "subjects": ["História"],
+            "provenance": {
+                "subtitle": {"source": "google", "source_id": "v1"},
+                "description": {
+                    "source": "openlibrary",
+                    "source_id": "/works/OL1W",
+                    "record_type": "work",
+                },
+                "subjects": {"source": "cbl", "source_id": "isbn"},
+            },
+        },
+    )
+
+    response = client.put(
+        f"/api/v1/books/{book.pk}",
+        {
+            "title": "Livro",
+            "authors": ["Autora"],
+            "subtitle": "Subtítulo",
+            "description": "Descrição manual",
+            "subjects": ["História"],
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    provenance = response.json()["provenance"]
+    assert "description" not in provenance
+    assert provenance["subtitle"]["source"] == "google"
+    assert provenance["subjects"]["source"] == "cbl"
+
+
+def test_new_metadata_limits_reject_values_instead_of_truncating(client, member):
+    lib = Library.objects.create(name="Casa")
+    Membership.objects.create(user=member, library=lib)
+    base = {"title": "Livro", "authors": ["Autora"]}
+    for extra in (
+        {"subtitle": "x" * 501},
+        {"description": "x" * 20_001},
+        {"subjects": ["x"] * 51},
+        {"subjects": ["x" * 201]},
+    ):
+        response = client.post("/api/v1/books", {**base, **extra}, content_type="application/json")
+        assert response.status_code == 422
+
+
 def test_pages_from_google_and_goodreads(monkeypatch):
     monkeypatch.setattr(
         "library.providers.bounded_get",

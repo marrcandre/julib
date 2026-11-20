@@ -51,7 +51,7 @@ def test_brazilian_isbn_fallback_normalizes_and_matches(monkeypatch, query, isbn
         for url, params in calls
     )
     assert any(params.get("providers") == "mercado-editorial" for _, params in calls)
-    assert calls[0][0].startswith("https://brasilapi.com.br/")
+    assert calls[0][0].startswith("https://openlibrary.org/")
     assert next(i for i, (url, _) in enumerate(calls) if "googleapis" in url) > next(
         i for i, (url, _) in enumerate(calls) if url.startswith("https://openlibrary.org/api/books")
     )

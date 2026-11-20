@@ -7,6 +7,9 @@ const validRow = {
   result: '',
   data: {
     title: 'Livro da prévia',
+    subtitle: "",
+    description: "",
+    subjects: [],
     authors: ['Autora da prévia'],
     isbn: '9780306406157',
     publisher: 'Editora',
@@ -169,7 +172,7 @@ test('shows all file errors when an upload has no importable rows', async ({ pag
 
   await expect(page.getByText('bad-header.csv')).toBeVisible()
   await expect(page.getByText('Cabeçalho Libib inválido ou incompleto.')).toBeVisible()
-  await expect(page.getByText('bad-encoding.csv')).toBeVisible()
+  await expect(page.locator('.import-file-result').filter({ hasText: 'bad-encoding.csv' })).toBeVisible()
   await expect(page.getByText('Arquivo inválido. Exporte o CSV em UTF-8.')).toBeVisible()
   await expect(page.getByText('Nenhum registro importável nesta sessão.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Confirmar importação' })).toHaveCount(0)
