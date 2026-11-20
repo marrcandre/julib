@@ -26,12 +26,12 @@ Ordem aprovada para as próximas evoluções. Este registro define o escopo plan
 - [x] O novo administrador pode convidar outras pessoas para participar da própria biblioteca.
 - [x] Preservar o fluxo atual de convites para ingresso em bibliotecas existentes.
 
-### Fase 2 — Importação de coleções do Libib (implementada; publicação pendente)
+### Fase 2 — Importação de coleções do Libib
 
-- [x] Investigar e documentar os formatos de exportação disponíveis e mapear seus campos para o modelo atual do Julib.
-- [x] Apresentar uma prévia antes de importar e identificar duplicidades, especialmente por ISBN.
-- [x] Nunca sobrescrever ou excluir registros existentes; considerar importações repetidas e preservar os dados originais sempre que possível.
-- [x] Apresentar relatório dos registros importados, ignorados e com erros.
+- Investigar e documentar os formatos de exportação disponíveis e mapear seus campos para o modelo atual do Julib.
+- Apresentar uma prévia antes de importar e identificar duplicidades, especialmente por ISBN.
+- Nunca sobrescrever ou excluir registros existentes; considerar importações repetidas e preservar os dados originais sempre que possível.
+- Apresentar relatório dos registros importados, ignorados e com erros.
 
 ### Fase 3 — Enriquecimento bibliográfico (implementada; publicação pendente)
 
