@@ -60,6 +60,24 @@ def test_candidate_resolver_uses_independent_field_priority_and_retains_origin()
     }
 
 
+def test_candidate_resolver_skips_unknown_author_placeholder_and_uses_fallback():
+    candidates = [
+        _candidate("openlibrary", "/books/OL1M", authors=["Autoria desconhecida"]),
+        _candidate("google", "vol-1", authors=["George Orwell"]),
+    ]
+
+    resolved = providers.resolve_candidates(
+        candidates,
+        "9780261102217",
+        {"authors"},
+    )
+
+    assert resolved["authors"] == (
+        ["George Orwell"],
+        {"source": "google", "source_id": "vol-1"},
+    )
+
+
 def test_resolver_obeys_different_declared_priorities_for_different_fields(monkeypatch):
     monkeypatch.setitem(
         providers.FIELD_PRIORITIES,

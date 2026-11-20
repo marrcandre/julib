@@ -348,6 +348,8 @@ def _provider_value(field: str, value: Any) -> Any:
     if field == "subjects":
         return normalize_subjects(value)
     if field == "authors":
+        if value == ["Autoria desconhecida"]:
+            return []
         return [name.strip() for name in value if isinstance(name, str) and name.strip()]
     if field == "page_count":
         return optional_page_count(value)

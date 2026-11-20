@@ -37,6 +37,7 @@ ENRICHABLE_FIELDS = tuple(FIELD_LABELS)
 MISSING_FIELDS_QUERY = (
     Q(title="")
     | Q(authors=[])
+    | Q(authors=["Autoria desconhecida"])
     | Q(publisher="")
     | Q(year="")
     | Q(language="")
@@ -63,7 +64,7 @@ def missing_fields(book: Book) -> set[str]:
         )
         if not getattr(book, field).strip()
     }
-    if not book.authors:
+    if not book.authors or book.authors == ["Autoria desconhecida"]:
         missing.add("authors")
     if book.page_count is None:
         missing.add("page_count")
@@ -81,6 +82,7 @@ def usable_value(field: str, value: Any) -> Any:
         if (
             isinstance(value, list)
             and value
+            and value != ["Autoria desconhecida"]
             and all(isinstance(a, str) and a.strip() for a in value)
         ):
             return [author.strip() for author in value]
@@ -202,6 +204,20 @@ def select_books(library: Library, limit: int) -> tuple[list[Book], int]:
         if len(books) == limit:
             break
     return books, skipped
+
+
+def csv_cell(value: Any) -> str | int:
+    if isinstance(value, list):
+        rendered = json.dumps(value, ensure_ascii=False)
+    elif value is None:
+        rendered = ""
+    elif isinstance(value, int):
+        return value
+    else:
+        rendered = str(value)
+    if rendered.lstrip("\ufeff \t\r\n").startswith(("=", "+", "-", "@")):
+        return "'" + rendered
+    return rendered
 
 
 class Command(BaseCommand):
@@ -490,9 +506,11 @@ class Command(BaseCommand):
                                 "record_type": "detail",
                                 "mode": report["mode"],
                                 **row,
-                                "value": json.dumps(row["value"], ensure_ascii=False)
-                                if isinstance(row["value"], list)
-                                else row["value"] or "",
+                                "book_id": csv_cell(row["book_id"]),
+                                "isbn": csv_cell(row["isbn"]),
+                                "title": csv_cell(row["title"]),
+                                "value": csv_cell(row["value"]),
+                                "provider": csv_cell(row["provider"]),
                             }
                             for row in report_details
                         )

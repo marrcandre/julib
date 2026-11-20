@@ -343,6 +343,60 @@ def test_report_format_and_file_must_be_supplied_together():
         )
 
 
+def test_unknown_author_placeholder_is_eligible_but_never_a_fill(monkeypatch):
+    from library import providers
+    from library.management.commands.enrich_books import missing_fields
+
+    library = Library.objects.create(name="Casa")
+    book = make_book(library, authors=["Autoria desconhecida"])
+    calls = []
+    monkeypatch.setattr(
+        providers,
+        "enrich_book",
+        lambda data, lookup=None: (
+            calls.append(data["isbn"]) or result(data, authors=["Autoria desconhecida"])
+        ),
+    )
+
+    call_command("enrich_books", library=library.pk, delay=0, apply=True, stdout=StringIO())
+
+    book.refresh_from_db()
+    assert calls == [book.isbn]
+    assert "authors" in missing_fields(book)
+    assert book.authors == ["Autoria desconhecida"]
+
+
+def test_csv_report_neutralizes_formula_like_book_and_metadata_values(tmp_path, monkeypatch):
+    from library import providers
+
+    library = Library.objects.create(name="Casa")
+    formula_title = '=HYPERLINK("https://example.invalid")'
+    make_book(library, title=formula_title)
+    monkeypatch.setattr(
+        providers,
+        "enrich_book",
+        lambda data, lookup=None: result(data, description="=1+1"),
+    )
+    report_path = tmp_path / "report.csv"
+    call_command(
+        "enrich_books",
+        library=library.pk,
+        delay=0,
+        report_format="csv",
+        report_file=str(report_path),
+        stdout=StringIO(),
+    )
+
+    with report_path.open(newline="") as report_file:
+        rows = list(csv.DictReader(report_file))
+    title = next(row for row in rows if row["record_type"] == "detail" and row["field"] == "title")
+    description = next(
+        row for row in rows if row["record_type"] == "detail" and row["field"] == "description"
+    )
+    assert title["title"] == "'" + formula_title
+    assert description["value"] == "'=1+1"
+
+
 def test_provider_http_429_is_counted_and_reported_as_error(tmp_path, monkeypatch):
     from library import providers
 
