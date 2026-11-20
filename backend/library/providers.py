@@ -15,7 +15,6 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 
 from .book_http import bounded_get
-from .isbn_ranges import isbn_region as _isbn_region
 from .metadata import (
     DESCRIPTION_MAX_LENGTH,
     SUBTITLE_MAX_LENGTH,
@@ -26,14 +25,8 @@ from .services import normalize_isbn, optional_page_count
 HEADERS = {"User-Agent": "Julib/0.1 (personal-library; marcoandre@gmail.com)"}
 FIELDS = ("title", "authors", "publisher", "year", "language", "page_count", "edition")
 METADATA_FIELDS = (*FIELDS, "subtitle", "description", "subjects")
-PROVIDER_PRIORITIES = {
-    "brazil": ("cbl", "mercado-editorial", "openlibrary", "google"),
-    "international": ("openlibrary", "google", "cbl", "mercado-editorial"),
-}
-FIELD_PRIORITIES = {
-    field: {region: priorities for region, priorities in PROVIDER_PRIORITIES.items()}
-    for field in (*METADATA_FIELDS, "cover_url")
-}
+PROVIDER_PRIORITIES = ("openlibrary", "google", "cbl", "mercado-editorial")
+FIELD_PRIORITIES = {field: PROVIDER_PRIORITIES for field in (*METADATA_FIELDS, "cover_url")}
 FIELD_LIMITS = {"subtitle": SUBTITLE_MAX_LENGTH, "description": DESCRIPTION_MAX_LENGTH}
 IMAGE_HOSTS = {
     "books.google.com",
@@ -56,10 +49,6 @@ def normalized_identifier(value: Any) -> str:
         return normalize_isbn(value)
     except ValidationError:
         return ""
-
-
-def isbn_region(value: Any) -> str:
-    return _isbn_region(value) if isinstance(value, str) else ""
 
 
 class _DescriptionText(HTMLParser):
@@ -371,12 +360,11 @@ def resolve_candidates(
     candidates: list[dict[str, Any]], isbn: str, fields: set[str]
 ) -> dict[str, tuple[Any, dict[str, Any]]]:
     """Choose the highest-priority usable candidate independently for each field."""
-    region = isbn_region(isbn)
-    if not region:
+    if not normalized_identifier(isbn):
         return {}
     resolved: dict[str, tuple[Any, dict[str, Any]]] = {}
     for field in fields:
-        priorities = FIELD_PRIORITIES.get(field, {}).get(region, ())
+        priorities = FIELD_PRIORITIES.get(field, ())
         for provider in priorities:
             for item in candidates:
                 if _provider_for(item, field) != provider:
@@ -627,9 +615,6 @@ def enrich_book(base: dict[str, Any], lookup: Lookup | None = None) -> dict[str,
     if not own_cover:
         result["cover_url"] = ""
         origins.pop("cover_url", None)
-    region = isbn_region(isbn)
-    if not region:
-        return result
     sources = {
         "cbl": lambda: brazil(lookup, isbn, "cbl"),
         "mercado-editorial": lambda: brazil(lookup, isbn, "mercado-editorial"),
@@ -663,7 +648,7 @@ def enrich_book(base: dict[str, Any], lookup: Lookup | None = None) -> dict[str,
         for field in METADATA_FIELDS:
             if field not in requested_fields:
                 continue
-            priorities = FIELD_PRIORITIES[field][region]
+            priorities = FIELD_PRIORITIES[field]
             selected = resolve_candidates(candidates, isbn, {field}).get(field)
             selected_source = selected[1]["source"] if selected else ""
             selected_rank = (
@@ -704,7 +689,7 @@ def enrich_book(base: dict[str, Any], lookup: Lookup | None = None) -> dict[str,
         result.setdefault("provenance", {})[field] = origin
 
     if not result.get("cover_url"):
-        for source in FIELD_PRIORITIES["cover_url"][region]:
+        for source in FIELD_PRIORITIES["cover_url"]:
             if source not in queried:
                 fetch(source)
             extra = next(

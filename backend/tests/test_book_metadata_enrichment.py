@@ -1,8 +1,11 @@
+import csv
 import json
 from io import StringIO
 
+import httpx
 import pytest
 from django.core.management import call_command
+from django.core.management.base import CommandError
 
 from library import services
 from library.models import Book, Library
@@ -230,3 +233,234 @@ def test_existing_provenance_is_not_reported_as_a_current_provider_match(monkeyp
     assert report["fields_found"]["description"] == 0
     assert report["providers"]["cbl"]["queried"] == 1
     assert report["providers"]["cbl"]["matches"] == 1
+
+
+def test_json_report_exports_per_field_preview_and_existing_statuses(tmp_path, monkeypatch):
+    from library import providers
+
+    library = Library.objects.create(name="Casa")
+    book = make_book(library, subtitle="Subtítulo manual")
+    calls = []
+    monkeypatch.setattr(
+        providers,
+        "enrich_book",
+        lambda data, lookup=None: (
+            calls.append(data["isbn"]) or result(data, description="Descrição candidata")
+        ),
+    )
+    report_path = tmp_path / "report.json"
+
+    call_command(
+        "enrich_books",
+        library=library.pk,
+        delay=0,
+        report_format="json",
+        report_file=str(report_path),
+        stdout=StringIO(),
+    )
+
+    report = json.loads(report_path.read_text())
+    assert report["mode"] == "preview"
+    assert report["summary"]["books_analyzed"] == 1
+    details = {row["field"]: row for row in report["details"] if row["book_id"] == book.pk}
+    assert details["subtitle"]["status"] == "já preenchido"
+    assert details["description"]["status"] == "seria preenchido"
+    assert details["description"]["value"] == "Descrição candidata"
+    assert details["description"]["provider"] == "cbl"
+    assert calls == [book.isbn]
+    book.refresh_from_db()
+    assert book.description == ""
+
+
+def test_csv_report_empty_no_results_has_header_and_summary(tmp_path, monkeypatch):
+    from library import providers
+
+    library = Library.objects.create(name="Casa")
+    make_book(library)
+    monkeypatch.setattr(providers, "enrich_book", lambda data, lookup=None: data)
+    report_path = tmp_path / "report.csv"
+
+    call_command(
+        "enrich_books",
+        library=library.pk,
+        delay=0,
+        report_format="csv",
+        report_file=str(report_path),
+        stdout=StringIO(),
+    )
+
+    with report_path.open(newline="") as report_file:
+        rows = list(csv.DictReader(report_file))
+    details = [row for row in rows if row["record_type"] == "detail"]
+    assert len(details) == 11
+    assert {row["status"] for row in details} == {"já preenchido", "não encontrado"}
+    summary = next(row for row in rows if row["record_type"] == "summary")
+    assert summary["mode"] == "preview"
+    assert json.loads(summary["summary"])["books_without_new_metadata"] == 1
+
+
+def test_csv_report_encodes_subject_lists_as_json(tmp_path, monkeypatch):
+    from library import providers
+
+    library = Library.objects.create(name="Casa")
+    book = make_book(library)
+    monkeypatch.setattr(
+        providers,
+        "enrich_book",
+        lambda data, lookup=None: result(data, subjects=["História, crítica", "Ficção"]),
+    )
+    report_path = tmp_path / "report.csv"
+    call_command(
+        "enrich_books",
+        library=library.pk,
+        delay=0,
+        report_format="csv",
+        report_file=str(report_path),
+        stdout=StringIO(),
+    )
+
+    with report_path.open(newline="") as report_file:
+        rows = list(csv.DictReader(report_file))
+    subjects = next(
+        row
+        for row in rows
+        if row["record_type"] == "detail"
+        and row["book_id"] == str(book.pk)
+        and row["field"] == "subjects"
+    )
+    assert json.loads(subjects["value"]) == ["História, crítica", "Ficção"]
+
+
+def test_report_format_and_file_must_be_supplied_together():
+    library = Library.objects.create(name="Casa")
+    with pytest.raises(CommandError, match="devem ser informados juntos"):
+        call_command(
+            "enrich_books",
+            library=library.pk,
+            delay=0,
+            report_format="csv",
+            stdout=StringIO(),
+        )
+
+
+def test_provider_http_429_is_counted_and_reported_as_error(tmp_path, monkeypatch):
+    from library import providers
+
+    library = Library.objects.create(name="Casa")
+    book = make_book(library)
+
+    def rate_limited(data, lookup=None):
+        url = "https://www.googleapis.com/books/v1/volumes"
+        monkeypatch.setattr(
+            providers,
+            "bounded_get",
+            lambda request_url, **kwargs: httpx.Response(
+                429, request=httpx.Request("GET", request_url)
+            ),
+        )
+        lookup.json(url, {"q": f"isbn:{book.isbn}"})
+        lookup.provider_outcomes["google"] = "failure"
+        return data
+
+    monkeypatch.setattr(providers, "enrich_book", rate_limited)
+    report_path = tmp_path / "report.json"
+    call_command(
+        "enrich_books",
+        library=library.pk,
+        delay=0,
+        report_format="json",
+        report_file=str(report_path),
+        stdout=StringIO(),
+    )
+
+    report = json.loads(report_path.read_text())
+    assert report["summary"]["providers"]["google"]["failures"] == 1
+    description = next(
+        row
+        for row in report["details"]
+        if row["book_id"] == book.pk and row["field"] == "description"
+    )
+    assert description["status"] == "erro"
+    assert description["provider"] == "google"
+
+
+def test_report_contains_only_requested_library(tmp_path, monkeypatch):
+    from library import providers
+
+    library = Library.objects.create(name="Casa")
+    other = Library.objects.create(name="Outra")
+    book = make_book(library)
+    foreign = make_book(other)
+    monkeypatch.setattr(providers, "enrich_book", lambda data, lookup=None: data)
+    report_path = tmp_path / "report.json"
+    call_command(
+        "enrich_books",
+        library=library.pk,
+        delay=0,
+        report_format="json",
+        report_file=str(report_path),
+        stdout=StringIO(),
+    )
+
+    report = json.loads(report_path.read_text())
+    ids = {row["book_id"] for row in report["details"]}
+    assert ids == {book.pk}
+    assert foreign.pk not in ids
+
+
+def test_apply_report_counts_only_fields_persisted_after_locked_reread(tmp_path, monkeypatch):
+    from library import providers
+
+    library = Library.objects.create(name="Casa")
+    book = make_book(library)
+
+    def concurrent_edit(data, lookup=None):
+        Book.objects.filter(pk=book.pk).update(description="Edição concorrente")
+        return result(data, description="Candidata", subjects=["Ficção"])
+
+    preview_path = tmp_path / "preview.json"
+    monkeypatch.setattr(
+        providers,
+        "enrich_book",
+        lambda data, lookup=None: result(data, description="Candidata", subjects=["Ficção"]),
+    )
+    call_command(
+        "enrich_books",
+        library=library.pk,
+        delay=0,
+        report_format="json",
+        report_file=str(preview_path),
+        stdout=StringIO(),
+    )
+
+    preview = json.loads(preview_path.read_text())
+    preview_description = next(
+        row
+        for row in preview["details"]
+        if row["book_id"] == book.pk and row["field"] == "description"
+    )
+    assert preview_description["status"] == "seria preenchido"
+    book.refresh_from_db()
+    assert book.description == ""
+
+    monkeypatch.setattr(providers, "enrich_book", concurrent_edit)
+    report_path = tmp_path / "report.json"
+
+    call_command(
+        "enrich_books",
+        library=library.pk,
+        delay=0,
+        apply=True,
+        report_format="json",
+        report_file=str(report_path),
+        stdout=StringIO(),
+    )
+
+    report = json.loads(report_path.read_text())
+    details = {row["field"]: row for row in report["details"] if row["book_id"] == book.pk}
+    assert report["mode"] == "apply"
+    assert report["summary"]["fields_filled"]["description"] == 0
+    assert report["summary"]["fields_filled"]["subjects"] == 1
+    assert details["description"]["status"] == "erro"
+    assert details["description"]["value"] is None
+    assert details["subjects"]["status"] == "preenchido"

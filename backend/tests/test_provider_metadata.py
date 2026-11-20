@@ -10,43 +10,32 @@ def _candidate(source: str, source_id: str, **fields):
     return {**fields, "source": source, "source_id": source_id, "provenance": provenance}
 
 
-def test_isbn_registration_group_classifies_brazilian_prefix_65_and_85():
-    assert providers.isbn_region("9786500000009") == "brazil"
-    assert providers.isbn_region("9788535914849") == "brazil"
+def test_global_provider_priority_is_declared_independently_per_field():
+    expected = ("openlibrary", "google", "cbl", "mercado-editorial")
+    assert providers.PROVIDER_PRIORITIES == expected
+    assert providers.FIELD_PRIORITIES["description"] == expected
+    assert providers.FIELD_PRIORITIES["subjects"] == expected
 
 
-def test_isbn_registration_group_classifies_international_and_979():
-    assert providers.isbn_region("9780261102217") == "international"
-    assert providers.isbn_region("9798000000007") == "international"
-
-
-def test_invalid_or_unclassified_isbn_has_no_region():
-    assert providers.isbn_region("9786500000000") == ""
-    assert providers.isbn_region("9786700000007") == ""
-
-
-def test_range_message_version_and_checksum_are_pinned():
-    import hashlib
-
-    from library.isbn_ranges import (
-        RANGE_MESSAGE_PATH,
-        RANGE_MESSAGE_SHA256,
-        RANGE_MESSAGE_VERSION,
+def test_valid_isbn_without_range_classification_is_enriched_and_can_return_no_match(monkeypatch):
+    isbn = "9786700000007"
+    assert providers.normalized_identifier(isbn) == isbn
+    calls = []
+    monkeypatch.setattr(
+        providers, "openlibrary", lambda lookup, value: calls.append("openlibrary") or {}
     )
-
-    assert RANGE_MESSAGE_VERSION == "2026-11-17"
-    assert hashlib.sha256(RANGE_MESSAGE_PATH.read_bytes()).hexdigest() == RANGE_MESSAGE_SHA256
-
-
-def test_priorities_are_declared_per_field_and_follow_isbn_region():
-    assert providers.FIELD_PRIORITIES["description"]["brazil"][0] == "cbl"
-    assert providers.FIELD_PRIORITIES["subjects"]["brazil"][0] == "cbl"
-    assert providers.FIELD_PRIORITIES["description"]["international"] == (
-        "openlibrary",
-        "google",
-        "cbl",
-        "mercado-editorial",
+    monkeypatch.setattr(
+        providers, "google", lambda lookup, query, value: calls.append("google") or []
     )
+    monkeypatch.setattr(
+        providers,
+        "brazil",
+        lambda lookup, value, source: calls.append(source) or {},
+    )
+    result = providers.enrich_book({"isbn": isbn})
+    assert calls == ["openlibrary", "google", "cbl", "mercado-editorial"]
+    assert result["isbn"] == isbn
+    assert not result.get("title")
 
 
 def test_candidate_resolver_uses_independent_field_priority_and_retains_origin():
@@ -63,15 +52,18 @@ def test_candidate_resolver_uses_independent_field_priority_and_retains_origin()
     )
 
     assert resolved == {
-        "description": ("Sinopse CBL", {"source": "cbl", "source_id": "9788535914849"}),
-        "subjects": (["História"], {"source": "cbl", "source_id": "9788535914849"}),
+        "description": (
+            "Descrição internacional",
+            {"source": "openlibrary", "source_id": "/books/OL1M"},
+        ),
+        "subjects": (["História"], {"source": "google", "source_id": "vol-1"}),
     }
 
 
 def test_resolver_obeys_different_declared_priorities_for_different_fields(monkeypatch):
     monkeypatch.setitem(
-        providers.FIELD_PRIORITIES["subjects"],
-        "international",
+        providers.FIELD_PRIORITIES,
+        "subjects",
         ("google", "openlibrary", "cbl", "mercado-editorial"),
     )
     candidates = [
@@ -290,7 +282,7 @@ def test_enrichment_queries_each_needed_provider_once_and_stops_when_fields_reso
         FakeLookup(),
     )
 
-    assert calls == ["cbl", "mercado-editorial"]
+    assert calls == ["openlibrary", "google", "cbl", "mercado-editorial"]
     assert result["subtitle"] == "Subtítulo CBL"
     assert result["description"] == "Sinopse Mercado"
     assert result["subjects"] == ["História"]
@@ -301,8 +293,8 @@ def test_enrichment_queries_each_needed_provider_once_and_stops_when_fields_reso
 
 def test_enrichment_waits_for_each_fields_higher_priority_source(monkeypatch):
     monkeypatch.setitem(
-        providers.FIELD_PRIORITIES["subtitle"],
-        "brazil",
+        providers.FIELD_PRIORITIES,
+        "subtitle",
         ("mercado-editorial", "cbl", "openlibrary", "google"),
     )
     calls = []

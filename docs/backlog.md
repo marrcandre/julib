@@ -15,6 +15,16 @@ Registrada em 19/11/2026 após a [validação operacional do backup](operations.
 - [ ] Monitoramento do crescimento do pacote e do limite de 50 MiB.
 - [ ] Procedimento de recuperação de desastres documentado e testável.
 
+## Investigações e interface futuras — 20/11/2026
+
+### Avaliação comparativa dos provedores bibliográficos utilizando o acervo real do Julib
+
+Pré-requisito: conclusão do cadastro e da importação de todos os livros pessoais. Comparar cobertura, correspondência de edição, completude e qualidade por campo, idioma, capas, limites/quotas e desempenho. Respeitar os termos e limites das APIs; não tomar a prioridade global provisória atual como evidência de superioridade.
+
+### Interface para enriquecimento dos livros cadastrados
+
+Planejar uma interface futura com prévia não destrutiva, seleção explícita da biblioteca, confirmação antes da gravação e acompanhamento dos resultados por livro/campo. Esta entrega não inclui interface gráfica.
+
 ## Roadmap aprovado — 17/11/2026
 
 Ordem aprovada para as próximas evoluções. Este registro define o escopo planejado; não indica que as fases foram implementadas nem autoriza publicação automática ao concluí-las.

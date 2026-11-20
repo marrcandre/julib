@@ -56,14 +56,18 @@ Latência Open Library nesta amostra: mediana de aproximadamente 0,73 s por resp
 - Open Library solicita cache, User-Agent identificável e uso de baixo volume; a orientação atual publica 1 requisição/s para chamadas não identificadas e 3/s para identificadas. O serviço não é destinado a operar como backend de alto tráfego nem a coleta em lote.
 - Os termos públicos da Livraria.ME/MercadoEditorial protegem seu conteúdo e restringem coleta automatizada e reprodução. Não encontrei nessa fonte uma licença explícita que resolva o uso da API de ISBN via BrasilAPI. Antes de ampliar a retenção ou distribuir descrições desse provedor, confirmar a autorização aplicável.
 - Google Books restringe quotas por projeto e seus termos impõem condições para exibição e remoção de conteúdo. Manter atribuição e verificar os termos antes de uso comercial ou aumento de volume.
-- A aplicação atual faz seleção independente por campo, mas replica a mesma ordem de provedores para todos os campos dentro de cada região. Portanto, a implementação varia por região, não por campo.
+- Na implementação avaliada nesta rodada, a seleção era regional e repetia a ordem dentro de cada região. Essa estratégia foi posteriormente removida junto com a dependência do snapshot de ranges; a implementação atual usa uma prioridade global provisória declarada por campo.
 - “Um adaptador por ISBN” não significa uma requisição HTTP: Open Library faz `data`, `details` e, quando necessário, uma requisição adicional à obra. A execução de `enrich_books` também aplica `--delay` entre livros, não entre essas chamadas internas.
 
-## Recomendação
+## Recomendação histórica (supersedida)
 
-Manter provisoriamente a prioridade regional já implementada, sem promover a hipótese a decisão definitiva nem trocar a ordem com base nestes resultados. A evidência atual favorece Open Library apenas para este recorte e é inconclusiva para CBL, Mercado Editorial e Google Books. Não há evidência para uma ordem diferente por campo; os registros disponíveis mostram que a qualidade pode variar por atributo, então a seleção independente por campo deve ser preservada.
+**Nota de supersessão:** a recomendação abaixo foi registrada antes da remoção da classificação regional e permanece como histórico da avaliação, não como orientação operacional atual. A estratégia atual, definida sem nova investigação comparativa, é Open Library → Google Books → CBL → Mercado Editorial para todos os ISBNs, com listas declarativas independentes por campo. Essa prioridade é provisória. Os dados desta amostra favorecem Open Library somente neste recorte e são inconclusivos para os demais provedores; não demonstram que a ordem global seja superior.
 
-Antes de decidir a prioridade para produção, repetir a mesma amostra com Google Books configurado por chave restrita, e com acesso BrasilAPI funcional; comparar edições, idiomas, campos e erros com referências editoriais. Ampliar a amostra somente após essa rodada e respeitar as quotas e condições de uso de cada serviço.
+Esta recomendação regional foi substituída sem nova investigação comparativa. A ordem regional permanece registrada aqui apenas como resultado histórico da avaliação.
+
+## Estratégia operacional atual (provisória)
+
+Open Library → Google Books → CBL → Mercado Editorial para todos os ISBNs, mantendo listas de prioridade independentes por campo. Essa ordem não decorre de comparação suficiente. A avaliação futura deve aguardar o cadastro e a importação dos livros pessoais completos; então poderá comparar cobertura, edição, idioma, completude, qualidade, capas, quotas e desempenho com provedores disponíveis e respeitando seus termos.
 
 ## Fontes oficiais consultadas
 

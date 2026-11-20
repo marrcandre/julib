@@ -1,5 +1,7 @@
 # Julib Book Metadata Phases 3 and 4 Implementation Plan
 
+> **Nota de supersessão (20/11/2026):** a implementação final removeu a classificação regional e o snapshot XML e adotou prioridades globais provisórias por campo. O plano original abaixo é preservado como registro histórico das decisões e etapas que foram então executadas; não descreve mais a estratégia operacional vigente.
+
 > **For agentic workers:** execute inline in the main repository; do not commit, push, merge, deploy, run production migrations, or enrich production data.
 
 **Goal:** Add subtitle, description, and bibliographic subjects to book metadata and safely enrich only missing fields in existing books.
