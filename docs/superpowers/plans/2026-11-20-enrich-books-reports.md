@@ -46,4 +46,4 @@
 - [x] **Step 4: Run focused tests** with `uv run --project backend pytest backend/tests/test_book_metadata_enrichment.py -q`.
 - [x] **Step 5: Document** exact preview and apply report commands plus interpretation in `docs/operations.md`; explicitly state apply is local/disposable only for validation and production requires separate authorization.
 - [x] **Step 6: Run validation** with `make check-local`, `make e2e-local`, and `git diff --check`.
-- [ ] **Step 7: Review** diff for library scoping, sensitive values, accurate persistence status, and no extra provider calls.
+- [x] **Step 7: Review** diff for library scoping, sensitive values, accurate persistence status, and no extra provider calls. Review completed before release; fixed placeholder-author handling and CSV formula injection, then re-ran focused and full local checks.
