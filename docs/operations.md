@@ -178,7 +178,7 @@ Para perda do conteúdo ou da conta, restaure cada imagem em uma conta de recupe
 
 Registre data/hora, commit da implementação usado, run ID, tamanho, SHA-256 cifrado, formato do manifesto, contagens resumidas, número de mídias, resultado de `verify`, resultado do restore descartável, destino e expiração. Não registre credenciais, DSNs, URLs assinadas, linhas de livros ou manifesto completo.
 
-Antes de qualquer execução real, transferência, ativação de workflow ou recuperação em serviço real, peça autorização explícita. A execução de 19/11/2026 abaixo foi autorizada e validada; o workflow voltou a ficar desativado. `DEPLOY_ENABLED` permanece `false`. Fases 3 e 4 continuam sujeitas à autorização própria e à disponibilidade de uma cópia recente cifrada em local seguro, com hash, mídias e restore descartável comprovados; este registro não autoriza seu avanço.
+Antes de qualquer execução real, transferência, ativação de workflow ou recuperação em serviço real, peça autorização explícita. A execução de 19/11/2026 abaixo foi autorizada e validada; o workflow voltou a ficar desativado. `DEPLOY_ENABLED` permanece `false`. A exigência de autorização própria para Fases 3 e 4 era o estado registrado em 19/11; a publicação autorizada e concluída em 20/11 está registrada em [Publicação Fases 3 e 4 — v0.7.0](#publicação-das-fases-3-e-4--v070).
 
 ### Validação operacional — 19/11/2026
 
@@ -312,3 +312,25 @@ Os moderados incluem dois problemas em `@vitest/mocker@3.2.7` — leitura arbitr
 Criar tarefa posterior para atualizar Vitest/mocker e resolver o grafo transitivo com versões compatíveis, revisar o lockfile e repetir auditoria completa, testes e build. Até lá, não expor servidor Vite/HMR a clientes não confiáveis nem reativar execução pública de testes/CI sem tratar esses alertas. Não aplicar `npm audit fix` indiscriminadamente. Nesta revisão não foi identificada vulnerabilidade efetivamente explorável no runtime de produção.
 
 Em falha de deploy, não finalize: repita o mesmo candidato e SHA sem novo incremento. Se a tag foi criada mas a GitHub Release falhou, repita `finalize`; a operação é idempotente. Um rollback de código já publicado exige novo PATCH. Nunca mova tags nem reverta migrações automaticamente.
+
+
+## Publicação das Fases 3 e 4 — v0.7.0
+
+Publicação manual autorizada pelo pedido de 20/11/2026, mantendo os workflows pausados. O PR de implementação [#29](https://github.com/marrcandre/julib/pull/29) foi integrado por squash; o PR de preparação de release [#30](https://github.com/marrcandre/julib/pull/30) também foi integrado por squash. Commit publicado: `a2f0c2b333dd59f6791f282c021edee67807efb5`. GitHub Release [v0.7.0](https://github.com/marrcandre/julib/releases/tag/v0.7.0) aponta para esse mesmo SHA.
+
+### Backup e migration
+
+Antes da migration, o artifact cifrado da [execução 44605863622](https://github.com/marrcandre/julib-backups/actions/runs/44605863622) foi confirmado disponível até 19/12/2026. SHA-256 `3067b1b606f5360b762fa18fc9577b2616942faacf25766de6708e2f76fc7b1f`, envelope v2, 371 mídias. `scripts/backup.py verify` confirmou autenticidade, hash e integridade; o restore foi repetido em PostgreSQL 17.11 descartável e a migration 0019 aplicou sem erro. Os arquivos descriptografados e o container temporário foram removidos depois do ensaio.
+
+A `0019_book_bibliographic_metadata` é aditiva: adiciona `subtitle`, `description` e `subjects`; não faz backfill nem altera registros existentes. Em produção, `secure_database --role julib_app` foi executado antes e depois da migration; Django confirmou `0019` aplicada. Verificação somente de leitura registrou 379 livros antes e depois, zero linhas com os novos campos não padrão, RLS habilitado e policy `julib_backend_access` ativa para `julib_app`. Nenhum livro foi criado, editado ou enriquecido.
+
+### Deployments e smoke tests
+
+| Componente | Deployment Vercel | Estado | Commit e versão |
+| --- | --- | --- | --- |
+| Backend | `dpl_4gRxryo5Q43QXGPMw9AFXhchaqWW` | READY, produção | `a2f0c2b333dd59f6791f282c021edee67807efb5`, v0.7.0 |
+| Frontend | `dpl_DfKxELETSn1n1JPUwnF4NHba5eiR` | READY, produção | `a2f0c2b333dd59f6791f282c021edee67807efb5`, v0.7.0 |
+
+Frontend `/` e `/importar`, backend `/api/v1/health` e `/api/v1/health/ready`, e readiness pelo proxy do frontend responderam HTTP 200. O endpoint público de OpenAPI permaneceu HTTP 403, conforme a restrição existente. Como não há linhas com valores bibliográficos novos na produção, a exibição com dados reais não foi exercitada; a serialização e a UI estão cobertas pelos testes locais. Logs Vercel consultados no intervalo retido de 30 minutos após o deploy: 17 registros de runtime do backend e 1 do frontend, sem error/fatal.
+
+GitHub Actions permaneceu pausado: `CI` e `Deploy` em `marrcandre/julib` e `Private manual backup` em `marrcandre/julib-backups` estão `disabled_manually`. `DEPLOY_ENABLED=false`. A validação local passou (`make check-local`: 319 backend, 1 ignorado, 61 frontend, build, Ruff, mypy e Django; `make e2e-local`: 43/43). Nenhum enriquecimento de dados de produção foi executado. Para uma biblioteca real, qualquer prévia não destrutiva deve continuar explícita por `--library`, seguir os limites dos provedores e não usar `--apply`; este pedido também determinou que não se execute comando de enriquecimento em dados reais nesta publicação.
