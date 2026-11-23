@@ -24,11 +24,46 @@ test("catalog, location and loan roundtrip on real API", async ({
   const title = "Livro E2E " + Date.now();
   await page.getByLabel("Título *", { exact: true }).fill(title);
   await page.getByLabel("Autores *").fill("Autora de teste");
+  await expect(page.getByLabel("Subtítulo")).toHaveAttribute("maxlength", "500");
+  await expect(page.getByLabel("Sinopse")).toHaveAttribute(
+    "maxlength",
+    "20000",
+  );
+  await expect(page.getByLabel("Categorias / Assuntos")).toHaveAttribute(
+    "maxlength",
+    "10049",
+  );
+  await page.getByLabel("Subtítulo").fill("Subtítulo cadastrado");
+  await page.getByLabel("Sinopse").fill("Sinopse cadastrada manualmente.");
+  await page
+    .getByLabel("Categorias / Assuntos")
+    .fill("História\nLiteratura");
   await page.getByRole("button", { name: "Salvar", exact: true }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await expect(
     page.getByRole("link", { name: "Abrir " + title, exact: true }),
   ).toBeVisible();
+  const libraryId = new URL(page.url()).pathname.split("/")[2];
+  const catalog = await page.request.get(
+    "/api/v1/books?q=" + encodeURIComponent(title),
+    { headers: { "X-Library-ID": libraryId } },
+  );
+  const book = (await catalog.json()).items[0];
+  expect(book.subtitle).toBe("Subtítulo cadastrado");
+  expect(book.description).toBe("Sinopse cadastrada manualmente.");
+  expect(book.subjects).toEqual(["História", "Literatura"]);
+  await page.goto(`/livros/${book.id}`);
+  await page.getByRole("button", { name: "Editar livro sem capa" }).click();
+  await expect(page.getByLabel("Subtítulo")).toHaveValue("Subtítulo cadastrado");
+  await expect(page.getByLabel("Descrição e sinopse")).toHaveValue(
+    "Sinopse cadastrada manualmente.",
+  );
+  await expect(page.getByLabel("Assuntos bibliográficos")).toHaveValue(
+    "História\nLiteratura",
+  );
+  await page.getByRole("button", { name: "Salvar alterações" }).first().click();
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await page.goto("/livros");
   await page.getByRole("link", { name: "Empréstimos", exact: true }).click();
   await page
     .getByRole("button", { name: "Cadastrar pessoa", exact: true })
@@ -118,4 +153,7 @@ test("lost registration response can be retried without duplicating a copy", asy
   const data = await response.json();
   expect(data.total).toBe(1);
   expect(data.items[0].copies).toHaveLength(1);
+  expect(data.items[0].subtitle).toBe("");
+  expect(data.items[0].description).toBe("");
+  expect(data.items[0].subjects).toEqual([]);
 });
