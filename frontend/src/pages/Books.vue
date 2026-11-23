@@ -253,6 +253,9 @@ function confirmMove() {
 }
 const blank = () => ({
   title: "",
+  subtitle: "",
+  description: "",
+  subjectsText: "",
   authors: "",
   isbn: "",
   publisher: "",
@@ -506,8 +509,13 @@ async function useCandidate(candidate: Partial<Book>) {
 async function save() {
   if (enriching.value) return;
   await run(async () => {
+    const { subjectsText, ...bookData } = form.value;
     const payload = {
-      ...form.value,
+      ...bookData,
+      subjects: subjectsText
+        .split(/\r?\n/)
+        .map((subject) => subject.trim())
+        .filter(Boolean),
       authors: form.value.authors
         .split(";")
         .map((a) => a.trim())
@@ -1056,6 +1064,26 @@ onUnmounted(() => {
           v-model="form.authors"
           required
       /></label>
+      <label
+        >Subtítulo<InputText
+          v-model="form.subtitle"
+          maxlength="500"
+          autocomplete="off"
+      /></label>
+      <label
+        >Sinopse<textarea
+          v-model="form.description"
+          maxlength="20000"
+          rows="7"
+      /></label>
+      <label
+        >Categorias / Assuntos<textarea
+          v-model="form.subjectsText"
+          maxlength="10049"
+          rows="4"
+      /><small class="muted"
+          >Um assunto por linha, até 50 assuntos com 200 caracteres cada.</small
+      ></label>
       <div class="row">
         <label>ISBN<InputText v-model="form.isbn" /></label
         ><label>Editora<InputText v-model="form.publisher" /></label>
