@@ -334,3 +334,15 @@ A `0019_book_bibliographic_metadata` é aditiva: adiciona `subtitle`, `descripti
 Frontend `/` e `/importar`, backend `/api/v1/health` e `/api/v1/health/ready`, e readiness pelo proxy do frontend responderam HTTP 200. O endpoint público de OpenAPI permaneceu HTTP 403, conforme a restrição existente. Como não há linhas com valores bibliográficos novos na produção, a exibição com dados reais não foi exercitada; a serialização e a UI estão cobertas pelos testes locais. Logs Vercel consultados no intervalo retido de 30 minutos após o deploy: 17 registros de runtime do backend e 1 do frontend, sem error/fatal.
 
 GitHub Actions permaneceu pausado: `CI` e `Deploy` em `marrcandre/julib` e `Private manual backup` em `marrcandre/julib-backups` estão `disabled_manually`. `DEPLOY_ENABLED=false`. A validação local passou (`make check-local`: 319 backend, 1 ignorado, 61 frontend, build, Ruff, mypy e Django; `make e2e-local`: 43/43). Nenhum enriquecimento de dados de produção foi executado. Para uma biblioteca real, qualquer prévia não destrutiva deve continuar explícita por `--library`, seguir os limites dos provedores e não usar `--apply`; este pedido também determinou que não se execute comando de enriquecimento em dados reais nesta publicação.
+
+## Publicação da correção de cadastro manual — v0.7.1
+
+Publicação manual em 22/11/2026, sem reativar workflows. O PR da correção [#33](https://github.com/marrcandre/julib/pull/33) foi integrado por squash no commit `88feb677c4b4d209c27e7d36e330ed72f838ef0a`; o PR de preparação de versão [#34](https://github.com/marrcandre/julib/pull/34) foi integrado por squash no commit publicado `cddc44132058d1dcfc1487ff3aa07c8ffdde401f`. A tag anotada `v0.7.1` e a [GitHub Release](https://github.com/marrcandre/julib/releases/tag/v0.7.1) apontam para o mesmo commit `cddc441`.
+
+Somente o frontend foi atualizado. O deployment Vercel `dpl_AZJembP87hCLqVSELimhPRZxDw8z` ficou `READY` em produção e assumiu o alias `https://julib.vercel.app`; a API de deployments confirmou `githubCommitSha=cddc44132058d1dcfc1487ff3aa07c8ffdde401f`. O backend não foi alterado nem redeployado; o deployment anterior permanece `dpl_4gRxryo5Q43QXGPMw9AFXhchaqWW`.
+
+O smoke test somente de leitura obteve HTTP 200 na página inicial, na rota `/livros?novo=1`, em `/api/v1/health/ready` no backend e na mesma readiness pelo proxy do frontend. Em sessão autenticada, a tela de cadastro manual carregou e exibiu Subtítulo (500), Sinopse (20.000) e Categorias / Assuntos (10.049 caracteres). Nenhum livro foi criado. Na janela de logs pós-publicação consultada, houve 1 registro do frontend e 17 do backend, sem entradas `error` ou `fatal`.
+
+Validação local no commit de preparação: `make check-local` com 319 testes backend aprovados, 1 ignorado, 61 testes frontend aprovados e build concluído; `make e2e-local` com 43/43 aprovados. `scripts/release.py validate` aprovou `v0.7.1`; nenhuma migration foi executada.
+
+Após a publicação, `CI` e `Deploy` em `marrcandre/julib` e `Private manual backup` em `marrcandre/julib-backups` continuavam `disabled_manually`; `DEPLOY_ENABLED=false`.
